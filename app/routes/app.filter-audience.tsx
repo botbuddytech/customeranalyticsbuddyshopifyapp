@@ -57,12 +57,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Mock data for demonstration
     locations: {
       popular: ["United States", "Canada", "United Kingdom", "Australia"],
-      regions: ["North America", "Europe", "Asia", "South America", "Africa", "Oceania"],
-      international: ["India", "Germany", "France", "Japan", "Brazil", "Mexico"]
+      regions: [
+        "North America",
+        "Europe",
+        "Asia",
+        "South America",
+        "Africa",
+        "Oceania",
+      ],
+      international: [
+        "India",
+        "Germany",
+        "France",
+        "Japan",
+        "Brazil",
+        "Mexico",
+      ],
     },
     products: ["Product A", "Product B", "Product C", "Product D"],
     categories: ["Category 1", "Category 2", "Category 3"],
-    collections: ["Summer Collection", "Winter Collection", "Special Offers"]
+    collections: ["Summer Collection", "Winter Collection", "Special Offers"],
   };
 };
 
@@ -79,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return {
     success: true,
     filterData,
-    matchCount: Math.floor(Math.random() * 100) // Mock count of matching customers
+    matchCount: Math.floor(Math.random() * 100), // Mock count of matching customers
   };
 };
 
@@ -98,28 +112,27 @@ export default function FilterAudiencePage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
-
-              {/* ==========================================
+            {/* ==========================================
                    Compact Header
                    ========================================== */}
 
-              <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="100">
-                  <Text as="h1" variant="headingLg">
-                    🎯 Filter Audience
-                  </Text>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    Create targeted customer segments with advanced filters
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">Segment Builder</Badge>
-              </InlineStack>
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h1" variant="headingLg">
+                  🎯 Filter Audience
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Create targeted customer segments with advanced filters
+                </Text>
+              </BlockStack>
+              <Badge tone="info">Segment Builder</Badge>
+            </InlineStack>
 
-              <AudienceFilterForm />
-            </BlockStack>
-          </Layout.Section>
-        </Layout>
-      </Page>
+            <AudienceFilterForm />
+          </BlockStack>
+        </Layout.Section>
+      </Layout>
+    </Page>
   );
 }
 
@@ -135,7 +148,9 @@ function AudienceFilterForm() {
   // ==========================================
 
   // Compact state for essential sections only
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
     location: true,
     products: false,
     timing: false,
@@ -145,13 +160,15 @@ function AudienceFilterForm() {
   });
 
   // Selected filters state
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({
+  const [selectedFilters, setSelectedFilters] = useState<
+    Record<string, string[]>
+  >({
     location: [],
     products: [],
     timing: [],
     device: [],
     payment: [],
-    delivery: []
+    delivery: [],
   });
 
   // Form submission state
@@ -163,21 +180,27 @@ function AudienceFilterForm() {
   const toggleSection = (section: string) => {
     setExpandedSections({
       ...expandedSections,
-      [section]: !expandedSections[section]
+      [section]: !expandedSections[section],
     });
   };
 
   // Handle checkbox changes
-  const handleCheckboxChange = (section: string, value: string, checked: boolean) => {
+  const handleCheckboxChange = (
+    section: string,
+    value: string,
+    checked: boolean,
+  ) => {
     if (checked) {
       setSelectedFilters({
         ...selectedFilters,
-        [section]: [...(selectedFilters[section] || []), value]
+        [section]: [...(selectedFilters[section] || []), value],
       });
     } else {
       setSelectedFilters({
         ...selectedFilters,
-        [section]: (selectedFilters[section] || []).filter(item => item !== value)
+        [section]: (selectedFilters[section] || []).filter(
+          (item) => item !== value,
+        ),
       });
     }
   };
@@ -191,7 +214,7 @@ function AudienceFilterForm() {
     setTimeout(() => {
       setResults({
         matchCount: Math.floor(Math.random() * 1000) + 1,
-        filters: selectedFilters
+        filters: selectedFilters,
       });
       setIsSubmitting(false);
     }, 1500);
@@ -203,19 +226,29 @@ function AudienceFilterForm() {
 
   // Get total selected filters count
   const getTotalFiltersCount = () => {
-    return Object.values(selectedFilters).reduce((total, filters) => total + filters.length, 0);
+    return Object.values(selectedFilters).reduce(
+      (total, filters) => total + filters.length,
+      0,
+    );
   };
 
   // Get section icon
   const getSectionIcon = (section: string) => {
     switch (section) {
-      case 'location': return LocationIcon;
-      case 'products': return ProductIcon;
-      case 'timing': return ClockIcon;
-      case 'device': return PhoneIcon;
-      case 'payment': return CreditCardIcon;
-      case 'delivery': return DeliveryIcon;
-      default: return FilterIcon;
+      case "location":
+        return LocationIcon;
+      case "products":
+        return ProductIcon;
+      case "timing":
+        return ClockIcon;
+      case "device":
+        return PhoneIcon;
+      case "payment":
+        return CreditCardIcon;
+      case "delivery":
+        return DeliveryIcon;
+      default:
+        return FilterIcon;
     }
   };
 
@@ -224,7 +257,7 @@ function AudienceFilterForm() {
     title: string,
     section: string,
     options: string[],
-    emoji: string
+    emoji: string,
   ) => {
     const selectedCount = selectedFilters[section]?.length || 0;
     const isExpanded = expandedSections[section];
@@ -254,11 +287,18 @@ function AudienceFilterForm() {
           <Collapsible open={isExpanded} id={`section-${section}`}>
             <Grid>
               {options.map((option, index) => (
-                <Grid.Cell key={index} columnSpan={{ xs: 6, sm: 4, md: 3, lg: 3, xl: 3 }}>
+                <Grid.Cell
+                  key={index}
+                  columnSpan={{ xs: 6, sm: 4, md: 3, lg: 3, xl: 3 }}
+                >
                   <Checkbox
                     label={option}
-                    checked={selectedFilters[section]?.includes(option) || false}
-                    onChange={(checked) => handleCheckboxChange(section, option, checked)}
+                    checked={
+                      selectedFilters[section]?.includes(option) || false
+                    }
+                    onChange={(checked) =>
+                      handleCheckboxChange(section, option, checked)
+                    }
                   />
                 </Grid.Cell>
               ))}
@@ -272,14 +312,12 @@ function AudienceFilterForm() {
   return (
     <Form method="post" onSubmit={handleSubmit}>
       <Layout>
-
         {/* ==========================================
              Left Column: Filter Sections
              ========================================== */}
 
         <Layout.Section>
           <BlockStack gap="400">
-
             {/* Filter Summary Card */}
             <Card>
               <InlineStack align="space-between" blockAlign="center">
@@ -317,41 +355,71 @@ function AudienceFilterForm() {
               "Geographic Location",
               "location",
               [
-                "United States", "Canada", "United Kingdom", "Australia",
-                "India", "Germany", "France", "Japan", "Brazil", "Mexico",
-                "North America", "Europe", "Asia", "South America"
+                "United States",
+                "Canada",
+                "United Kingdom",
+                "Australia",
+                "India",
+                "Germany",
+                "France",
+                "Japan",
+                "Brazil",
+                "Mexico",
+                "North America",
+                "Europe",
+                "Asia",
+                "South America",
               ],
-              "🌍"
+              "🌍",
             )}
 
             {renderCompactFilterSection(
               "Products & Categories",
               "products",
               [
-                "Product A", "Product B", "Product C", "Product D",
-                "Category 1", "Category 2", "Category 3",
-                "Summer Collection", "Winter Collection", "Special Offers"
+                "Product A",
+                "Product B",
+                "Product C",
+                "Product D",
+                "Category 1",
+                "Category 2",
+                "Category 3",
+                "Summer Collection",
+                "Winter Collection",
+                "Special Offers",
               ],
-              "🛍️"
+              "🛍️",
             )}
 
             {renderCompactFilterSection(
               "Shopping Timing",
               "timing",
               [
-                "Morning (6am-12pm)", "Afternoon (12pm-6pm)", "Evening (6pm-12am)", "Night (12am-6am)",
-                "Weekdays", "Weekends", "Holidays", "Sale Events"
+                "Morning (6am-12pm)",
+                "Afternoon (12pm-6pm)",
+                "Evening (6pm-12am)",
+                "Night (12am-6am)",
+                "Weekdays",
+                "Weekends",
+                "Holidays",
+                "Sale Events",
               ],
-              "⏰"
+              "⏰",
             )}
 
             {renderCompactFilterSection(
               "Device & Platform",
               "device",
               [
-                "Desktop", "Mobile", "Tablet", "iOS", "Android", "Windows", "Mac"
+                "Desktop",
+                "Mobile",
+                "Tablet",
+                "iOS",
+                "Android",
+                "Windows",
+                "Mac",
               ],
-              "📱"
+              "📱",
             )}
 
             {/* Payment & Delivery Row */}
@@ -361,10 +429,16 @@ function AudienceFilterForm() {
                   "Payment Methods",
                   "payment",
                   [
-                    "Credit Card", "PayPal", "Apple Pay", "Google Pay",
-                    "Cash on Delivery", "Bank Transfer", "Gift Card", "Store Credit"
+                    "Credit Card",
+                    "PayPal",
+                    "Apple Pay",
+                    "Google Pay",
+                    "Cash on Delivery",
+                    "Bank Transfer",
+                    "Gift Card",
+                    "Store Credit",
                   ],
-                  "💳"
+                  "💳",
                 )}
               </Grid.Cell>
 
@@ -373,10 +447,16 @@ function AudienceFilterForm() {
                   "Delivery Preferences",
                   "delivery",
                   [
-                    "Standard Shipping", "Express Shipping", "Free Shipping", "Local Pickup",
-                    "Same-day Delivery", "International Shipping", "Scheduled Delivery", "Eco-friendly Packaging"
+                    "Standard Shipping",
+                    "Express Shipping",
+                    "Free Shipping",
+                    "Local Pickup",
+                    "Same-day Delivery",
+                    "International Shipping",
+                    "Scheduled Delivery",
+                    "Eco-friendly Packaging",
                   ],
-                  "🚚"
+                  "🚚",
                 )}
               </Grid.Cell>
             </Grid>
@@ -389,7 +469,6 @@ function AudienceFilterForm() {
 
         <Layout.Section variant="oneThird">
           <BlockStack gap="400">
-
             {/* Live Preview Card */}
             <Card>
               <BlockStack gap="300">
@@ -444,11 +523,7 @@ function AudienceFilterForm() {
                     Create Campaign
                   </Button>
 
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    disabled={!results}
-                  >
+                  <Button variant="secondary" fullWidth disabled={!results}>
                     Save to Lists
                   </Button>
                 </BlockStack>
@@ -462,10 +537,9 @@ function AudienceFilterForm() {
                   💡 Tips
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  • Start with location or product filters
-                  • Combine multiple criteria for precision
-                  • Use timing filters for seasonal campaigns
-                  • Preview updates in real-time
+                  • Start with location or product filters • Combine multiple
+                  criteria for precision • Use timing filters for seasonal
+                  campaigns • Preview updates in real-time
                 </Text>
               </BlockStack>
             </Card>
@@ -481,22 +555,25 @@ function AudienceFilterForm() {
               <Text as="h2" variant="headingLg">
                 🎉 Segment Created
               </Text>
-              <Badge tone="success">
-                {`${results.matchCount} customers`}
-              </Badge>
+              <Badge tone="success">{`${results.matchCount} customers`}</Badge>
             </InlineStack>
 
             <Banner tone="success">
-              <p>Your audience segment has been created successfully! You can now export the data or create targeted campaigns.</p>
+              <p>
+                Your audience segment has been created successfully! You can now
+                export the data or create targeted campaigns.
+              </p>
             </Banner>
 
             <BlockStack gap="200">
-              <Text as="h3" variant="headingMd">Applied Filters:</Text>
+              <Text as="h3" variant="headingMd">
+                Applied Filters:
+              </Text>
               <InlineStack gap="200" wrap>
                 {Object.entries(results.filters).flatMap(([section, values]) =>
                   (values as string[]).map((value, index) => (
                     <Tag key={`${section}-${index}`}>{value}</Tag>
-                  ))
+                  )),
                 )}
               </InlineStack>
             </BlockStack>
@@ -504,7 +581,9 @@ function AudienceFilterForm() {
             <InlineStack gap="200">
               <Button icon={ExportIcon}>Export CSV</Button>
               <Button icon={ExportIcon}>Export Excel</Button>
-              <Button variant="primary" icon={EmailIcon}>Create Campaign</Button>
+              <Button variant="primary" icon={EmailIcon}>
+                Create Campaign
+              </Button>
             </InlineStack>
           </BlockStack>
         </Card>

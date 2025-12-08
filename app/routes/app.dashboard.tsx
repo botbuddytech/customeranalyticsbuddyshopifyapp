@@ -15,7 +15,7 @@
 
 import { useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useRevalidator } from "react-router";
 import {
   Page,
   Text,
@@ -29,7 +29,7 @@ import {
   EmptyState,
   Spinner,
   Select,
-  Layout
+  Layout,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { RefreshIcon, ClipboardIcon } from "@shopify/polaris-icons";
@@ -58,38 +58,41 @@ ChartJS.register(
   ArcElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 );
 
 /**
  * Loader function that provides data for the dashboard
- * 
- * This function fetches all the data needed for the dashboard from our database.
- * It accepts a query parameter for date range and returns structured data for:
- * - Customer overview metrics
- * - Purchase and order behavior
- * - Engagement patterns
- * - Purchase timing analysis
+ *
+ * This function fetches REAL data from the merchant's Shopify store
+ * using the Admin GraphQL API.
+ *
+ * Data fetched:
+ * - Customer overview metrics (total, new, returning, inactive)
+ * - Purchase and order behavior (COD, prepaid, cancelled, abandoned)
+ * - Engagement patterns (discount users, wishlist, reviewers, subscribers)
+ * - Purchase timing analysis (morning, afternoon, evening, weekend)
  * - Chart data for visualizations
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Authenticate the request to ensure it's coming from a valid Shopify store
-  await authenticate.admin(request);
+  // Authenticate and get the admin GraphQL client
+  // This client allows us to query the merchant's Shopify store data
+  const { admin } = await authenticate.admin(request);
 
   // Get the URL object to extract query parameters
   const url = new URL(request.url);
-  
+
   // Extract date range from query parameters (default: last 30 days)
   // This allows users to filter data by different time periods
-  const dateRange = url.searchParams.get('dateRange') || '30days';
-  
-  // Import our dashboard service that contains all the database queries
-  const { getDashboardData } = await import('../services/dashboard.server');
-  
-  // Fetch all dashboard data using our service
-  // This single function call gets all the metrics we need
-  const dashboardData = await getDashboardData(dateRange);
-  
+  const dateRange = url.searchParams.get("dateRange") || "30days";
+
+  // Import our dashboard service that makes GraphQL queries
+  const { getDashboardData } = await import("../services/dashboard.server");
+
+  // Fetch all dashboard data from Shopify Admin API
+  // Pass the admin client to make authenticated API calls
+  const dashboardData = await getDashboardData(admin, dateRange);
+
   // Extract the data from our service response
   const {
     customerOverview,
@@ -98,20 +101,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     purchaseTiming,
     customerSegmentation,
     behavioralBreakdown,
-    lastUpdated
+    lastUpdated,
   } = dashboardData;
 
   // Chart data for Customer Segmentation (Pie Chart)
   // This chart shows the distribution of orders by payment type and status
   const orderTypeData = {
-    labels: ["COD Orders", "Prepaid Orders", "Cancelled Orders", "Abandoned Carts"],
+    labels: [
+      "COD Orders",
+      "Prepaid Orders",
+      "Cancelled Orders",
+      "Abandoned Carts",
+    ],
     datasets: [
       {
         data: [
           customerSegmentation.codOrders,
           customerSegmentation.prepaidOrders,
           customerSegmentation.cancelledOrders,
-          customerSegmentation.abandonedOrders
+          customerSegmentation.abandonedOrders,
         ],
         backgroundColor: [
           "rgba(255, 99, 132, 0.7)",
@@ -133,7 +141,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Chart data for Behavioral Breakdown (Bar Chart)
   // This chart shows the distribution of different customer engagement types
   const engagementData = {
-    labels: ["Discount Users", "Wishlist Users", "Reviewers", "Email Subscribers"],
+    labels: [
+      "Discount Users",
+      "Wishlist Users",
+      "Reviewers",
+      "Email Subscribers",
+    ],
     datasets: [
       {
         label: "Number of Users",
@@ -141,7 +154,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           behavioralBreakdown.discountUsers,
           behavioralBreakdown.wishlistUsers,
           behavioralBreakdown.reviewers,
-          behavioralBreakdown.emailSubscribers
+          behavioralBreakdown.emailSubscribers,
         ],
         backgroundColor: "rgba(54, 162, 235, 0.7)",
         borderColor: "rgba(54, 162, 235, 1)",
@@ -151,80 +164,151 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 
   // Mini chart data for trend lines
-  const generateMiniChartData = (value: number, trend: "up" | "down" | "stable" = "up") => {
+  const generateMiniChartData = (
+    value: number,
+    trend: "up" | "down" | "stable" = "up",
+  ) => {
     const baseData = [value * 0.7, value * 0.8, value * 0.75, value * 0.9];
 
     if (trend === "up") {
       return {
         labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        datasets: [{
-          data: [...baseData, value * 0.95, value],
-          borderColor: "rgba(75, 192, 192, 1)",
-          backgroundColor: "rgba(75, 192, 192, 0.2)",
-          fill: true,
-        }]
+        datasets: [
+          {
+            data: [...baseData, value * 0.95, value],
+            borderColor: "rgba(75, 192, 192, 1)",
+            backgroundColor: "rgba(75, 192, 192, 0.2)",
+            fill: true,
+          },
+        ],
       };
     } else if (trend === "down") {
       return {
         labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        datasets: [{
-          data: [value * 1.3, value * 1.2, value * 1.1, value * 1.05, value * 1.02, value],
-          borderColor: "rgba(255, 99, 132, 1)",
-          backgroundColor: "rgba(255, 99, 132, 0.2)",
-          fill: true,
-        }]
+        datasets: [
+          {
+            data: [
+              value * 1.3,
+              value * 1.2,
+              value * 1.1,
+              value * 1.05,
+              value * 1.02,
+              value,
+            ],
+            borderColor: "rgba(255, 99, 132, 1)",
+            backgroundColor: "rgba(255, 99, 132, 0.2)",
+            fill: true,
+          },
+        ],
       };
     } else {
       return {
         labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        datasets: [{
-          data: [value * 0.95, value * 1.05, value * 0.98, value * 1.02, value * 0.99, value],
-          borderColor: "rgba(54, 162, 235, 1)",
-          backgroundColor: "rgba(54, 162, 235, 0.2)",
-          fill: true,
-        }]
+        datasets: [
+          {
+            data: [
+              value * 0.95,
+              value * 1.05,
+              value * 0.98,
+              value * 1.02,
+              value * 0.99,
+              value,
+            ],
+            borderColor: "rgba(54, 162, 235, 1)",
+            backgroundColor: "rgba(54, 162, 235, 0.2)",
+            fill: true,
+          },
+        ],
       };
     }
   };
 
   // Generate mini chart data for each metric
   // These mini charts show trends for each KPI card
-  const customerGrowthData = generateMiniChartData(customerOverview.totalCustomers.count, "up");
-  const newCustomersData = generateMiniChartData(customerOverview.newCustomers.count, "up");
-  const returningCustomersData = generateMiniChartData(customerOverview.returningCustomers.count, "up");
-  const inactiveCustomersData = generateMiniChartData(customerOverview.inactiveCustomers.count, "down");
+  const customerGrowthData = generateMiniChartData(
+    customerOverview.totalCustomers.count,
+    "up",
+  );
+  const newCustomersData = generateMiniChartData(
+    customerOverview.newCustomers.count,
+    "up",
+  );
+  const returningCustomersData = generateMiniChartData(
+    customerOverview.returningCustomers.count,
+    "up",
+  );
+  const inactiveCustomersData = generateMiniChartData(
+    customerOverview.inactiveCustomers.count,
+    "down",
+  );
 
-  const codOrdersData = generateMiniChartData(orderBehavior.codOrders.count, "up");
-  const prepaidOrdersData = generateMiniChartData(orderBehavior.prepaidOrders.count, "up");
-  const cancelledOrdersData = generateMiniChartData(orderBehavior.cancelledOrders.count, "down");
-  const abandonedCartsData = generateMiniChartData(orderBehavior.abandonedOrders.count, "down");
+  const codOrdersData = generateMiniChartData(
+    orderBehavior.codOrders.count,
+    "up",
+  );
+  const prepaidOrdersData = generateMiniChartData(
+    orderBehavior.prepaidOrders.count,
+    "up",
+  );
+  const cancelledOrdersData = generateMiniChartData(
+    orderBehavior.cancelledOrders.count,
+    "down",
+  );
+  const abandonedCartsData = generateMiniChartData(
+    orderBehavior.abandonedOrders.count,
+    "down",
+  );
 
-  const discountUsersData = generateMiniChartData(engagementPatterns.discountUsers.count, "up");
-  const wishlistUsersData = generateMiniChartData(engagementPatterns.wishlistUsers.count, "up");
-  const reviewersData = generateMiniChartData(engagementPatterns.reviewers.count, "up");
-  const emailSubscribersData = generateMiniChartData(engagementPatterns.emailSubscribers.count, "up");
+  const discountUsersData = generateMiniChartData(
+    engagementPatterns.discountUsers.count,
+    "up",
+  );
+  const wishlistUsersData = generateMiniChartData(
+    engagementPatterns.wishlistUsers.count,
+    "up",
+  );
+  const reviewersData = generateMiniChartData(
+    engagementPatterns.reviewers.count,
+    "up",
+  );
+  const emailSubscribersData = generateMiniChartData(
+    engagementPatterns.emailSubscribers.count,
+    "up",
+  );
 
-  const morningPurchasesData = generateMiniChartData(purchaseTiming.morningPurchases.count, "up");
-  const afternoonPurchasesData = generateMiniChartData(purchaseTiming.afternoonPurchases.count, "up");
-  const eveningPurchasesData = generateMiniChartData(purchaseTiming.eveningPurchases.count, "up");
-  const weekendPurchasesData = generateMiniChartData(purchaseTiming.weekendPurchases.count, "up");
+  const morningPurchasesData = generateMiniChartData(
+    purchaseTiming.morningPurchases.count,
+    "up",
+  );
+  const afternoonPurchasesData = generateMiniChartData(
+    purchaseTiming.afternoonPurchases.count,
+    "up",
+  );
+  const eveningPurchasesData = generateMiniChartData(
+    purchaseTiming.eveningPurchases.count,
+    "up",
+  );
+  const weekendPurchasesData = generateMiniChartData(
+    purchaseTiming.weekendPurchases.count,
+    "up",
+  );
 
   return {
     // Customer Overview - Raw data from database
     customerOverview,
-    
+
     // Purchase & Order Behavior - Raw data from database
     orderBehavior,
-    
+
     // Engagement Patterns - Raw data from database
     engagementPatterns,
-    
+
     // Purchase Timing - Raw data from database
     purchaseTiming,
-    
+
     // Customer Segmentation - Raw data for pie chart
     customerSegmentation,
-    
+
     // Behavioral Breakdown - Raw data for bar chart
     behavioralBreakdown,
 
@@ -251,7 +335,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     morningPurchasesData,
     afternoonPurchasesData,
     eveningPurchasesData,
-    weekendPurchasesData
+    weekendPurchasesData,
   };
 };
 
@@ -260,9 +344,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
  */
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(null);
-  const [dateRangeValue, setDateRangeValue] = useState('last30Days');
+  const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(
+    null,
+  );
+  const [dateRangeValue, setDateRangeValue] = useState("last30Days");
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState({
     customerOverview: true,
@@ -270,16 +357,18 @@ export default function Dashboard() {
     engagementPatterns: true,
     purchaseTiming: true,
     customerSegmentation: true,
-    behavioralBreakdown: true
+    behavioralBreakdown: true,
   });
 
-  // Function to handle the refresh button click
+  // Function to handle the refresh button click - triggers actual data refetch
   const handleRefresh = () => {
     setIsLoading(true);
-    // Simulate a data refresh
+    // Use React Router's revalidator to refetch loader data from Shopify API
+    revalidator.revalidate();
+    // Reset loading state after revalidation completes
     setTimeout(() => {
       setIsLoading(false);
-    }, 1500);
+    }, 500);
   };
 
   // Function to handle the view segment button click
@@ -289,9 +378,9 @@ export default function Dashboard() {
 
   // Function to handle widget visibility toggle
   const handleWidgetToggle = (widgetKey: string) => {
-    setWidgetSettings(prev => ({
+    setWidgetSettings((prev) => ({
       ...prev,
-      [widgetKey]: !prev[widgetKey as keyof typeof prev]
+      [widgetKey]: !prev[widgetKey as keyof typeof prev],
     }));
   };
 
@@ -303,7 +392,7 @@ export default function Dashboard() {
   // Function to save dashboard customization
   const handleSaveCustomization = () => {
     // Here you would typically save the settings to backend/localStorage
-    alert('Dashboard customization saved! Your changes will be applied.');
+    alert("Dashboard customization saved! Your changes will be applied.");
     setShowCustomizeModal(false);
   };
 
@@ -408,7 +497,7 @@ export default function Dashboard() {
   interface InsightCard {
     title: string;
     value: number;
-    status?: 'success' | 'info' | 'warning' | 'critical' | 'new';
+    status?: "success" | "info" | "warning" | "critical" | "new";
     description?: string;
     showViewButton?: boolean;
   }
@@ -559,81 +648,81 @@ export default function Dashboard() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom' as const,
+        position: "bottom" as const,
         labels: {
           usePointStyle: true,
           padding: 20,
           font: {
-            size: 12
-          }
-        }
+            size: 12,
+          },
+        },
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
         titleFont: {
           size: 14,
-          weight: 'bold' as const
+          weight: "bold" as const,
         },
         bodyFont: {
-          size: 13
+          size: 13,
         },
         padding: 12,
         cornerRadius: 4,
         displayColors: true,
         boxWidth: 10,
         boxHeight: 10,
-        usePointStyle: true
-      }
-    }
+        usePointStyle: true,
+      },
+    },
   };
 
   // Behavioral Breakdown chart options
   const behavioralChartOptions = {
     ...chartOptions,
-    indexAxis: 'y' as const,
+    indexAxis: "y" as const,
     plugins: {
       ...chartOptions.plugins,
       legend: {
-        display: false
+        display: false,
       },
       tooltip: {
         ...chartOptions.plugins.tooltip,
         callbacks: {
-          label: function(context: any) {
+          label: function (context: any) {
             return `${context.dataset.label}: ${context.raw} users`;
-          }
-        }
-      }
+          },
+        },
+      },
     },
     scales: {
       x: {
         grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
+          color: "rgba(0, 0, 0, 0.05)",
         },
         ticks: {
           font: {
-            size: 12
-          }
-        }
+            size: 12,
+          },
+        },
       },
       y: {
         grid: {
-          display: false
+          display: false,
         },
         ticks: {
           font: {
             size: 13,
-            weight: 'bold' as const
-          }
-        }
-      }
+            weight: "bold" as const,
+          },
+        },
+      },
     },
     animation: {
       duration: 1000,
-      easing: 'easeOutQuart' as const
+      easing: "easeOutQuart" as const,
     },
     barThickness: 25,
-    borderRadius: 4
+    borderRadius: 4,
   };
 
   // Mini chart options
@@ -675,8 +764,11 @@ export default function Dashboard() {
         </Text>
         <Grid>
           {cards.map((card, index) => (
-            <Grid.Cell key={index} columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <div style={{ height: '100%' }}>
+            <Grid.Cell
+              key={index}
+              columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}
+            >
+              <div style={{ height: "100%" }}>
                 <Card padding="400">
                   <BlockStack gap="300">
                     {/* Card header with title and badge */}
@@ -685,14 +777,26 @@ export default function Dashboard() {
                         {card.title}
                       </Text>
                       {card.status && (
-                        <Badge tone={
-                          card.status === 'new' ? 'info' :
-                          card.status as 'success' | 'info' | 'warning' | 'critical'
-                        }>
-                          {card.status === 'new' ? 'New' :
-                          card.status === 'success' ? 'Good' :
-                          card.status === 'warning' ? 'Attention' :
-                          card.status === 'critical' ? 'Issue' : 'Info'}
+                        <Badge
+                          tone={
+                            card.status === "new"
+                              ? "info"
+                              : (card.status as
+                                  | "success"
+                                  | "info"
+                                  | "warning"
+                                  | "critical")
+                          }
+                        >
+                          {card.status === "new"
+                            ? "New"
+                            : card.status === "success"
+                              ? "Good"
+                              : card.status === "warning"
+                                ? "Attention"
+                                : card.status === "critical"
+                                  ? "Issue"
+                                  : "Info"}
                         </Badge>
                       )}
                     </InlineStack>
@@ -704,8 +808,8 @@ export default function Dashboard() {
                           {card.value.toLocaleString()}
                         </Text>
 
-                                                 {/* Mini line charts for all cards */}
-                         {/* Backend data: Each mini chart shows trend data generated from the corresponding metric
+                        {/* Mini line charts for all cards */}
+                        {/* Backend data: Each mini chart shows trend data generated from the corresponding metric
                               - customerGrowthData from customerOverview.totalCustomers.count
                               - newCustomersData from customerOverview.newCustomers.count
                               - returningCustomersData from customerOverview.returningCustomers.count
@@ -722,12 +826,12 @@ export default function Dashboard() {
                               - afternoonPurchasesData from purchaseTiming.afternoonPurchases.count
                               - eveningPurchasesData from purchaseTiming.eveningPurchases.count
                               - weekendPurchasesData from purchaseTiming.weekendPurchases.count */}
-                         <div style={{ width: '60px', height: '30px' }}>
-                           <Line
-                             data={getChartDataForCard(card.title, data)}
-                             options={miniChartOptions}
-                           />
-                         </div>
+                        <div style={{ width: "60px", height: "30px" }}>
+                          <Line
+                            data={getChartDataForCard(card.title, data)}
+                            options={miniChartOptions}
+                          />
+                        </div>
                       </InlineStack>
 
                       {card.showViewButton && (
@@ -753,12 +857,20 @@ export default function Dashboard() {
                         <Text as="p" variant="bodySm" fontWeight="semibold">
                           Your store is doing good
                         </Text>
-                        <Text as="p" variant="bodySm" tone={getGrowthTone(card.title)}>
+                        <Text
+                          as="p"
+                          variant="bodySm"
+                          tone={getGrowthTone(card.title)}
+                        >
                           {getGrowthIndicator(card.title)}
                         </Text>
                       </BlockStack>
                     ) : (
-                      <Text as="p" variant="bodySm" tone={getGrowthTone(card.title)}>
+                      <Text
+                        as="p"
+                        variant="bodySm"
+                        tone={getGrowthTone(card.title)}
+                      >
                         {getGrowthIndicator(card.title)}
                       </Text>
                     )}
@@ -776,209 +888,221 @@ export default function Dashboard() {
     <Page fullWidth>
       <TitleBar title="Customer Insights Dashboard" />
 
-        {/* Segment View Modal */}
-        {activeSegmentModal && (
-          <Modal
-            open={!!activeSegmentModal}
-            onClose={() => setActiveSegmentModal(null)}
-            title={`${activeSegmentModal} Segment`}
-            primaryAction={{
-              content: 'Export Data',
+      {/* Segment View Modal */}
+      {activeSegmentModal && (
+        <Modal
+          open={!!activeSegmentModal}
+          onClose={() => setActiveSegmentModal(null)}
+          title={`${activeSegmentModal} Segment`}
+          primaryAction={{
+            content: "Export Data",
+            onAction: () => setActiveSegmentModal(null),
+          }}
+          secondaryActions={[
+            {
+              content: "Close",
               onAction: () => setActiveSegmentModal(null),
-            }}
-            secondaryActions={[
-              {
-                content: 'Close',
-                onAction: () => setActiveSegmentModal(null),
-              },
-            ]}
-          >
-            <Modal.Section>
-              <EmptyState
-                heading={`${activeSegmentModal} Details`}
-                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-              >
-                <p>
-                  This is where you would see detailed information about the {activeSegmentModal.toLowerCase()} segment.
-                  In a real application, this would include a table of data, filters, and additional metrics.
-                </p>
-              </EmptyState>
-            </Modal.Section>
-          </Modal>
-        )}
+            },
+          ]}
+        >
+          <Modal.Section>
+            <EmptyState
+              heading={`${activeSegmentModal} Details`}
+              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+            >
+              <p>
+                This is where you would see detailed information about the{" "}
+                {activeSegmentModal.toLowerCase()} segment. In a real
+                application, this would include a table of data, filters, and
+                additional metrics.
+              </p>
+            </EmptyState>
+          </Modal.Section>
+        </Modal>
+      )}
 
-        {/* Loading overlay */}
-        {isLoading && (
-          <div style={{
-            position: 'fixed',
+      {/* Loading overlay */}
+      {isLoading && (
+        <div
+          style={{
+            position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            backgroundColor: "rgba(255, 255, 255, 0.7)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
             zIndex: 1000,
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <Spinner size="large" />
-              <Text as="p" variant="bodyMd">
-                Refreshing dashboard data...
-              </Text>
-            </div>
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <Spinner size="large" />
+            <Text as="p" variant="bodyMd">
+              Refreshing dashboard data...
+            </Text>
           </div>
-        )}
+        </div>
+      )}
 
-        <BlockStack gap="600">
-          <Card padding="400">
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="400">
-                  <Text variant="headingMd" as="h2">Dashboard Controls</Text>
-                  <Select
-                    label="Date range"
-                    labelHidden
-                    options={[
-                      { label: 'Today', value: 'today' },
-                      { label: 'Yesterday', value: 'yesterday' },
-                      { label: 'Last 7 days', value: 'last7Days' },
-                      { label: 'Last 30 days', value: 'last30Days' },
-                      { label: 'Last 90 days', value: 'last90Days' },
-                      { label: 'This month', value: 'thisMonth' },
-                      { label: 'Last month', value: 'lastMonth' },
-                      { label: 'Custom range', value: 'custom' },
-                    ]}
-                    value={dateRangeValue}
-                    onChange={setDateRangeValue}
-                  />
-                </InlineStack>
-
-                <InlineStack gap="200">
-                  <Button
-                    icon={isLoading ? undefined : RefreshIcon}
-                    onClick={handleRefresh}
-                    variant="primary"
-                    loading={isLoading}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Refreshing..." : "Refresh Data"}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleCustomizeDashboard}
-                    variant="secondary"
-                    disabled={isLoading}
-                  >
-                    Customize Dashboard
-                  </Button>
-                </InlineStack>
+      <BlockStack gap="600">
+        <Card padding="400">
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <InlineStack gap="400">
+                <Text variant="headingMd" as="h2">
+                  Dashboard Controls
+                </Text>
+                <Select
+                  label="Date range"
+                  labelHidden
+                  options={[
+                    { label: "Today", value: "today" },
+                    { label: "Yesterday", value: "yesterday" },
+                    { label: "Last 7 days", value: "last7Days" },
+                    { label: "Last 30 days", value: "last30Days" },
+                    { label: "Last 90 days", value: "last90Days" },
+                    { label: "This month", value: "thisMonth" },
+                    { label: "Last month", value: "lastMonth" },
+                    { label: "Custom range", value: "custom" },
+                  ]}
+                  value={dateRangeValue}
+                  onChange={setDateRangeValue}
+                />
               </InlineStack>
 
-                             <Text variant="bodyMd" as="p" tone="subdued">
-                 Currently showing data from {dateRangeValue === 'last30Days' ? 'the last 30 days' : 'the selected period'}.
-                 {/* Backend data: lastUpdated timestamp from getDashboardData() service */}
-                 Last updated: {new Date().toLocaleString()}
-               </Text>
-            </BlockStack>
-          </Card>
+              <InlineStack gap="200">
+                <Button
+                  icon={isLoading ? undefined : RefreshIcon}
+                  onClick={handleRefresh}
+                  variant="primary"
+                  loading={isLoading}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Refreshing..." : "Refresh Data"}
+                </Button>
 
-          <Layout>
-            {/* Customer Overview Section */}
-            {renderSection("Customers Overview", customerOverviewCards)}
-          </Layout>
+                <Button
+                  onClick={handleCustomizeDashboard}
+                  variant="secondary"
+                  disabled={isLoading}
+                >
+                  Customize Dashboard
+                </Button>
+              </InlineStack>
+            </InlineStack>
 
-          <Layout>
-            {/* Purchase & Order Behavior Section */}
-            {renderSection("Purchase & Order Behavior", orderBehaviorCards)}
-          </Layout>
+            <Text variant="bodyMd" as="p" tone="subdued">
+              Currently showing data from{" "}
+              {dateRangeValue === "last30Days"
+                ? "the last 30 days"
+                : "the selected period"}
+              .
+              {/* Backend data: lastUpdated timestamp from getDashboardData() service */}
+              Last updated: {new Date().toLocaleString()}
+            </Text>
+          </BlockStack>
+        </Card>
 
-          <Layout>
-            {/* Engagement Patterns Section */}
-            {renderSection("Engagement Patterns", engagementCards)}
-          </Layout>
+        <Layout>
+          {/* Customer Overview Section */}
+          {renderSection("Customers Overview", customerOverviewCards)}
+        </Layout>
 
-          {/* Charts Section - Side by Side */}
-          <Layout>
-            <Layout.Section>
-              <Text as="h2" variant="headingLg">
-                Visual Analytics
-              </Text>
-            </Layout.Section>
-          </Layout>
+        <Layout>
+          {/* Purchase & Order Behavior Section */}
+          {renderSection("Purchase & Order Behavior", orderBehaviorCards)}
+        </Layout>
 
-                     <Layout>
-             {/* Customer Segmentation Chart */}
-             <Layout.Section variant="oneHalf">
-               <div style={{ height: '100%' }}>
-                 <Card padding="400">
-                   <BlockStack gap="300">
-                   <Text as="h3" variant="headingMd">
-                     Customer Segmentation
-                   </Text>
-                   {/* Backend data: orderTypeData generated from customerSegmentation 
+        <Layout>
+          {/* Engagement Patterns Section */}
+          {renderSection("Engagement Patterns", engagementCards)}
+        </Layout>
+
+        {/* Charts Section - Side by Side */}
+        <Layout>
+          <Layout.Section>
+            <Text as="h2" variant="headingLg">
+              Visual Analytics
+            </Text>
+          </Layout.Section>
+        </Layout>
+
+        <Layout>
+          {/* Customer Segmentation Chart */}
+          <Layout.Section variant="oneHalf">
+            <div style={{ height: "100%" }}>
+              <Card padding="400">
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingMd">
+                    Customer Segmentation
+                  </Text>
+                  {/* Backend data: orderTypeData generated from customerSegmentation 
                         - customerSegmentation.codOrders from getCustomerSegmentation()
                         - customerSegmentation.prepaidOrders from getCustomerSegmentation()
                         - customerSegmentation.cancelledOrders from getCustomerSegmentation()
                         - customerSegmentation.abandonedOrders from getCustomerSegmentation() */}
-                   <div style={{ height: '350px', padding: '16px' }}>
-                     <Pie data={data.orderTypeData} options={chartOptions} />
-                   </div>
-                   <Text as="p" variant="bodySm" tone="subdued">
-                     Distribution of orders by payment type and status
-                   </Text>
-                   </BlockStack>
-                 </Card>
-               </div>
-             </Layout.Section>
+                  <div style={{ height: "350px", padding: "16px" }}>
+                    <Pie data={data.orderTypeData} options={chartOptions} />
+                  </div>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Distribution of orders by payment type and status
+                  </Text>
+                </BlockStack>
+              </Card>
+            </div>
+          </Layout.Section>
 
-                         {/* Behavioral Breakdown Chart */}
-             <Layout.Section variant="oneHalf">
-               <div style={{ height: '100%' }}>
-                 <Card padding="400">
-                   <BlockStack gap="300">
-                   <Text as="h3" variant="headingMd">
-                     Behavioral Breakdown
-                   </Text>
-                   {/* Backend data: engagementData generated from behavioralBreakdown
+          {/* Behavioral Breakdown Chart */}
+          <Layout.Section variant="oneHalf">
+            <div style={{ height: "100%" }}>
+              <Card padding="400">
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingMd">
+                    Behavioral Breakdown
+                  </Text>
+                  {/* Backend data: engagementData generated from behavioralBreakdown
                         - behavioralBreakdown.discountUsers from getBehavioralBreakdown()
                         - behavioralBreakdown.wishlistUsers from getBehavioralBreakdown()
                         - behavioralBreakdown.reviewers from getBehavioralBreakdown()
                         - behavioralBreakdown.emailSubscribers from getBehavioralBreakdown() */}
-                   <div style={{ height: '350px', padding: '16px' }}>
-                     <Bar
-                       data={data.engagementData}
-                       options={behavioralChartOptions}
-                     />
-                   </div>
-                   <InlineStack align="space-between">
-                     <Text as="p" variant="bodySm" tone="subdued">
-                       Comparison of different customer engagement types
-                     </Text>
-                     <Text as="p" variant="bodySm" tone="success">
-                       ↑ 32% overall engagement growth
-                     </Text>
-                   </InlineStack>
-                   </BlockStack>
-                 </Card>
-               </div>
-             </Layout.Section>
-          </Layout>
+                  <div style={{ height: "350px", padding: "16px" }}>
+                    <Bar
+                      data={data.engagementData}
+                      options={behavioralChartOptions}
+                    />
+                  </div>
+                  <InlineStack align="space-between">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Comparison of different customer engagement types
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="success">
+                      ↑ 32% overall engagement growth
+                    </Text>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            </div>
+          </Layout.Section>
+        </Layout>
 
-          <Layout>
-            {/* Purchase Timing Section */}
-            {renderSection("Purchase Timing", purchaseTimingCards)}
-          </Layout>
-        </BlockStack>
-      </Page>
+        <Layout>
+          {/* Purchase Timing Section */}
+          {renderSection("Purchase Timing", purchaseTimingCards)}
+        </Layout>
+      </BlockStack>
+    </Page>
   );
 }

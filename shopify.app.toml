@@ -22,7 +22,17 @@ api_version = "2026-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+# Scopes needed for Customer Analytics Dashboard:
+# - read_customers: Access customer data (total, new, returning, inactive)
+# - read_orders: Access order data (COD, prepaid, cancelled, purchase timing)
+# - read_checkouts: Access abandoned checkout data
+# - write_products: Original scope for product management
+scopes = "read_customers,read_orders,read_checkouts,write_products"
+
+# Protected customer data access - required for customer analytics
+# See: https://shopify.dev/docs/apps/launch/protected-customer-data
+[access_scopes.use_protected_customer_data_by_default]
+approved = true
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
