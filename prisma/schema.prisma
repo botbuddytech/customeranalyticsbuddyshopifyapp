@@ -11,13 +11,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Add your custom data models here
-// Example:
-// model OnboardingProgress {
-//   id             String   @id @default(uuid())
-//   shop           String   @unique
-//   completedSteps Int[]    @default([])
-//   currentRating  Int      @default(0)
-//   createdAt      DateTime @default(now())
-//   updatedAt      DateTime @updatedAt
-// }
+// Config model - Stores onboarding progress and app configuration per shop
+model Config {
+  id             String   @id @default(uuid())
+  shop           String   @unique
+  completedSteps String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("onboardingtaskdata")
+}

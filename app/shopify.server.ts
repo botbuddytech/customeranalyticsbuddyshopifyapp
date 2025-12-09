@@ -7,7 +7,7 @@ import {
 import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlite";
 
 // SQLite for Shopify sessions (no Prisma)
-const sessionStorage = new SQLiteSessionStorage("./sessions.sqlite");
+const sqliteSessionStorage = new SQLiteSessionStorage("./sessions.sqlite");
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -16,7 +16,7 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  sessionStorage: sessionStorage,
+  sessionStorage: sqliteSessionStorage,
   distribution: AppDistribution.AppStore,
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }

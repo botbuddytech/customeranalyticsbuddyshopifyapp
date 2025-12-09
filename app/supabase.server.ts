@@ -38,11 +38,11 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
  */
 export const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
   : null;
 
 /**
@@ -59,10 +59,8 @@ export const isSupabaseConfigured = () => {
 export interface OnboardingProgress {
   id: string;
   shop: string;
-  completed_steps: number[];
-  current_rating: number;
-  feedback_submitted: boolean;
-  created_at: string;
-  updated_at: string;
+  completedSteps: string[]; // Array of step IDs as strings, e.g., ["1", "2"]
+  createdAt: string;
+  updatedAt: string;
 }
 
