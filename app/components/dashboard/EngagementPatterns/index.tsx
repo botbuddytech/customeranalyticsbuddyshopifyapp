@@ -7,6 +7,12 @@ import { EmailSubscribers } from "./EmailSubscribers/EmailSubscribers";
 interface EngagementPatternsProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  visibility?: {
+    discountUsers?: boolean;
+    wishlistUsers?: boolean;
+    reviewers?: boolean;
+    emailSubscribers?: boolean;
+  };
 }
 
 /**
@@ -18,7 +24,24 @@ interface EngagementPatternsProps {
 export function EngagementPatterns({
   dateRange = "30days",
   onViewSegment,
+  visibility,
 }: EngagementPatternsProps) {
+  // Default to showing all if visibility is not provided
+  const showDiscountUsers = visibility?.discountUsers !== false;
+  const showWishlistUsers = visibility?.wishlistUsers !== false;
+  const showReviewers = visibility?.reviewers !== false;
+  const showEmailSubscribers = visibility?.emailSubscribers !== false;
+
+  // Don't render section if no cards are visible
+  if (
+    !showDiscountUsers &&
+    !showWishlistUsers &&
+    !showReviewers &&
+    !showEmailSubscribers
+  ) {
+    return null;
+  }
+
   return (
     <Layout.Section>
       <BlockStack gap="400">
@@ -26,21 +49,38 @@ export function EngagementPatterns({
           Engagement Patterns
         </Text>
         <Grid>
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <DiscountUsers dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          {showDiscountUsers && (
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <DiscountUsers
+                dateRange={dateRange}
+                onViewSegment={onViewSegment}
+              />
+            </Grid.Cell>
+          )}
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <WishlistUsers dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          {showWishlistUsers && (
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <WishlistUsers
+                dateRange={dateRange}
+                onViewSegment={onViewSegment}
+              />
+            </Grid.Cell>
+          )}
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <Reviewers dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          {showReviewers && (
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <Reviewers dateRange={dateRange} onViewSegment={onViewSegment} />
+            </Grid.Cell>
+          )}
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <EmailSubscribers dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          {showEmailSubscribers && (
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <EmailSubscribers
+                dateRange={dateRange}
+                onViewSegment={onViewSegment}
+              />
+            </Grid.Cell>
+          )}
         </Grid>
       </BlockStack>
     </Layout.Section>

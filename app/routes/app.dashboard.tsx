@@ -15,7 +15,9 @@
  * NOTE: Each component fetches its own data independently via API routes.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { LoaderFunctionArgs } from "react-router";
+import { useLoaderData } from "react-router";
 import {
   Page,
   BlockStack,
@@ -39,12 +41,17 @@ import {
 } from "chart.js";
 
 // Import modular dashboard components
-import { DashboardControls } from "../components/dashboard/DashboardControls";
+import {
+  DashboardControls,
+  type DashboardVisibility,
+} from "../components/dashboard/DashboardControls";
 import { CustomersOverview } from "../components/dashboard/CustomersOverview/index";
 import { PurchaseOrderBehavior } from "../components/dashboard/PurchaseOrderBehavior/index";
 import { EngagementPatterns } from "../components/dashboard/EngagementPatterns/index";
-import { PurchaseTiming } from "../components/dashboard/PurchaseTiming";
-import { VisualAnalytics } from "../components/dashboard/VisualAnalytics";
+import { PurchaseTiming } from "../components/dashboard/PurchaseTiming/index";
+import { VisualAnalytics } from "../components/dashboard/VisualAnalytics/index";
+import { getDashboardPreferences } from "../services/dashboard-preferences.server";
+import { authenticate } from "../shopify.server";
 
 // Register Chart.js components
 ChartJS.register(
@@ -60,17 +67,48 @@ ChartJS.register(
 );
 
 /**
+ * Loader function - Load dashboard preferences from Supabase
+ */
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  try {
+    const preferences = await getDashboardPreferences(shop);
+    return { preferences };
+  } catch (error) {
+    console.error(
+      `[Dashboard] Error loading preferences for shop ${shop}:`,
+      error,
+    );
+    // Return default preferences on error
+    return { preferences: null };
+  }
+};
+
+/**
  * Main component for the dashboard
  *
  * Each section component fetches its own data independently.
  * No prop passing - clean and modular!
  */
 export default function Dashboard() {
+  const { preferences: savedPreferences } = useLoaderData<typeof loader>();
   const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(
     null,
   );
   const [dateRangeValue, setDateRangeValue] = useState("last30Days");
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [visibility, setVisibility] = useState<DashboardVisibility | null>(
+    savedPreferences || null,
+  );
+
+  // Load saved preferences on mount
+  useEffect(() => {
+    if (savedPreferences) {
+      setVisibility(savedPreferences);
+    }
+  }, [savedPreferences]);
 
   // Function to handle the view segment button click
   const handleViewSegment = (segmentName: string) => {
@@ -82,11 +120,9 @@ export default function Dashboard() {
     setShowCustomizeModal(true);
   };
 
-  // Function to save dashboard customization
-  const handleSaveCustomization = () => {
-    // Here you would typically save the settings to backend/localStorage
-    alert("Dashboard customization saved! Your changes will be applied.");
-    setShowCustomizeModal(false);
+  // Function to handle visibility changes
+  const handleVisibilityChange = (newVisibility: DashboardVisibility) => {
+    setVisibility(newVisibility);
   };
 
   // Convert dateRangeValue to API format
@@ -150,31 +186,42 @@ export default function Dashboard() {
           dateRangeValue={dateRangeValue}
           onDateRangeChange={setDateRangeValue}
           onCustomize={handleCustomizeDashboard}
+          onVisibilityChange={handleVisibilityChange}
+          initialVisibility={savedPreferences}
         />
 
         {/* Customers Overview Section - Fetches its own data */}
-        <Layout>
-          <CustomersOverview
-            dateRange={apiDateRange}
-            onViewSegment={handleViewSegment}
-          />
-        </Layout>
+        {visibility?.customersOverview.enabled !== false && (
+          <Layout>
+            <CustomersOverview
+              dateRange={apiDateRange}
+              onViewSegment={handleViewSegment}
+              visibility={visibility?.customersOverview.cards}
+            />
+          </Layout>
+        )}
 
         {/* Purchase & Order Behavior Section - Fetches its own data */}
-        <Layout>
-          <PurchaseOrderBehavior
-            dateRange={apiDateRange}
-            onViewSegment={handleViewSegment}
-          />
-        </Layout>
+        {visibility?.purchaseOrderBehavior.enabled !== false && (
+          <Layout>
+            <PurchaseOrderBehavior
+              dateRange={apiDateRange}
+              onViewSegment={handleViewSegment}
+              visibility={visibility?.purchaseOrderBehavior.cards}
+            />
+          </Layout>
+        )}
 
         {/* Engagement Patterns Section - Fetches its own data */}
-        <Layout>
-          <EngagementPatterns
-            dateRange={apiDateRange}
-            onViewSegment={handleViewSegment}
-          />
-        </Layout>
+        {visibility?.engagementPatterns.enabled !== false && (
+          <Layout>
+            <EngagementPatterns
+              dateRange={apiDateRange}
+              onViewSegment={handleViewSegment}
+              visibility={visibility?.engagementPatterns.cards}
+            />
+          </Layout>
+        )}
 
         {/* Visual Analytics Section - Fetches its own data */}
         <VisualAnalytics dateRange={apiDateRange} />

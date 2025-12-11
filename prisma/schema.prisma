@@ -21,3 +21,14 @@ model Config {
 
   @@map("onboardingtaskdata")
 }
+
+// DashboardPreferences model - Stores dashboard visibility preferences per shop
+model DashboardPreferences {
+  id               String   @id @default(uuid())
+  shop             String   @unique
+  visibilityConfig String   @db.Text // JSON string of DashboardVisibility
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("dashboard_preferences")
+}
