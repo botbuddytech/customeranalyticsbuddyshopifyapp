@@ -188,6 +188,7 @@ export default function Dashboard() {
           onCustomize={handleCustomizeDashboard}
           onVisibilityChange={handleVisibilityChange}
           initialVisibility={savedPreferences}
+          currentVisibility={visibility}
         />
 
         {/* Customers Overview Section - Fetches its own data */}

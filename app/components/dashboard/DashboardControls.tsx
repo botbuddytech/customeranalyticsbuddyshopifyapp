@@ -17,6 +17,7 @@ interface DashboardControlsProps {
   onCustomize: () => void;
   onVisibilityChange?: (visibility: DashboardVisibility) => void;
   initialVisibility?: DashboardVisibility | null;
+  currentVisibility?: DashboardVisibility | null; // Current applied visibility state
 }
 
 export interface DashboardVisibility {
@@ -92,29 +93,43 @@ export function DashboardControls({
   onCustomize,
   onVisibilityChange,
   initialVisibility,
+  currentVisibility,
 }: DashboardControlsProps) {
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [visibility, setVisibility] = useState<DashboardVisibility>(
     initialVisibility || DEFAULT_VISIBILITY,
   );
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Update visibility when initialVisibility changes (from Supabase)
+  // Update visibility when initialVisibility changes (from Supabase on mount)
   useEffect(() => {
     if (initialVisibility) {
       setVisibility(initialVisibility);
-      onVisibilityChange?.(initialVisibility);
-    } else {
-      onVisibilityChange?.(DEFAULT_VISIBILITY);
     }
   }, [initialVisibility]);
 
+  // Update visibility when currentVisibility changes (after save)
+  useEffect(() => {
+    if (currentVisibility) {
+      setVisibility(currentVisibility);
+    }
+  }, [currentVisibility]);
+
   const handleCustomizeClick = () => {
+    // Reset to current applied state when opening modal (discard any unsaved changes)
+    // Use currentVisibility if available (after save), otherwise use initialVisibility
+    const stateToUse = currentVisibility || initialVisibility;
+    if (stateToUse) {
+      setVisibility(stateToUse);
+    }
     setShowCustomizeModal(true);
     onCustomize();
   };
 
   // Save preferences to Supabase
-  const savePreferences = async (newVisibility: DashboardVisibility) => {
+  const savePreferences = async (
+    newVisibility: DashboardVisibility,
+  ): Promise<boolean> => {
     try {
       const formData = new FormData();
       formData.append("preferences", JSON.stringify(newVisibility));
@@ -127,16 +142,29 @@ export function DashboardControls({
       if (!response.ok) {
         throw new Error("Failed to save preferences");
       }
+
+      return true;
     } catch (error) {
       console.error("[Dashboard Controls] Error saving preferences:", error);
-      // Continue even if save fails - user can retry
+      return false;
     }
   };
 
-  const handleSave = () => {
-    savePreferences(visibility);
-    onVisibilityChange?.(visibility);
-    setShowCustomizeModal(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const success = await savePreferences(visibility);
+      if (success) {
+        // Only update UI and close modal after successful save
+        onVisibilityChange?.(visibility);
+        setShowCustomizeModal(false);
+      } else {
+        // Show error message or keep modal open
+        // You could add a toast/notification here
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSectionToggle = (section: keyof DashboardVisibility) => {
@@ -190,9 +218,8 @@ export function DashboardControls({
         };
       }
 
-      // Save to Supabase
-      savePreferences(newVisibility);
-      onVisibilityChange?.(newVisibility);
+      // Don't save immediately - only update local state
+      // Save will happen when user clicks "Save" button
       return newVisibility;
     });
   };
@@ -218,9 +245,8 @@ export function DashboardControls({
         },
       };
 
-      // Save to Supabase
-      savePreferences(newVisibility);
-      onVisibilityChange?.(newVisibility);
+      // Don't save immediately - only update local state
+      // Save will happen when user clicks "Save" button
       return newVisibility;
     });
   };
@@ -275,9 +301,8 @@ export function DashboardControls({
         };
       }
 
-      // Save to Supabase
-      savePreferences(newVisibility);
-      onVisibilityChange?.(newVisibility);
+      // Don't save immediately - only update local state
+      // Save will happen when user clicks "Save" button
       return newVisibility;
     });
   };
@@ -328,16 +353,19 @@ export function DashboardControls({
 
       <Modal
         open={showCustomizeModal}
-        onClose={() => setShowCustomizeModal(false)}
+        onClose={() => !isSaving && setShowCustomizeModal(false)}
         title="Customize Dashboard"
         primaryAction={{
-          content: "Save",
+          content: isSaving ? "Saving..." : "Save",
           onAction: handleSave,
+          loading: isSaving,
+          disabled: isSaving,
         }}
         secondaryActions={[
           {
             content: "Cancel",
-            onAction: () => setShowCustomizeModal(false),
+            onAction: () => !isSaving && setShowCustomizeModal(false),
+            disabled: isSaving,
           },
         ]}
       >
