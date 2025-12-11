@@ -11,6 +11,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const data = await getEmailSubscribersQuery(admin, dateRange);
     return Response.json(data);
   } catch (error: any) {
+    if (error.message === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+      console.log(
+        "[Email Subscribers API] Protected customer data access denied - user needs to request access in Partner Dashboard",
+      );
+      return Response.json(
+        { error: "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" },
+        { status: 403 }
+      );
+    }
     throw error;
   }
 };

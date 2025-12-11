@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
+import { Modal, DataTable, Text, Spinner, BlockStack } from "@shopify/polaris";
+import { useFetcher } from "react-router";
 import { InsightCard } from "../../InsightCard";
 import { InsightCardSkeleton } from "../../InsightCardSkeleton";
 import { miniChartOptions } from "../../dashboardUtils";
-import { useFetcher } from "react-router";
+import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
 
 interface ReviewersData {
   count: number;
@@ -13,6 +15,34 @@ interface ReviewersData {
 interface ReviewersProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  numberOfOrders: number;
+  totalSpent: string;
+}
+
+interface CustomersListData {
+  customers: Customer[];
+  total: number;
+  error?: string;
+}
+
+function getDateRangeLabel(dateRange: string): string {
+  switch (dateRange) {
+    case "today": return "today";
+    case "yesterday": return "yesterday";
+    case "7days": case "last7Days": return "the last 7 days";
+    case "30days": case "last30Days": return "the last 30 days";
+    case "90days": case "last90Days": return "the last 90 days";
+    case "thisMonth": return "this month";
+    case "lastMonth": return "last month";
+    default: return "the selected period";
+  }
 }
 
 function getPeriodLabel(dateRange: string): string {
@@ -58,23 +88,33 @@ export function Reviewers({
   onViewSegment,
 }: ReviewersProps) {
   const fetcher = useFetcher<ReviewersData>();
+  const customersListFetcher = useFetcher<CustomersListData>();
   const [data, setData] = useState<ReviewersData | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showCustomersModal, setShowCustomersModal] = useState(false);
 
   useEffect(() => {
     setData(null);
+    setShowAccessModal(false);
+    setShowCustomersModal(false);
     fetcher.load(
       `/api/dashboard/engagement-patterns/reviewers?dateRange=${dateRange}`,
     );
   }, [dateRange]);
 
   useEffect(() => {
-    if (fetcher.data && typeof fetcher.data.count === "number") {
-      setData({
-        count: fetcher.data.count,
-        dataPoints: Array.isArray(fetcher.data.dataPoints)
-          ? fetcher.data.dataPoints
-          : [],
-      });
+    if (fetcher.data) {
+      if (fetcher.data.error === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
+        setShowAccessModal(true);
+        setData(null);
+      } else if (typeof fetcher.data.count === "number") {
+        setData({
+          count: fetcher.data.count,
+          dataPoints: Array.isArray(fetcher.data.dataPoints)
+            ? fetcher.data.dataPoints
+            : [],
+        });
+      }
     }
   }, [fetcher.data]);
 
@@ -143,8 +183,20 @@ export function Reviewers({
       };
     }, [data, dateRange]);
 
-  if (!data) {
+  // Show skeleton while loading
+  if (!data && !showAccessModal) {
     return <InsightCardSkeleton />;
+  }
+
+  if (!data) {
+    return showAccessModal ? (
+      <ProtectedDataAccessModal
+        open={showAccessModal}
+        onClose={() => setShowAccessModal(false)}
+        dataType="order"
+        featureName="Reviewers"
+      />
+    ) : null;
   }
 
   const chartData =
@@ -208,19 +260,158 @@ export function Reviewers({
       }
     : miniChartOptions;
 
+  // Handle view segment button click
+  const handleViewSegment = (segmentName: string) => {
+    if (segmentName === "Reviewers") {
+      setShowCustomersModal(true);
+      customersListFetcher.load(
+        `/api/dashboard/engagement-patterns/reviewers/list?dateRange=${dateRange}`,
+      );
+    } else if (onViewSegment) {
+      onViewSegment(segmentName);
+    }
+  };
+
+  // Handle export data to CSV
+  const handleExportData = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) {
+      return;
+    }
+
+    const headers = ["Name", "Email", "Created At", "Number of Orders", "Total Spent"];
+
+    const csvRows = [
+      headers.join(","),
+      ...customers.map((customer) =>
+        [
+          `"${customer.name.replace(/"/g, '""')}"`,
+          `"${customer.email.replace(/"/g, '""')}"`,
+          `"${customer.createdAt}"`,
+          `"${customer.numberOfOrders}"`,
+          `"${customer.totalSpent}"`,
+        ].join(","),
+      ),
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `reviewers-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Prepare table data
+  const tableRows =
+    customersListFetcher.data?.customers?.map((customer) => [
+      customer.name,
+      customer.email,
+      customer.createdAt,
+      customer.numberOfOrders.toString(),
+      customer.totalSpent,
+    ]) || [];
+
+  const tableHeadings = [
+    "Name",
+    "Email",
+    "Created At",
+    "Number of Orders",
+    "Total Spent",
+  ];
+
   return (
-    <InsightCard
-      title="Reviewers"
-      value={data.count}
-      status={status}
-      description={description}
-      showViewButton={false}
-      miniChartData={chartData}
-      growthIndicator={growthIndicator || undefined}
-      growthTone={growthTone}
-      onViewSegment={onViewSegment}
-      miniChartOptions={customChartOptions}
-    />
+    <>
+      <InsightCard
+        title="Reviewers"
+        value={data.count}
+        status={status}
+        description={description}
+        showViewButton={true}
+        miniChartData={chartData}
+        growthIndicator={growthIndicator || undefined}
+        growthTone={growthTone}
+        onViewSegment={handleViewSegment}
+        miniChartOptions={customChartOptions}
+      />
+
+      <ProtectedDataAccessModal
+        open={showAccessModal}
+        onClose={() => setShowAccessModal(false)}
+        dataType="order"
+        featureName="Reviewers"
+      />
+
+      <Modal
+        open={showCustomersModal}
+        onClose={() => setShowCustomersModal(false)}
+        title={`Reviewers - ${getDateRangeLabel(dateRange)}`}
+        primaryAction={{
+          content: "Close",
+          onAction: () => setShowCustomersModal(false),
+        }}
+        secondaryActions={[
+          {
+            content: "Export Data",
+            onAction: handleExportData,
+            disabled:
+              !customersListFetcher.data?.customers ||
+              customersListFetcher.data.customers.length === 0 ||
+              customersListFetcher.state === "loading",
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {customersListFetcher.state === "loading" ? (
+              <div style={{ textAlign: "center", padding: "2rem" }}>
+                <Spinner size="large" />
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Loading customers...
+                </Text>
+              </div>
+            ) : customersListFetcher.data?.error ===
+              "PROTECTED_ORDER_DATA_ACCESS_DENIED" ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Access to order data is required to view this list. Please
+                request access in your Partner Dashboard.
+              </Text>
+            ) : customersListFetcher.data?.customers &&
+              customersListFetcher.data.customers.length > 0 ? (
+              <>
+                <Text as="p" variant="bodyMd">
+                  Showing {customersListFetcher.data.total} customer
+                  {customersListFetcher.data.total !== 1 ? "s" : ""} who submitted reviews for{" "}
+                  {getDateRangeLabel(dateRange)}.
+                </Text>
+                <DataTable
+                  columnContentTypes={[
+                    "text",
+                    "text",
+                    "text",
+                    "numeric",
+                    "text",
+                  ]}
+                  headings={tableHeadings}
+                  rows={tableRows}
+                />
+              </>
+            ) : (
+              <Text as="p" variant="bodyMd">
+                No reviewers found for {getDateRangeLabel(dateRange)}.
+              </Text>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+    </>
   );
 }
 

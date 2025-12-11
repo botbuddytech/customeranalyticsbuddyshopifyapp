@@ -178,16 +178,38 @@ export async function getDiscountUsersQuery(
   }
 
   // Build dataPoints (for chart)
-  // For each date point, get cumulative discount users up to that date
-  for (const date of dates) {
+  // For "today": 1 point (today only)
+  // For other ranges: 2 points (start date and end date)
+  // - Start point: Discount users on that specific day
+  // - End point: Discount users in the full range (startDate to endDate)
+  for (let i = 0; i < dates.length; i++) {
+    const date = dates[i];
     try {
-      // Query orders from start of range up to this date point
-      const count = await getDiscountUsersForRange(startDate, date);
-      const dateString = date.toISOString().split("T")[0];
-      dataPoints.push({
-        date: dateString,
-        count,
-      });
+      if (dateRange === "today") {
+        // For "today", get discount users for today only
+        const count = await getDiscountUsersForRange(date, date);
+        const dateString = date.toISOString().split("T")[0];
+        dataPoints.push({
+          date: dateString,
+          count,
+        });
+      } else if (i === 0) {
+        // First date point is the start date - get discount users on that specific day
+        const count = await getDiscountUsersForRange(date, date);
+        const dateString = date.toISOString().split("T")[0];
+        dataPoints.push({
+          date: dateString,
+          count,
+        });
+      } else {
+        // Second date point is the end date - get discount users in the full range (startDate to endDate)
+        const count = await getDiscountUsersForRange(startDate, date);
+        const dateString = date.toISOString().split("T")[0];
+        dataPoints.push({
+          date: dateString,
+          count,
+        });
+      }
     } catch (error: any) {
       if (error.message === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
         throw error;
@@ -201,8 +223,8 @@ export async function getDiscountUsersQuery(
     }
   }
 
-  // Calculate total count (use end date count as the main count)
-  const totalCount = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].count : 0;
+  // Calculate total count: Unique customers who used discounts WITHIN the date range
+  const totalCount = await getDiscountUsersForRange(startDate, endDate);
 
   return {
     count: totalCount,

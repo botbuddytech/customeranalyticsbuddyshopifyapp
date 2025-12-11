@@ -11,6 +11,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const data = await getWishlistUsersQuery(admin, dateRange);
     return Response.json(data);
   } catch (error: any) {
+    if (error.message === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
+      console.log(
+        "[Wishlist Users API] Protected order data access denied - user needs to request access in Partner Dashboard",
+      );
+      return Response.json(
+        { error: "PROTECTED_ORDER_DATA_ACCESS_DENIED" },
+        { status: 403 }
+      );
+    }
     throw error;
   }
 };
