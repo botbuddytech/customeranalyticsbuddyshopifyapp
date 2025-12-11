@@ -1,20 +1,42 @@
 import { useEffect, useState, useMemo } from "react";
-import { Modal, DataTable, Text, Spinner, BlockStack } from "@shopify/polaris";
+import {
+  Modal,
+  DataTable,
+  Text,
+  Spinner,
+  BlockStack,
+} from "@shopify/polaris";
 import { useFetcher } from "react-router";
 import { InsightCard } from "../../InsightCard";
 import { InsightCardSkeleton } from "../../InsightCardSkeleton";
 import { miniChartOptions } from "../../dashboardUtils";
 import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
 
-interface TotalCustomersData {
+interface CODOrdersData {
   count: number;
   dataPoints: Array<{ date: string; count: number }>;
   error?: string;
 }
 
-interface TotalCustomersProps {
+interface CODOrdersProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  createdAt: string;
+  total: string;
+  status: string;
+}
+
+interface OrdersListData {
+  orders: Order[];
+  total: number;
+  error?: string;
 }
 
 /**
@@ -72,16 +94,34 @@ function getPeriodLabel(dateRange: string): string {
 }
 
 /**
+ * Get description text based on date range
+ */
+function getDescription(dateRange: string): string {
+  switch (dateRange) {
+    case "today":
+      return "COD orders today";
+    case "yesterday":
+      return "COD orders yesterday";
+    case "7days":
+    case "last7Days":
+      return "COD orders in the last 7 days";
+    case "30days":
+    case "last30Days":
+      return "COD orders in the last 30 days";
+    case "90days":
+    case "last90Days":
+      return "COD orders in the last 90 days";
+    case "thisMonth":
+      return "COD orders this month";
+    case "lastMonth":
+      return "COD orders last month";
+    default:
+      return "COD orders in the selected period";
+  }
+}
+
+/**
  * Get status badge based on growth percentage
- *
- * Mapping:
- * - Positive growth (growth > 0):
- *   - 0-5%: Attention (warning) - minimal growth
- *   - 5%+: Good (success) - healthy growth
- * - Negative growth (growth < 0):
- *   - 0-10%: Attention (warning) - small decline
- *   - 10%+: Issue (critical) - significant decline
- * - No change (0%): Good (success) - stable
  */
 function getStatusFromGrowth(
   growth: number,
@@ -93,9 +133,9 @@ function getStatusFromGrowth(
   if (growth > 0) {
     // Positive growth
     if (growth < 5) {
-      return "warning"; // 0-5% = Attention (minimal growth)
+      return "warning"; // 0-5% = Attention
     }
-    return "success"; // 5%+ = Good (healthy growth)
+    return "success"; // 5%+ = Good
   } else {
     // Negative growth (decrease)
     const decreasePercentage = Math.abs(growth);
@@ -107,60 +147,41 @@ function getStatusFromGrowth(
 }
 
 /**
- * Total Customers Card Component
+ * COD Orders Card Component
  *
- * Fetches and displays total customers count independently.
- * Fully dynamic - calculates growth and generates description based on data.
+ * Fetches and displays COD orders count independently.
  */
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-  numberOfOrders: number;
-  totalSpent: string;
-}
-
-interface CustomersListData {
-  customers: Customer[];
-  total: number;
-  error?: string;
-}
-
-export function TotalCustomers({
+export function CODOrders({
   dateRange = "30days",
   onViewSegment,
-}: TotalCustomersProps) {
-  const fetcher = useFetcher<TotalCustomersData>();
-  const customersListFetcher = useFetcher<CustomersListData>();
-  const [data, setData] = useState<TotalCustomersData | null>(null);
+}: CODOrdersProps) {
+  const fetcher = useFetcher<CODOrdersData>();
+  const ordersListFetcher = useFetcher<OrdersListData>();
+  const [data, setData] = useState<CODOrdersData | null>(null);
   const [showAccessModal, setShowAccessModal] = useState(false);
-  const [showCustomersModal, setShowCustomersModal] = useState(false);
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
 
   useEffect(() => {
-    // Reset data when dateRange changes to ensure fresh fetch
     setData(null);
     setShowAccessModal(false);
-    setShowCustomersModal(false); // Close customers modal when date range changes
+    setShowOrdersModal(false);
     fetcher.load(
-      `/api/dashboard/customers-overview/total-customers?dateRange=${dateRange}`,
+      `/api/dashboard/purchase-order-behavior/cod-orders?dateRange=${dateRange}`,
     );
   }, [dateRange]);
 
   useEffect(() => {
     if (fetcher.data) {
-      if (fetcher.data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+      if (fetcher.data.error === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
         setShowAccessModal(true);
-        setData(null); // Don't set data if access denied
+        setData(null);
       } else if (typeof fetcher.data.count === "number") {
-        // Set data if it has count (dataPoints might be empty array)
-        const newData = {
+        setData({
           count: fetcher.data.count,
           dataPoints: Array.isArray(fetcher.data.dataPoints)
             ? fetcher.data.dataPoints
             : [],
-        };
-        setData(newData);
+        });
       }
     }
   }, [fetcher.data]);
@@ -169,11 +190,10 @@ export function TotalCustomers({
   const { growthPercentage, growthIndicator, description, growthTone, status } =
     useMemo(() => {
       if (!data || !data.dataPoints || data.dataPoints.length < 2) {
-        // Single point or no data - no growth calculation
         return {
           growthPercentage: null,
           growthIndicator: null,
-          description: "Your store is doing good",
+          description: getDescription(dateRange),
           growthTone: "success" as const,
           status: "success" as const,
         };
@@ -183,39 +203,33 @@ export function TotalCustomers({
       const startCount = startPoint.count;
       const endCount = endPoint.count;
 
-      // Handle division by zero - if starting from 0, any growth is 100%
       if (startCount === 0) {
         if (endCount === 0) {
           return {
             growthPercentage: 0,
             growthIndicator: `→ 0% change in ${getPeriodLabel(dateRange)}`,
-            description: "Your store is doing good",
+            description: getDescription(dateRange),
             growthTone: "subdued" as const,
-            status: "success" as const, // Stable = Good
+            status: "success" as const,
           };
         }
-        // Growth from 0 to any number is 100% growth
         const periodLabel = getPeriodLabel(dateRange);
         return {
           growthPercentage: 100,
           growthIndicator: `↑ 100% growth in ${periodLabel}`,
-          description: "Your store is doing good",
+          description: getDescription(dateRange),
           growthTone: "success" as const,
-          status: "success" as const, // 100% growth = Good
+          status: "success" as const,
         };
       }
 
-      // Calculate growth percentage
       const growth = ((endCount - startCount) / startCount) * 100;
       const growthPercentage = Math.abs(growth);
       const isPositive = growth > 0;
       const isNegative = growth < 0;
       const periodLabel = getPeriodLabel(dateRange);
-
-      // Get status based on growth percentage
       const statusFromGrowth = getStatusFromGrowth(growth);
 
-      // Format growth indicator text
       let growthIndicatorText: string;
       if (growthPercentage === 0) {
         growthIndicatorText = `→ 0% change in ${periodLabel}`;
@@ -228,7 +242,7 @@ export function TotalCustomers({
       return {
         growthPercentage,
         growthIndicator: growthIndicatorText,
-        description: "Your store is doing good",
+        description: getDescription(dateRange),
         growthTone: isPositive
           ? ("success" as const)
           : isNegative
@@ -238,27 +252,23 @@ export function TotalCustomers({
       };
     }, [data, dateRange]);
 
-  // Show skeleton while loading or if we don't have data yet
-  // Show skeleton if: loading, or no data and not showing modal
+  // Show skeleton while loading
   if (!data && !showAccessModal) {
     return <InsightCardSkeleton />;
   }
 
-  // Don't render card if no data (but still show modal if needed)
   if (!data) {
     return showAccessModal ? (
       <ProtectedDataAccessModal
         open={showAccessModal}
         onClose={() => setShowAccessModal(false)}
-        dataType="customer"
-        featureName="Total Customers"
+        dataType="order"
+        featureName="COD Orders"
       />
     ) : null;
   }
 
-  // Convert dataPoints to Chart.js format
-  // For single point (today), don't show chart
-  // Determine trend direction for chart color
+  // Convert dataPoints to Chart.js format with dynamic colors
   const chartData =
     data.dataPoints && data.dataPoints.length > 1
       ? (() => {
@@ -268,22 +278,20 @@ export function TotalCustomers({
           const isUpwardTrend = endCount > startCount;
           const isDownwardTrend = endCount < startCount;
 
-          // Green for upward trend, red for downward trend, gray for no change
           const borderColor = isUpwardTrend
             ? "rgba(75, 192, 192, 1)" // Green
             : isDownwardTrend
               ? "rgba(255, 99, 132, 1)" // Red
-              : "rgba(128, 128, 128, 1)"; // Gray for no change
+              : "rgba(128, 128, 128, 1)"; // Gray
 
           const backgroundColor = isUpwardTrend
-            ? "rgba(75, 192, 192, 0.2)" // Green with transparency
+            ? "rgba(75, 192, 192, 0.2)"
             : isDownwardTrend
-              ? "rgba(255, 99, 132, 0.2)" // Red with transparency
-              : "rgba(128, 128, 128, 0.2)"; // Gray with transparency
+              ? "rgba(255, 99, 132, 0.2)"
+              : "rgba(128, 128, 128, 0.2)";
 
           return {
             labels: data.dataPoints.map((point) => {
-              // Format date as "MM/DD" (e.g., "01/15", "01/22")
               const date = new Date(point.date);
               const month = String(date.getMonth() + 1).padStart(2, "0");
               const day = String(date.getDate()).padStart(2, "0");
@@ -299,10 +307,8 @@ export function TotalCustomers({
             ],
           };
         })()
-      : null; // Don't show chart for single point or no data
+      : null;
 
-  // Create custom chart options with proper y-axis scaling
-  // This ensures flat lines (same values) appear flat, not slanted
   const customChartOptions = chartData
     ? {
         ...miniChartOptions,
@@ -311,10 +317,8 @@ export function TotalCustomers({
           y: {
             display: false,
             beginAtZero: false,
-            // Set min and max based on actual data to prevent auto-scaling issues
             min: Math.min(...chartData.datasets[0].data) * 0.95,
             max: Math.max(...chartData.datasets[0].data) * 1.05,
-            // If all values are the same, ensure the range shows them as equal
             ...(new Set(chartData.datasets[0].data).size === 1
               ? {
                   min: chartData.datasets[0].data[0] * 0.98,
@@ -328,11 +332,10 @@ export function TotalCustomers({
 
   // Handle view segment button click
   const handleViewSegment = (segmentName: string) => {
-    if (segmentName === "Total Customers") {
-      setShowCustomersModal(true);
-      // Fetch customers list when modal opens
-      customersListFetcher.load(
-        `/api/dashboard/customers-overview/total-customers/list?dateRange=${dateRange}`,
+    if (segmentName === "COD Orders") {
+      setShowOrdersModal(true);
+      ordersListFetcher.load(
+        `/api/dashboard/purchase-order-behavior/cod-orders/list?dateRange=${dateRange}`,
       );
     } else if (onViewSegment) {
       onViewSegment(segmentName);
@@ -341,39 +344,35 @@ export function TotalCustomers({
 
   // Handle export data to CSV
   const handleExportData = () => {
-    const customers = customersListFetcher.data?.customers;
-    if (!customers || customers.length === 0) {
+    const orders = ordersListFetcher.data?.orders;
+    if (!orders || orders.length === 0) {
       return;
     }
 
-    // Create CSV headers
-    const headers = ["Name", "Email", "Created Date", "Orders", "Total Spent"];
+    const headers = ["Order Number", "Customer Name", "Customer Email", "Date", "Total", "Status"];
 
-    // Create CSV rows
     const csvRows = [
       headers.join(","),
-      ...customers.map((customer) =>
+      ...orders.map((order) =>
         [
-          `"${customer.name.replace(/"/g, '""')}"`,
-          `"${customer.email.replace(/"/g, '""')}"`,
-          `"${customer.createdAt}"`,
-          customer.numberOfOrders.toString(),
-          `"${customer.totalSpent}"`,
+          `"${order.orderNumber.replace(/"/g, '""')}"`,
+          `"${order.customerName.replace(/"/g, '""')}"`,
+          `"${order.customerEmail.replace(/"/g, '""')}"`,
+          `"${order.createdAt}"`,
+          `"${order.total}"`,
+          `"${order.status}"`,
         ].join(","),
       ),
     ];
 
-    // Create CSV content
     const csvContent = csvRows.join("\n");
-
-    // Create blob and download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `total-customers-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
+      `cod-orders-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
     );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
@@ -383,26 +382,28 @@ export function TotalCustomers({
 
   // Prepare table data
   const tableRows =
-    customersListFetcher.data?.customers?.map((customer) => [
-      customer.name,
-      customer.email,
-      customer.createdAt,
-      customer.numberOfOrders.toString(),
-      customer.totalSpent,
+    ordersListFetcher.data?.orders?.map((order) => [
+      order.orderNumber,
+      order.customerName,
+      order.customerEmail,
+      order.createdAt,
+      order.total,
+      order.status,
     ]) || [];
 
   const tableHeadings = [
-    "Name",
-    "Email",
-    "Created Date",
-    "Orders",
-    "Total Spent",
+    "Order Number",
+    "Customer Name",
+    "Customer Email",
+    "Date",
+    "Total",
+    "Status",
   ];
 
   return (
     <>
       <InsightCard
-        title="Total Customers"
+        title="COD Orders"
         value={data.count}
         status={status}
         description={description}
@@ -417,50 +418,50 @@ export function TotalCustomers({
       <ProtectedDataAccessModal
         open={showAccessModal}
         onClose={() => setShowAccessModal(false)}
-        dataType="customer"
-        featureName="Total Customers"
+        dataType="order"
+        featureName="COD Orders"
       />
 
       <Modal
-        open={showCustomersModal}
-        onClose={() => setShowCustomersModal(false)}
-        title={`Total Customers - ${getDateRangeLabel(dateRange)}`}
+        open={showOrdersModal}
+        onClose={() => setShowOrdersModal(false)}
+        title={`COD Orders - ${getDateRangeLabel(dateRange)}`}
         primaryAction={{
           content: "Close",
-          onAction: () => setShowCustomersModal(false),
+          onAction: () => setShowOrdersModal(false),
         }}
         secondaryActions={[
           {
             content: "Export Data",
             onAction: handleExportData,
             disabled:
-              !customersListFetcher.data?.customers ||
-              customersListFetcher.data.customers.length === 0 ||
-              customersListFetcher.state === "loading",
+              !ordersListFetcher.data?.orders ||
+              ordersListFetcher.data.orders.length === 0 ||
+              ordersListFetcher.state === "loading",
           },
         ]}
       >
         <Modal.Section>
           <BlockStack gap="400">
-            {customersListFetcher.state === "loading" ? (
+            {ordersListFetcher.state === "loading" ? (
               <div style={{ textAlign: "center", padding: "2rem" }}>
                 <Spinner size="large" />
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Loading customers...
+                  Loading orders...
                 </Text>
               </div>
-            ) : customersListFetcher.data?.error ===
-              "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" ? (
+            ) : ordersListFetcher.data?.error ===
+              "PROTECTED_ORDER_DATA_ACCESS_DENIED" ? (
               <Text as="p" variant="bodyMd" tone="critical">
-                Access to customer data is required to view this list. Please
+                Access to order data is required to view this list. Please
                 request access in your Partner Dashboard.
               </Text>
-            ) : customersListFetcher.data?.customers &&
-              customersListFetcher.data.customers.length > 0 ? (
+            ) : ordersListFetcher.data?.orders &&
+              ordersListFetcher.data.orders.length > 0 ? (
               <>
                 <Text as="p" variant="bodyMd">
-                  Showing {customersListFetcher.data.total} customer
-                  {customersListFetcher.data.total !== 1 ? "s" : ""} for{" "}
+                  Showing {ordersListFetcher.data.total} COD order
+                  {ordersListFetcher.data.total !== 1 ? "s" : ""} for{" "}
                   {getDateRangeLabel(dateRange)}.
                 </Text>
                 <DataTable
@@ -468,7 +469,8 @@ export function TotalCustomers({
                     "text",
                     "text",
                     "text",
-                    "numeric",
+                    "text",
+                    "text",
                     "text",
                   ]}
                   headings={tableHeadings}
@@ -477,7 +479,7 @@ export function TotalCustomers({
               </>
             ) : (
               <Text as="p" variant="bodyMd">
-                No customers found for {getDateRangeLabel(dateRange)}.
+                No COD orders found for {getDateRangeLabel(dateRange)}.
               </Text>
             )}
           </BlockStack>
@@ -486,3 +488,4 @@ export function TotalCustomers({
     </>
   );
 }
+

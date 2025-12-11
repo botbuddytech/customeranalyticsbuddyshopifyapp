@@ -1,13 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
-import {
-  Card,
-  InlineStack,
-  BlockStack,
-  SkeletonBodyText,
-  SkeletonDisplayText,
-} from "@shopify/polaris";
+import { Modal, DataTable, Text, Spinner, BlockStack } from "@shopify/polaris";
 import { useFetcher } from "react-router";
 import { InsightCard } from "../../InsightCard";
+import { InsightCardSkeleton } from "../../InsightCardSkeleton";
 import { miniChartOptions } from "../../dashboardUtils";
 import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
 
@@ -20,6 +15,21 @@ interface NewCustomersData {
 interface NewCustomersProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  numberOfOrders: number;
+  totalSpent: string;
+}
+
+interface CustomersListData {
+  customers: Customer[];
+  total: number;
+  error?: string;
 }
 
 /**
@@ -118,18 +128,48 @@ function getStatusFromGrowth(
  * Fully dynamic - calculates growth and generates description based on data.
  * Shows new customers created within the selected date range.
  */
+/**
+ * Get date range label for display
+ */
+function getDateRangeLabel(dateRange: string): string {
+  switch (dateRange) {
+    case "today":
+      return "today";
+    case "yesterday":
+      return "yesterday";
+    case "7days":
+    case "last7Days":
+      return "the last 7 days";
+    case "30days":
+    case "last30Days":
+      return "the last 30 days";
+    case "90days":
+    case "last90Days":
+      return "the last 90 days";
+    case "thisMonth":
+      return "this month";
+    case "lastMonth":
+      return "last month";
+    default:
+      return "the selected period";
+  }
+}
+
 export function NewCustomers({
   dateRange = "30days",
   onViewSegment,
 }: NewCustomersProps) {
   const fetcher = useFetcher<NewCustomersData>();
+  const customersListFetcher = useFetcher<CustomersListData>();
   const [data, setData] = useState<NewCustomersData | null>(null);
   const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showCustomersModal, setShowCustomersModal] = useState(false);
 
   useEffect(() => {
     // Reset data when dateRange changes to ensure fresh fetch
     setData(null);
     setShowAccessModal(false);
+    setShowCustomersModal(false); // Close customers modal when date range changes
     fetcher.load(
       `/api/dashboard/customers-overview/new-customers?dateRange=${dateRange}`,
     );
@@ -229,35 +269,7 @@ export function NewCustomers({
   // Show skeleton while loading or if we don't have data yet
   // Show skeleton if: no data and not showing modal
   if (!data && !showAccessModal) {
-    return (
-      <div style={{ height: "100%" }}>
-        <Card padding="400">
-          <BlockStack gap="300">
-            {/* Card header skeleton */}
-            <InlineStack align="space-between">
-              <SkeletonBodyText lines={1} />
-              <SkeletonBodyText lines={1} />
-            </InlineStack>
-
-            {/* Value and chart skeleton */}
-            <InlineStack align="space-between" blockAlign="center">
-              <InlineStack gap="200" blockAlign="center">
-                <SkeletonDisplayText size="large" />
-                <div style={{ width: "60px", height: "30px" }}>
-                  <SkeletonBodyText lines={1} />
-                </div>
-              </InlineStack>
-            </InlineStack>
-
-            {/* Description skeleton */}
-            <BlockStack gap="100">
-              <SkeletonBodyText lines={1} />
-              <SkeletonBodyText lines={1} />
-            </BlockStack>
-          </BlockStack>
-        </Card>
-      </div>
-    );
+    return <InsightCardSkeleton />;
   }
 
   // Don't render card if no data (but still show modal if needed)
@@ -342,6 +354,79 @@ export function NewCustomers({
       }
     : miniChartOptions;
 
+  // Handle view segment button click
+  const handleViewSegment = (segmentName: string) => {
+    if (segmentName === "New Customers") {
+      setShowCustomersModal(true);
+      // Fetch customers list when modal opens
+      customersListFetcher.load(
+        `/api/dashboard/customers-overview/new-customers/list?dateRange=${dateRange}`,
+      );
+    } else if (onViewSegment) {
+      onViewSegment(segmentName);
+    }
+  };
+
+  // Handle export data to CSV
+  const handleExportData = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) {
+      return;
+    }
+
+    // Create CSV headers
+    const headers = ["Name", "Email", "Created Date", "Orders", "Total Spent"];
+
+    // Create CSV rows
+    const csvRows = [
+      headers.join(","),
+      ...customers.map((customer) =>
+        [
+          `"${customer.name.replace(/"/g, '""')}"`,
+          `"${customer.email.replace(/"/g, '""')}"`,
+          `"${customer.createdAt}"`,
+          customer.numberOfOrders.toString(),
+          `"${customer.totalSpent}"`,
+        ].join(","),
+      ),
+    ];
+
+    // Create CSV content
+    const csvContent = csvRows.join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `new-customers-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Prepare table data
+  const tableRows =
+    customersListFetcher.data?.customers?.map((customer) => [
+      customer.name,
+      customer.email,
+      customer.createdAt,
+      customer.numberOfOrders.toString(),
+      customer.totalSpent,
+    ]) || [];
+
+  const tableHeadings = [
+    "Name",
+    "Email",
+    "Created Date",
+    "Orders",
+    "Total Spent",
+  ];
+
   return (
     <>
       <InsightCard
@@ -353,7 +438,7 @@ export function NewCustomers({
         miniChartData={chartData}
         growthIndicator={growthIndicator || undefined}
         growthTone={growthTone}
-        onViewSegment={onViewSegment}
+        onViewSegment={handleViewSegment}
         miniChartOptions={customChartOptions}
       />
 
@@ -363,6 +448,69 @@ export function NewCustomers({
         dataType="customer"
         featureName="New Customers"
       />
+
+      <Modal
+        open={showCustomersModal}
+        onClose={() => setShowCustomersModal(false)}
+        title={`New Customers - ${getDateRangeLabel(dateRange)}`}
+        primaryAction={{
+          content: "Close",
+          onAction: () => setShowCustomersModal(false),
+        }}
+        secondaryActions={[
+          {
+            content: "Export Data",
+            onAction: handleExportData,
+            disabled:
+              !customersListFetcher.data?.customers ||
+              customersListFetcher.data.customers.length === 0 ||
+              customersListFetcher.state === "loading",
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {customersListFetcher.state === "loading" ? (
+              <div style={{ textAlign: "center", padding: "2rem" }}>
+                <Spinner size="large" />
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Loading customers...
+                </Text>
+              </div>
+            ) : customersListFetcher.data?.error ===
+              "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Access to customer data is required to view this list. Please
+                request access in your Partner Dashboard.
+              </Text>
+            ) : customersListFetcher.data?.customers &&
+              customersListFetcher.data.customers.length > 0 ? (
+              <>
+                <Text as="p" variant="bodyMd">
+                  Showing {customersListFetcher.data.total} new customer
+                  {customersListFetcher.data.total !== 1 ? "s" : ""} for{" "}
+                  {getDateRangeLabel(dateRange)}.
+                </Text>
+                <DataTable
+                  columnContentTypes={[
+                    "text",
+                    "text",
+                    "text",
+                    "numeric",
+                    "text",
+                  ]}
+                  headings={tableHeadings}
+                  rows={tableRows}
+                />
+              </>
+            ) : (
+              <Text as="p" variant="bodyMd">
+                No new customers found for {getDateRangeLabel(dateRange)}.
+              </Text>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </>
   );
 }

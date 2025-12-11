@@ -95,7 +95,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 email
                 createdAt
                 numberOfOrders
-                totalSpent {
+                amountSpent {
                   amount
                   currencyCode
                 }
@@ -116,7 +116,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 email
                 createdAt
                 numberOfOrders
-                totalSpent {
+                amountSpent {
                   amount
                   currencyCode
                 }
@@ -160,8 +160,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         ? new Date(customer.createdAt).toLocaleDateString()
         : "N/A",
       numberOfOrders: customer.numberOfOrders || 0,
-      totalSpent: customer.totalSpent
-        ? `${parseFloat(customer.totalSpent.amount).toFixed(2)} ${customer.totalSpent.currencyCode}`
+      totalSpent: customer.amountSpent
+        ? `${parseFloat(customer.amountSpent.amount).toFixed(2)} ${customer.amountSpent.currencyCode}`
         : "0.00",
     }));
 

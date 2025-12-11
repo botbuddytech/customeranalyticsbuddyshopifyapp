@@ -41,8 +41,8 @@ import {
 // Import modular dashboard components
 import { DashboardControls } from "../components/dashboard/DashboardControls";
 import { CustomersOverview } from "../components/dashboard/CustomersOverview/index";
-import { PurchaseOrderBehavior } from "../components/dashboard/PurchaseOrderBehavior";
-import { EngagementPatterns } from "../components/dashboard/EngagementPatterns";
+import { PurchaseOrderBehavior } from "../components/dashboard/PurchaseOrderBehavior/index";
+import { EngagementPatterns } from "../components/dashboard/EngagementPatterns/index";
 import { PurchaseTiming } from "../components/dashboard/PurchaseTiming";
 import { VisualAnalytics } from "../components/dashboard/VisualAnalytics";
 
