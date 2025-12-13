@@ -42,23 +42,33 @@ export function filterLists(
   searchQuery: string,
   selectedTab: number
 ): SavedList[] {
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  
   return lists.filter((list) => {
-    // Search filter
+    // Search filter - search in name, description, tags, criteria, and source
     const matchesSearch =
-      searchQuery === "" ||
-      list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      list.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      trimmedQuery === "" ||
+      list.name.toLowerCase().includes(trimmedQuery) ||
+      list.description.toLowerCase().includes(trimmedQuery) ||
+      list.criteria.toLowerCase().includes(trimmedQuery) ||
       list.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+        tag.toLowerCase().includes(trimmedQuery)
+      ) ||
+      // Also search by source display names
+      (list.source === "ai-search" && "ai search".includes(trimmedQuery)) ||
+      (list.source === "filter-audience" && "filter audience".includes(trimmedQuery)) ||
+      (list.source === "manual" && trimmedQuery === "manual");
 
     // Tab filter
     let matchesTab = true;
-    if (selectedTab === 1) {
-      // Active only
+    if (selectedTab === 0) {
+      // All - show all lists (both active and archived)
+      matchesTab = true;
+    } else if (selectedTab === 1) {
+      // Active only - show only non-archived lists
       matchesTab = list.status === "active";
     } else if (selectedTab === 2) {
-      // Archived only
+      // Archived only - show only archived lists
       matchesTab = list.status === "archived";
     }
 

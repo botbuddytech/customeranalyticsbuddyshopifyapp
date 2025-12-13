@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Layout, BlockStack, Grid } from "@shopify/polaris";
 import { FilterSummaryCard } from "./FilterSummaryCard";
 import { FilterSection } from "./FilterSection";
@@ -19,6 +19,9 @@ interface AudienceFilterFormProps {
   paymentMethods?: string[];
   deliveryMethods?: string[];
   isLoading?: boolean;
+  initialFilters?: FilterData | null;
+  listId?: string | null;
+  listName?: string;
 }
 
 /**
@@ -35,27 +38,48 @@ export function AudienceFilterForm({
   paymentMethods = [],
   deliveryMethods = [],
   isLoading = false,
+  initialFilters = null,
+  listId = null,
+  listName = "",
 }: AudienceFilterFormProps) {
   // State Management
+  // Expand sections that have initial filters when modifying
+  const getInitialExpandedSections = (): Record<string, boolean> => {
+    if (!initialFilters) {
+      return {
+        location: true,
+        products: false,
+        timing: false,
+        device: false,
+        payment: false,
+        delivery: false,
+      };
+    }
+    
+    return {
+      location: (initialFilters.location?.length ?? 0) > 0 || true,
+      products: (initialFilters.products?.length ?? 0) > 0 || false,
+      timing: (initialFilters.timing?.length ?? 0) > 0 || false,
+      device: (initialFilters.device?.length ?? 0) > 0 || false,
+      payment: (initialFilters.payment?.length ?? 0) > 0 || false,
+      delivery: (initialFilters.delivery?.length ?? 0) > 0 || false,
+    };
+  };
+
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
-  >({
-    location: true,
-    products: false,
-    timing: false,
-    device: false,
-    payment: false,
-    delivery: false,
-  });
+  >(getInitialExpandedSections());
 
-  const [selectedFilters, setSelectedFilters] = useState<FilterData>({
-    location: [],
-    products: [],
-    timing: [],
-    device: [],
-    payment: [],
-    delivery: [],
-  });
+  const [selectedFilters, setSelectedFilters] = useState<FilterData>(
+    initialFilters || {
+      location: [],
+      products: [],
+      timing: [],
+      device: [],
+      payment: [],
+      delivery: [],
+    }
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [results, setResults] = useState<SegmentResults | null>(null);
@@ -64,6 +88,9 @@ export function AudienceFilterForm({
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [isSavingList, setIsSavingList] = useState(false);
   const [saveListError, setSaveListError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filterSections = useMemo((): FilterSection[] => {
     return defaultFilterSections.map((section) => {
@@ -138,6 +165,82 @@ export function AudienceFilterForm({
       ),
     [selectedFilters],
   );
+
+  // Function to fetch preview count
+  const fetchPreviewCount = useCallback(async (filters: FilterData) => {
+    // If no filters selected, reset count
+    const filterCount = Object.values(filters).reduce(
+      (total, filterArray) => total + filterArray.length,
+      0,
+    );
+    if (filterCount === 0) {
+      setPreviewCount(0);
+      setIsLoadingPreview(false);
+      return;
+    }
+
+    setIsLoadingPreview(true);
+    try {
+      const formData = new FormData();
+      formData.append("filters", JSON.stringify(filters));
+
+      const response = await fetch("/api/filter-audience/generate-segment", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+        setPreviewCount(0);
+      } else if (data.success) {
+        setPreviewCount(data.matchCount || 0);
+      } else {
+        setPreviewCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching preview count:", error);
+      setPreviewCount(0);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, []);
+
+  // Debounced effect to update preview count when filters change
+  useEffect(() => {
+    // Clear previous timeout
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    // Check if there are any filters selected
+    const filterCount = Object.values(selectedFilters).reduce(
+      (total, filterArray) => total + filterArray.length,
+      0,
+    );
+
+    // If no filters, reset immediately without showing loader
+    if (filterCount === 0) {
+      setPreviewCount(0);
+      setIsLoadingPreview(false);
+      return;
+    }
+
+    // Show loader immediately when filters change
+    setIsLoadingPreview(true);
+
+    // Set new timeout to debounce the API call
+    previewTimeoutRef.current = setTimeout(() => {
+      fetchPreviewCount(selectedFilters);
+    }, 500); // 500ms debounce delay
+
+    // Cleanup function
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [selectedFilters, fetchPreviewCount]);
 
   // Handle form submission
   const handleSubmit = async (event?: React.FormEvent) => {
@@ -229,31 +332,272 @@ export function AudienceFilterForm({
     setPreviewCount(0);
   };
 
-  // Handle export actions
-  const handleExportSegment = () => {
-    console.log("Export segment:", results);
-    // TODO: Implement export functionality
+  // Helper to ensure results exist, generate if needed
+  const ensureResults = async (): Promise<SegmentResults | null> => {
+    if (results && results.customers && results.customers.length > 0) {
+      return results;
+    }
+
+    if (totalFiltersCount === 0) {
+      return null;
+    }
+
+    // Generate segment silently (without showing modal)
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("filters", JSON.stringify(selectedFilters));
+
+      const response = await fetch("/api/filter-audience/generate-segment", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+        return {
+          matchCount: 0,
+          filters: selectedFilters,
+          error: "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED",
+        };
+      } else if (data.success) {
+        const segmentResults: SegmentResults = {
+          matchCount: data.matchCount,
+          filters: data.filters,
+          customers: data.customers || [],
+        };
+        setResults(segmentResults);
+        setPreviewCount(data.matchCount);
+        return segmentResults;
+      } else {
+        return {
+          matchCount: 0,
+          filters: selectedFilters,
+          error: data.error || "Failed to generate segment",
+        };
+      }
+    } catch (error) {
+      console.error("Error generating segment:", error);
+      return {
+        matchCount: 0,
+        filters: selectedFilters,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Export handlers
+  const handleExportPDF = async () => {
+    const segmentResults = await ensureResults();
+    if (!segmentResults?.customers || segmentResults.customers.length === 0) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Create a simple HTML table and print it as PDF
+      const headers = [
+        "Name",
+        "Email",
+        "Country",
+        "Created Date",
+        "Orders",
+        "Total Spent",
+      ];
+
+      let htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Customer Segment Export</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; }
+              table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; font-weight: bold; }
+              tr:nth-child(even) { background-color: #f9f9f9; }
+            </style>
+          </head>
+          <body>
+            <h1>Customer Segment Export</h1>
+            <p>Generated: ${new Date().toLocaleString()}</p>
+            <p>Total Customers: ${segmentResults.matchCount}</p>
+            <table>
+              <thead>
+                <tr>
+                  ${headers.map((h) => `<th>${h}</th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${segmentResults.customers
+                  .map(
+                    (customer) => `
+                  <tr>
+                    <td>${customer.name}</td>
+                    <td>${customer.email}</td>
+                    <td>${customer.country}</td>
+                    <td>${customer.createdAt}</td>
+                    <td>${customer.numberOfOrders}</td>
+                    <td>${customer.totalSpent}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      // Download as HTML file (user can open and save as PDF from browser)
+      // For a true PDF, we would need a library like jsPDF
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `customer-segment-${new Date().toISOString().split("T")[0]}.html`,
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // Small delay to ensure download starts before revoking URL
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    const segmentResults = await ensureResults();
+    if (!segmentResults?.customers || segmentResults.customers.length === 0) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const headers = [
+        "Name",
+        "Email",
+        "Country",
+        "Created Date",
+        "Orders",
+        "Total Spent",
+      ];
+      const csvRows = [
+        headers.join(","),
+        ...segmentResults.customers.map((customer) =>
+          [
+            `"${customer.name.replace(/"/g, '""')}"`,
+            `"${customer.email.replace(/"/g, '""')}"`,
+            `"${customer.country.replace(/"/g, '""')}"`,
+            `"${customer.createdAt}"`,
+            customer.numberOfOrders.toString(),
+            `"${customer.totalSpent}"`,
+          ].join(","),
+        ),
+      ];
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `customer-segment-${new Date().toISOString().split("T")[0]}.csv`,
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    const segmentResults = await ensureResults();
+    if (!segmentResults?.customers || segmentResults.customers.length === 0) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Create CSV format (Excel can open CSV files)
+      const headers = [
+        "Name",
+        "Email",
+        "Country",
+        "Created Date",
+        "Orders",
+        "Total Spent",
+      ];
+      const csvRows = [
+        headers.join(","),
+        ...segmentResults.customers.map((customer) =>
+          [
+            `"${customer.name.replace(/"/g, '""')}"`,
+            `"${customer.email.replace(/"/g, '""')}"`,
+            `"${customer.country.replace(/"/g, '""')}"`,
+            `"${customer.createdAt}"`,
+            customer.numberOfOrders.toString(),
+            `"${customer.totalSpent}"`,
+          ].join(","),
+        ),
+      ];
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], {
+        type: "application/vnd.ms-excel;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `customer-segment-${new Date().toISOString().split("T")[0]}.xls`,
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleCreateCampaign = () => {
+    // No functionality for now - placeholder
     console.log("Create campaign:", results);
-    // TODO: Implement campaign creation
   };
 
-  const handleSaveToList = () => {
-    console.log("Save to list:", results);
-    // TODO: Implement save to list functionality
+  const handleSaveToList = async () => {
+    // If modifying, open modal directly with pre-filled name
+    if (listId) {
+      setSaveListError(null);
+      setShowSaveListModal(true);
+      return;
+    }
+
+    // If creating new, ensure results exist first
+    const segmentResults = await ensureResults();
+    if (segmentResults && segmentResults.customers && segmentResults.customers.length > 0) {
+      setSaveListError(null);
+      setShowSaveListModal(true);
+    }
   };
 
-  const handleExportCSV = () => {
-    console.log("Export CSV:", results);
-    // TODO: Implement CSV export
-  };
-
-  const handleExportExcel = () => {
-    console.log("Export Excel:", results);
-    // TODO: Implement Excel export
-  };
 
   // Handle save list
   const handleSaveList = () => {
@@ -266,22 +610,47 @@ export function AudienceFilterForm({
 
   // Handle save list submission
   const handleSaveListSubmit = async (listName: string) => {
-    if (!results) {
-      return;
-    }
-
     setIsSavingList(true);
     setSaveListError(null);
 
     try {
+      // Generate segment first if not already done
+      let segmentResults = results;
+      if (!segmentResults) {
+        // If modifying, we can save without generating segment (just save the filters)
+        // But if creating new, we need to generate segment first
+        if (!listId) {
+          const segmentData = await ensureResults();
+          if (segmentData) {
+            segmentResults = segmentData;
+          } else {
+            setSaveListError("Please generate a segment first");
+            setIsSavingList(false);
+            return;
+          }
+        } else {
+          // When modifying, create a minimal result object with just filters
+          segmentResults = {
+            matchCount: 0,
+            filters: selectedFilters,
+            customers: [],
+          };
+        }
+      }
+
       const formData = new FormData();
       formData.append("listName", listName);
-      formData.append("filters", JSON.stringify(results.filters));
+      formData.append("filters", JSON.stringify(segmentResults.filters));
       formData.append("source", "filter-audience"); // Mark as saved from Filter Audience
       
+      // If modifying, include listId
+      if (listId) {
+        formData.append("listId", listId);
+      }
+      
       // Optionally include customer IDs for quick access
-      if (results.customers && results.customers.length > 0) {
-        const customerIds = results.customers.map((c) => c.id);
+      if (segmentResults.customers && segmentResults.customers.length > 0) {
+        const customerIds = segmentResults.customers.map((c) => c.id);
         formData.append("customerIds", JSON.stringify(customerIds));
       }
 
@@ -302,6 +671,10 @@ export function AudienceFilterForm({
         // Close the save modal on success
         setShowSaveListModal(false);
         setSaveListError(null);
+        // If modifying, redirect back to saved lists page
+        if (listId) {
+          window.location.href = "/app/my-saved-lists";
+        }
         // You could show a success toast here
         console.log("List saved successfully:", data.list);
       }
@@ -405,12 +778,16 @@ export function AudienceFilterForm({
         {/* Right Column: Preview & Actions */}
         <Layout.Section variant="oneThird">
           <BlockStack gap="400">
-            <SegmentPreview previewCount={previewCount} />
+            <SegmentPreview previewCount={previewCount} isLoading={isLoadingPreview} />
             <QuickActions
-              hasResults={!!results}
-              onExportSegment={() => console.log("Export segment:", results)}
-              onCreateCampaign={() => console.log("Create campaign:", results)}
-              onSaveToList={() => console.log("Save to list:", results)}
+              hasResults={totalFiltersCount > 0}
+              isExporting={isExporting}
+              onExportPDF={handleExportPDF}
+              onExportCSV={handleExportCSV}
+              onExportExcel={handleExportExcel}
+              onCreateCampaign={handleCreateCampaign}
+              onSaveToList={handleSaveToList}
+              onExportStart={() => setIsExporting(true)}
             />
             <FilterTips />
           </BlockStack>
@@ -426,10 +803,13 @@ export function AudienceFilterForm({
         }}
         results={results}
         isLoading={isSubmitting}
-        onExportCSV={() => console.log("Export CSV:", results)}
-        onExportExcel={() => console.log("Export Excel:", results)}
+        isExporting={isExporting}
+        onExportPDF={handleExportPDF}
+        onExportCSV={handleExportCSV}
+        onExportExcel={handleExportExcel}
         onCreateCampaign={() => console.log("Create campaign:", results)}
         onSaveList={handleSaveList}
+        onExportStart={() => setIsExporting(true)}
       />
 
       {/* Save List Modal */}
@@ -442,7 +822,10 @@ export function AudienceFilterForm({
         onSave={handleSaveListSubmit}
         isLoading={isSavingList}
         error={saveListError}
+        initialListName={listName}
+        isModify={!!listId}
       />
+
     </>
   );
 }

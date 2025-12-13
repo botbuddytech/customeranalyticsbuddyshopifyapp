@@ -5,7 +5,7 @@ import {
   Text,
   Banner,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 interface SaveListModalProps {
   open: boolean;
@@ -13,6 +13,8 @@ interface SaveListModalProps {
   onSave: (listName: string) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
+  initialListName?: string;
+  isModify?: boolean;
 }
 
 /**
@@ -26,9 +28,18 @@ export function SaveListModal({
   onSave,
   isLoading = false,
   error = null,
+  initialListName = "",
+  isModify = false,
 }: SaveListModalProps) {
-  const [listName, setListName] = useState("");
+  const [listName, setListName] = useState(initialListName);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Update listName when initialListName changes (when modal opens with modify)
+  useEffect(() => {
+    if (initialListName) {
+      setListName(initialListName);
+    }
+  }, [initialListName]);
 
   const handleListNameChange = useCallback((value: string) => {
     setListName(value);
@@ -67,9 +78,9 @@ export function SaveListModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Save Customer List"
+      title={isModify ? "Update Customer List" : "Save Customer List"}
       primaryAction={{
-        content: "Save",
+        content: isModify ? "Update" : "Save",
         onAction: handleSave,
         loading: isLoading,
         disabled: !listName.trim() || isLoading,
@@ -85,8 +96,9 @@ export function SaveListModal({
       <Modal.Section>
         <BlockStack gap="400">
           <Text as="p" variant="bodyMd">
-            Enter a name for this customer segment list. You can use this saved
-            list later to quickly access the same customer segment.
+            {isModify
+              ? "Update the filters for this customer segment list. The list name will remain the same."
+              : "Enter a name for this customer segment list. You can use this saved list later to quickly access the same customer segment."}
           </Text>
 
           {(error || localError) && (

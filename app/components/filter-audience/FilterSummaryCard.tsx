@@ -38,7 +38,7 @@ export function FilterSummaryCard({
             onClick={onSubmit}
             disabled={totalFiltersCount === 0 || isSubmitting}
           >
-            Generate Segment
+            Preview Segment
           </Button>
         </InlineStack>
       </InlineStack>

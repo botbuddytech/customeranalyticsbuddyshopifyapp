@@ -10,10 +10,12 @@ import {
   DataTable,
   Spinner,
   Box,
+  Popover,
+  ActionList,
 } from "@shopify/polaris";
 import { ExportIcon, EmailIcon, SaveIcon } from "@shopify/polaris-icons";
 import { ProtectedDataAccessModal } from "../dashboard/ProtectedDataAccessModal";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { SegmentResults } from "./types";
 
 interface SegmentResultsModalProps {
@@ -21,10 +23,13 @@ interface SegmentResultsModalProps {
   onClose: () => void;
   results: SegmentResults | null;
   isLoading?: boolean;
-  onExportCSV?: () => void;
-  onExportExcel?: () => void;
+  isExporting?: boolean;
+  onExportPDF?: () => Promise<void>;
+  onExportCSV?: () => Promise<void>;
+  onExportExcel?: () => Promise<void>;
   onCreateCampaign?: () => void;
   onSaveList?: () => void;
+  onExportStart?: () => void;
 }
 
 /**
@@ -37,12 +42,17 @@ export function SegmentResultsModal({
   onClose,
   results,
   isLoading = false,
+  isExporting = false,
+  onExportPDF,
   onExportCSV,
   onExportExcel,
   onCreateCampaign,
   onSaveList,
+  onExportStart,
 }: SegmentResultsModalProps) {
+  // All hooks must be called before any conditional returns
   const [showAccessModal, setShowAccessModal] = useState(false);
+  const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
 
   // Show protected data access modal if needed
   useEffect(() => {
@@ -50,6 +60,38 @@ export function SegmentResultsModal({
       setShowAccessModal(true);
     }
   }, [results?.error]);
+
+  const toggleExportPopover = useCallback(() => {
+    setExportPopoverOpen((prev) => !prev);
+  }, []);
+
+  const handleExportFormat = useCallback(
+    async (format: "pdf" | "csv" | "excel") => {
+      if (!results?.customers || results.customers.length === 0) {
+        return;
+      }
+
+      setExportPopoverOpen(false);
+      // Set loading state immediately
+      if (onExportStart) {
+        onExportStart();
+      }
+      // Small delay to ensure popover closes and UI updates
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      try {
+        if (format === "pdf" && onExportPDF) {
+          await onExportPDF();
+        } else if (format === "csv" && onExportCSV) {
+          await onExportCSV();
+        } else if (format === "excel" && onExportExcel) {
+          await onExportExcel();
+        }
+      } catch (error) {
+        console.error("Export error:", error);
+      }
+    },
+    [results, onExportPDF, onExportCSV, onExportExcel, onExportStart],
+  );
 
   // Show loading state
   if (isLoading || !results) {
@@ -100,53 +142,6 @@ export function SegmentResultsModal({
     "Orders",
     "Total Spent",
   ];
-
-  // Handle export to CSV
-  const handleExportCSVInternal = () => {
-    if (!results.customers || results.customers.length === 0) {
-      return;
-    }
-
-    const headers = [
-      "Name",
-      "Email",
-      "Country",
-      "Created Date",
-      "Orders",
-      "Total Spent",
-    ];
-    const csvRows = [
-      headers.join(","),
-      ...results.customers.map((customer) =>
-        [
-          `"${customer.name.replace(/"/g, '""')}"`,
-          `"${customer.email.replace(/"/g, '""')}"`,
-          `"${customer.country.replace(/"/g, '""')}"`,
-          `"${customer.createdAt}"`,
-          customer.numberOfOrders.toString(),
-          `"${customer.totalSpent}"`,
-        ].join(","),
-      ),
-    ];
-
-    const csvContent = csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `customer-segment-${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (onExportCSV) {
-      onExportCSV();
-    }
-  };
 
   // Handle protected data access error
   if (results.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
@@ -228,12 +223,6 @@ export function SegmentResultsModal({
             disabled: !results.customers || results.customers.length === 0,
           },
           {
-            content: "Export CSV",
-            icon: ExportIcon,
-            onAction: handleExportCSVInternal,
-            disabled: !results.customers || results.customers.length === 0,
-          },
-          {
             content: "Create Campaign",
             icon: EmailIcon,
             onAction: onCreateCampaign || (() => {}),
@@ -243,12 +232,50 @@ export function SegmentResultsModal({
       >
         <Modal.Section>
           <BlockStack gap="400">
-            {/* Header with count */}
+            {/* Header with count and export button */}
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">
-                Segment Results
-              </Text>
-              <Badge tone="success">{`${results.matchCount} customers`}</Badge>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Segment Results
+                </Text>
+                <Badge tone="success">{`${results.matchCount} customers`}</Badge>
+              </InlineStack>
+              <Popover
+                active={exportPopoverOpen}
+                activator={
+                  <Button
+                    size="slim"
+                    icon={isExporting ? undefined : ExportIcon}
+                    loading={isExporting}
+                    disabled={
+                      !results.customers ||
+                      results.customers.length === 0 ||
+                      isExporting
+                    }
+                    onClick={toggleExportPopover}
+                  >
+                    Export
+                  </Button>
+                }
+                onClose={toggleExportPopover}
+              >
+                <ActionList
+                  items={[
+                    {
+                      content: "Export as PDF",
+                      onAction: () => handleExportFormat("pdf"),
+                    },
+                    {
+                      content: "Export as CSV",
+                      onAction: () => handleExportFormat("csv"),
+                    },
+                    {
+                      content: "Export as Excel",
+                      onAction: () => handleExportFormat("excel"),
+                    },
+                  ]}
+                />
+              </Popover>
             </InlineStack>
 
             {/* Success/Info Banner */}

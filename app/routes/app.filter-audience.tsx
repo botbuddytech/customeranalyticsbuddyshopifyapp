@@ -30,10 +30,32 @@ import {
   getUniquePaymentGateways,
   getUniqueShippingMethods,
 } from "../services/products.server";
+import { getSavedListById } from "../services/saved-lists.server";
+import type { FilterData } from "../components/filter-audience/types";
 
 // Loader function to authenticate and provide initial data
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const url = new URL(request.url);
+  const modifyListId = url.searchParams.get("modify");
+
+  // Fetch saved list if modifying
+  let savedList = null;
+  let initialFilters: FilterData | null = null;
+  let listName = "";
+  
+  if (modifyListId) {
+    try {
+      savedList = await getSavedListById(shop, modifyListId);
+      if (savedList) {
+        initialFilters = savedList.queryData;
+        listName = savedList.listName;
+      }
+    } catch (error) {
+      console.error("[Filter Audience Loader] Error fetching saved list:", error);
+    }
+  }
 
   try {
     // Fetch products, collections, product types, countries, payment gateways, and shipping methods from Shopify
@@ -79,17 +101,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       countries: countries,
       paymentMethods: paymentMethodOptions,
       deliveryMethods: deliveryMethodOptions,
+      initialFilters,
+      listId: modifyListId || null,
+      listName,
     };
   } catch (error) {
     console.error("[Filter Audience Loader] Error fetching data:", error);
     // Return empty arrays on error
-    return {
+      return {
       products: [],
       collections: [],
       categories: [],
       countries: [],
       paymentMethods: [],
       deliveryMethods: [],
+      initialFilters: null,
+      listId: null,
+      listName: "",
     };
   }
 };
@@ -205,20 +233,24 @@ export default function FilterAudiencePage() {
 
   return (
     <Page fullWidth>
-      <TitleBar title="Filter Audience" />
+      <TitleBar title={data.listId ? "Modify List" : "Filter Audience"} />
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="h1" variant="headingLg">
-                  🎯 Filter Audience
+                  {data.listId ? "✏️ Modify List" : "🎯 Filter Audience"}
                 </Text>
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Create targeted customer segments with advanced filters
+                  {data.listId
+                    ? `Modifying: ${data.listName}`
+                    : "Create targeted customer segments with advanced filters"}
                 </Text>
               </BlockStack>
-              <Badge tone="info">Segment Builder</Badge>
+              <Badge tone="info">
+                {data.listId ? "Modify Mode" : "Segment Builder"}
+              </Badge>
             </InlineStack>
 
             <AudienceFilterForm
@@ -229,6 +261,9 @@ export default function FilterAudiencePage() {
               paymentMethods={data.paymentMethods}
               deliveryMethods={data.deliveryMethods}
               isLoading={isLoading}
+              initialFilters={data.initialFilters}
+              listId={data.listId}
+              listName={data.listName}
             />
           </BlockStack>
         </Layout.Section>

@@ -66,19 +66,23 @@ function getTimePeriod(hour: number): string {
 /**
  * Check if a date is a weekday (Monday-Friday)
  * Uses UTC day since Shopify stores dates in UTC
+ * getUTCDay() returns: 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
  */
 function isWeekday(date: Date): boolean {
   const day = date.getUTCDay();
-  return day >= 1 && day <= 5; // Monday = 1, Friday = 5
+  // Monday (1) through Friday (5)
+  return day >= 1 && day <= 5;
 }
 
 /**
  * Check if a date is a weekend (Saturday-Sunday)
  * Uses UTC day since Shopify stores dates in UTC
+ * getUTCDay() returns: 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
  */
 function isWeekend(date: Date): boolean {
   const day = date.getUTCDay();
-  return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+  // Sunday (0) or Saturday (6)
+  return day === 0 || day === 6;
 }
 
 /**
@@ -148,10 +152,7 @@ export function filterByTiming(
         } else if (timing === "Weekends" && isWeekend(orderDate)) {
           matches = true;
         }
-        // Holiday check
-        else if (timing === "Holidays" && isHoliday(orderDate)) {
-          matches = true;
-        }
+        // Holidays - removed for now, will be implemented separately
         // Sale Events - this would need to be determined by order data or tags
         // For now, we'll skip this or you can implement based on discount codes, tags, etc.
         else if (timing === "Sale Events") {

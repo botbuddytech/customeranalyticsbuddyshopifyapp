@@ -1,10 +1,11 @@
-import { Card, BlockStack, Text, Box } from "@shopify/polaris";
+import { Card, BlockStack, Text, Box, Spinner } from "@shopify/polaris";
 
 interface SegmentPreviewProps {
   previewCount: number;
+  isLoading?: boolean;
 }
 
-export function SegmentPreview({ previewCount }: SegmentPreviewProps) {
+export function SegmentPreview({ previewCount, isLoading = false }: SegmentPreviewProps) {
   return (
     <Card>
       <BlockStack gap="300">
@@ -18,11 +19,17 @@ export function SegmentPreview({ previewCount }: SegmentPreviewProps) {
           borderRadius="200"
         >
           <BlockStack gap="200" align="center">
-            <Text as="p" variant="headingLg" fontWeight="bold">
-              {previewCount.toLocaleString()}
-            </Text>
+            {isLoading ? (
+              <Box paddingBlockStart="200">
+                <Spinner size="small" />
+              </Box>
+            ) : (
+              <Text as="p" variant="headingLg" fontWeight="bold">
+                {previewCount.toLocaleString()}
+              </Text>
+            )}
             <Text as="p" variant="bodySm" tone="subdued">
-              Estimated customers
+              {isLoading ? "Calculating..." : "Estimated customers"}
             </Text>
           </BlockStack>
         </Box>

@@ -6,7 +6,7 @@
 
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { saveCustomerList } from "../services/saved-lists.server";
+import { saveCustomerList, updateSavedList } from "../services/saved-lists.server";
 import type { FilterData } from "../components/filter-audience/types";
 
 /**
@@ -22,6 +22,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const filtersJson = formData.get("filters");
     const customerIdsJson = formData.get("customerIds");
     const source = formData.get("source") as string;
+    const listId = formData.get("listId") as string | null;
 
     // Validate input
     if (!listName || typeof listName !== "string" || !listName.trim()) {
@@ -48,20 +49,48 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ? (source as "ai-search" | "filter-audience" | "manual")
       : "filter-audience";
 
-    // Save the list
-    const savedList = await saveCustomerList(
-      shop,
-      listName.trim(),
-      filters,
-      customerIds,
-      validSource
-    );
+    // If listId is provided, update existing list; otherwise create new
+    let savedList;
+    if (listId) {
+      // Update existing list
+      savedList = await updateSavedList(
+        shop,
+        listId,
+        {
+          listName: listName.trim(),
+          queryData: filters,
+          customerIds,
+        }
+      );
 
-    return Response.json({
-      success: true,
-      list: savedList,
-      message: "List saved successfully",
-    });
+      if (!savedList) {
+        return Response.json(
+          { error: "List not found or access denied" },
+          { status: 404 }
+        );
+      }
+
+      return Response.json({
+        success: true,
+        list: savedList,
+        message: "List updated successfully",
+      });
+    } else {
+      // Create new list
+      savedList = await saveCustomerList(
+        shop,
+        listName.trim(),
+        filters,
+        customerIds,
+        validSource
+      );
+
+      return Response.json({
+        success: true,
+        list: savedList,
+        message: "List saved successfully",
+      });
+    }
   } catch (error: any) {
     console.error("[Save List API] Error:", error);
     return Response.json(
