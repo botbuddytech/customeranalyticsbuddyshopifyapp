@@ -9,76 +9,168 @@
  * - Engagement metrics and customer lifecycle
  */
 
-import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Form } from "react-router";
+import { useLoaderData } from "react-router";
 import {
   Page,
   Layout,
-  Card,
   BlockStack,
   InlineStack,
   Text,
-  Button,
-  Checkbox,
-  Grid,
-  Banner,
-  Tag,
-  Collapsible,
   Badge,
-  Icon,
-  Box,
-  Tooltip,
-  Divider,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  LocationIcon,
-  ProductIcon,
-  ClockIcon,
-  PhoneIcon,
-  CreditCardIcon,
-  DeliveryIcon,
-  PersonIcon,
-  FilterIcon,
-  ExportIcon,
-  EmailIcon,
-} from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { AudienceFilterForm } from "../components/filter-audience";
+import {
+  getProducts,
+  getCollections,
+  getProductTypes,
+  getUniqueCountries,
+  getUniquePaymentGateways,
+  getUniqueShippingMethods,
+} from "../services/products.server";
 
 // Loader function to authenticate and provide initial data
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
 
-  // In a real app, you would fetch data from your database or Shopify API
-  return {
-    // Mock data for demonstration
-    locations: {
-      popular: ["United States", "Canada", "United Kingdom", "Australia"],
-      regions: [
-        "North America",
-        "Europe",
-        "Asia",
-        "South America",
-        "Africa",
-        "Oceania",
-      ],
-      international: [
-        "India",
-        "Germany",
-        "France",
-        "Japan",
-        "Brazil",
-        "Mexico",
-      ],
-    },
-    products: ["Product A", "Product B", "Product C", "Product D"],
-    categories: ["Category 1", "Category 2", "Category 3"],
-    collections: ["Summer Collection", "Winter Collection", "Special Offers"],
-  };
+  try {
+    // Fetch products, collections, product types, countries, payment gateways, and shipping methods from Shopify
+    const [
+      products,
+      collections,
+      productTypes,
+      countries,
+      paymentGateways,
+      shippingMethods,
+    ] = await Promise.all([
+      getProducts(admin),
+      getCollections(admin),
+      getProductTypes(admin),
+      getUniqueCountries(admin),
+      getUniquePaymentGateways(admin),
+      getUniqueShippingMethods(admin),
+    ]);
+
+    // Format products for display (title only)
+    const productOptions = products
+      .filter((p) => p.status === "ACTIVE") // Only active products
+      .map((p) => p.title);
+
+    // Format collections for display
+    const collectionOptions = collections.map((c) => c.title);
+
+    // Format product types (categories) for display
+    const categoryOptions = productTypes;
+
+    // Map payment gateway names to user-friendly names
+    const paymentMethodOptions =
+      mapPaymentGatewaysToUserFriendly(paymentGateways);
+
+    // Map shipping methods to user-friendly names (keep original titles as well)
+    const deliveryMethodOptions =
+      mapShippingMethodsToUserFriendly(shippingMethods);
+
+    return {
+      products: productOptions,
+      collections: collectionOptions,
+      categories: categoryOptions,
+      countries: countries,
+      paymentMethods: paymentMethodOptions,
+      deliveryMethods: deliveryMethodOptions,
+    };
+  } catch (error) {
+    console.error("[Filter Audience Loader] Error fetching data:", error);
+    // Return empty arrays on error
+    return {
+      products: [],
+      collections: [],
+      categories: [],
+      countries: [],
+      paymentMethods: [],
+      deliveryMethods: [],
+    };
+  }
 };
+
+/**
+ * Map Shopify payment gateway names to user-friendly names
+ */
+function mapPaymentGatewaysToUserFriendly(gateways: string[]): string[] {
+  const userFriendlyMap: Record<string, string> = {
+    shopify_payments: "Shop Pay",
+    paypal: "PayPal",
+    paypal_express: "PayPal",
+    apple_pay: "Apple Pay",
+    google_pay: "Google Pay",
+    amazon_payments: "Amazon Pay",
+    klarna: "Klarna",
+    afterpay: "Afterpay",
+    affirm: "Affirm",
+    sezzle: "Sezzle",
+    stripe: "Credit Card",
+    authorize_net: "Credit Card",
+    braintree: "Credit Card",
+    first_data: "Credit Card",
+    cybersource: "Credit Card",
+    worldpay: "Credit Card",
+    adyen: "Credit Card",
+    manual: "Cash on Delivery",
+    bogus: "Cash on Delivery",
+    gift_card: "Gift Card",
+    store_credit: "Store Credit",
+    bank_transfer: "Bank Transfer",
+  };
+
+  const mapped = new Set<string>();
+
+  gateways.forEach((gateway) => {
+    const gatewayLower = gateway.toLowerCase();
+    const friendlyName = userFriendlyMap[gatewayLower];
+    if (friendlyName) {
+      mapped.add(friendlyName);
+    } else {
+      // If not in map, use the gateway name as-is (capitalize first letter)
+      mapped.add(
+        gateway.charAt(0).toUpperCase() + gateway.slice(1).replace(/_/g, " "),
+      );
+    }
+  });
+
+  return Array.from(mapped).sort();
+}
+
+/**
+ * Map Shopify shipping method titles to user-friendly names
+ * Also keeps original titles for flexibility
+ */
+function mapShippingMethodsToUserFriendly(methods: string[]): string[] {
+  const userFriendlyMap: Record<string, string> = {
+    "standard shipping": "Standard Shipping",
+    "express shipping": "Express Shipping",
+    "free shipping": "Free Shipping",
+    "local pickup": "Local Pickup",
+    "same-day delivery": "Same-day Delivery",
+    "international shipping": "International Shipping",
+    "scheduled delivery": "Scheduled Delivery",
+  };
+
+  const mapped = new Set<string>();
+
+  methods.forEach((method) => {
+    const methodLower = method.toLowerCase();
+    const friendlyName = userFriendlyMap[methodLower];
+    if (friendlyName) {
+      mapped.add(friendlyName);
+    } else {
+      // Keep original title as well for flexibility
+      mapped.add(method);
+    }
+  });
+
+  return Array.from(mapped).sort();
+}
 
 // Action function to handle form submissions
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -105,6 +197,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
  */
 export default function FilterAudiencePage() {
   const data = useLoaderData<typeof loader>();
+  const isLoading =
+    data.products.length === 0 &&
+    data.countries.length === 0 &&
+    data.paymentMethods.length === 0 &&
+    data.deliveryMethods.length === 0;
 
   return (
     <Page fullWidth>
@@ -112,10 +209,6 @@ export default function FilterAudiencePage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
-            {/* ==========================================
-                   Compact Header
-                   ========================================== */}
-
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
                 <Text as="h1" variant="headingLg">
@@ -128,466 +221,18 @@ export default function FilterAudiencePage() {
               <Badge tone="info">Segment Builder</Badge>
             </InlineStack>
 
-            <AudienceFilterForm />
+            <AudienceFilterForm
+              products={data.products}
+              collections={data.collections}
+              categories={data.categories}
+              countries={data.countries}
+              paymentMethods={data.paymentMethods}
+              deliveryMethods={data.deliveryMethods}
+              isLoading={isLoading}
+            />
           </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>
-  );
-}
-
-/**
- * Compact Audience Filter Form Component
- *
- * Provides an organized, space-efficient interface for building
- * customer segments with multiple filter categories.
- */
-function AudienceFilterForm() {
-  // ==========================================
-  // State Management
-  // ==========================================
-
-  // Compact state for essential sections only
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({
-    location: true,
-    products: false,
-    timing: false,
-    device: false,
-    payment: false,
-    delivery: false,
-  });
-
-  // Selected filters state
-  const [selectedFilters, setSelectedFilters] = useState<
-    Record<string, string[]>
-  >({
-    location: [],
-    products: [],
-    timing: [],
-    device: [],
-    payment: [],
-    delivery: [],
-  });
-
-  // Form submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [previewCount, setPreviewCount] = useState<number>(0);
-
-  // Toggle section expansion
-  const toggleSection = (section: string) => {
-    setExpandedSections({
-      ...expandedSections,
-      [section]: !expandedSections[section],
-    });
-  };
-
-  // Handle checkbox changes
-  const handleCheckboxChange = (
-    section: string,
-    value: string,
-    checked: boolean,
-  ) => {
-    if (checked) {
-      setSelectedFilters({
-        ...selectedFilters,
-        [section]: [...(selectedFilters[section] || []), value],
-      });
-    } else {
-      setSelectedFilters({
-        ...selectedFilters,
-        [section]: (selectedFilters[section] || []).filter(
-          (item) => item !== value,
-        ),
-      });
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setResults({
-        matchCount: Math.floor(Math.random() * 1000) + 1,
-        filters: selectedFilters,
-      });
-      setIsSubmitting(false);
-    }, 1500);
-  };
-
-  // ==========================================
-  // Helper Functions
-  // ==========================================
-
-  // Get total selected filters count
-  const getTotalFiltersCount = () => {
-    return Object.values(selectedFilters).reduce(
-      (total, filters) => total + filters.length,
-      0,
-    );
-  };
-
-  // Get section icon
-  const getSectionIcon = (section: string) => {
-    switch (section) {
-      case "location":
-        return LocationIcon;
-      case "products":
-        return ProductIcon;
-      case "timing":
-        return ClockIcon;
-      case "device":
-        return PhoneIcon;
-      case "payment":
-        return CreditCardIcon;
-      case "delivery":
-        return DeliveryIcon;
-      default:
-        return FilterIcon;
-    }
-  };
-
-  // Render compact filter section
-  const renderCompactFilterSection = (
-    title: string,
-    section: string,
-    options: string[],
-    emoji: string,
-  ) => {
-    const selectedCount = selectedFilters[section]?.length || 0;
-    const isExpanded = expandedSections[section];
-
-    return (
-      <Card>
-        <BlockStack gap="300">
-          <InlineStack align="space-between" blockAlign="center">
-            <InlineStack gap="200" blockAlign="center">
-              <Text as="h3" variant="headingMd">
-                {emoji} {title}
-              </Text>
-              {selectedCount > 0 && (
-                <Badge tone="info" size="small">
-                  {`${selectedCount} selected`}
-                </Badge>
-              )}
-            </InlineStack>
-            <Button
-              size="slim"
-              variant="plain"
-              icon={isExpanded ? ChevronUpIcon : ChevronDownIcon}
-              onClick={() => toggleSection(section)}
-            />
-          </InlineStack>
-
-          <Collapsible open={isExpanded} id={`section-${section}`}>
-            <Grid>
-              {options.map((option, index) => (
-                <Grid.Cell
-                  key={index}
-                  columnSpan={{ xs: 6, sm: 4, md: 3, lg: 3, xl: 3 }}
-                >
-                  <Checkbox
-                    label={option}
-                    checked={
-                      selectedFilters[section]?.includes(option) || false
-                    }
-                    onChange={(checked) =>
-                      handleCheckboxChange(section, option, checked)
-                    }
-                  />
-                </Grid.Cell>
-              ))}
-            </Grid>
-          </Collapsible>
-        </BlockStack>
-      </Card>
-    );
-  };
-
-  return (
-    <Form method="post" onSubmit={handleSubmit}>
-      <Layout>
-        {/* ==========================================
-             Left Column: Filter Sections
-             ========================================== */}
-
-        <Layout.Section>
-          <BlockStack gap="400">
-            {/* Filter Summary Card */}
-            <Card>
-              <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="100">
-                  <Text as="h3" variant="headingMd">
-                    🔍 Active Filters
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {getTotalFiltersCount()} filters applied
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="200">
-                  <Button
-                    size="slim"
-                    onClick={() => setSelectedFilters({})}
-                    disabled={getTotalFiltersCount() === 0}
-                  >
-                    Clear All
-                  </Button>
-                  <Button
-                    size="slim"
-                    variant="primary"
-                    submit
-                    loading={isSubmitting}
-                    disabled={getTotalFiltersCount() === 0}
-                  >
-                    Generate Segment
-                  </Button>
-                </InlineStack>
-              </InlineStack>
-            </Card>
-
-            {/* Compact Filter Sections */}
-            {renderCompactFilterSection(
-              "Geographic Location",
-              "location",
-              [
-                "United States",
-                "Canada",
-                "United Kingdom",
-                "Australia",
-                "India",
-                "Germany",
-                "France",
-                "Japan",
-                "Brazil",
-                "Mexico",
-                "North America",
-                "Europe",
-                "Asia",
-                "South America",
-              ],
-              "🌍",
-            )}
-
-            {renderCompactFilterSection(
-              "Products & Categories",
-              "products",
-              [
-                "Product A",
-                "Product B",
-                "Product C",
-                "Product D",
-                "Category 1",
-                "Category 2",
-                "Category 3",
-                "Summer Collection",
-                "Winter Collection",
-                "Special Offers",
-              ],
-              "🛍️",
-            )}
-
-            {renderCompactFilterSection(
-              "Shopping Timing",
-              "timing",
-              [
-                "Morning (6am-12pm)",
-                "Afternoon (12pm-6pm)",
-                "Evening (6pm-12am)",
-                "Night (12am-6am)",
-                "Weekdays",
-                "Weekends",
-                "Holidays",
-                "Sale Events",
-              ],
-              "⏰",
-            )}
-
-            {renderCompactFilterSection(
-              "Device & Platform",
-              "device",
-              [
-                "Desktop",
-                "Mobile",
-                "Tablet",
-                "iOS",
-                "Android",
-                "Windows",
-                "Mac",
-              ],
-              "📱",
-            )}
-
-            {/* Payment & Delivery Row */}
-            <Grid>
-              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                {renderCompactFilterSection(
-                  "Payment Methods",
-                  "payment",
-                  [
-                    "Credit Card",
-                    "PayPal",
-                    "Apple Pay",
-                    "Google Pay",
-                    "Cash on Delivery",
-                    "Bank Transfer",
-                    "Gift Card",
-                    "Store Credit",
-                  ],
-                  "💳",
-                )}
-              </Grid.Cell>
-
-              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                {renderCompactFilterSection(
-                  "Delivery Preferences",
-                  "delivery",
-                  [
-                    "Standard Shipping",
-                    "Express Shipping",
-                    "Free Shipping",
-                    "Local Pickup",
-                    "Same-day Delivery",
-                    "International Shipping",
-                    "Scheduled Delivery",
-                    "Eco-friendly Packaging",
-                  ],
-                  "🚚",
-                )}
-              </Grid.Cell>
-            </Grid>
-          </BlockStack>
-        </Layout.Section>
-
-        {/* ==========================================
-             Right Column: Preview & Actions
-             ========================================== */}
-
-        <Layout.Section variant="oneThird">
-          <BlockStack gap="400">
-            {/* Live Preview Card */}
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingMd">
-                  📊 Segment Preview
-                </Text>
-
-                <Box
-                  background="bg-surface-secondary"
-                  padding="400"
-                  borderRadius="200"
-                >
-                  <BlockStack gap="200" align="center">
-                    <Text as="p" variant="headingLg" fontWeight="bold">
-                      {previewCount.toLocaleString()}
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Estimated customers
-                    </Text>
-                  </BlockStack>
-                </Box>
-
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Preview updates as you add filters
-                </Text>
-              </BlockStack>
-            </Card>
-
-            {/* Quick Actions Card */}
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingMd">
-                  ⚡ Quick Actions
-                </Text>
-
-                <BlockStack gap="200">
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    icon={ExportIcon}
-                    disabled={!results}
-                  >
-                    Export Segment
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    icon={EmailIcon}
-                    disabled={!results}
-                  >
-                    Create Campaign
-                  </Button>
-
-                  <Button variant="secondary" fullWidth disabled={!results}>
-                    Save to Lists
-                  </Button>
-                </BlockStack>
-              </BlockStack>
-            </Card>
-
-            {/* Filter Tips Card */}
-            <Card>
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingMd">
-                  💡 Tips
-                </Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  • Start with location or product filters • Combine multiple
-                  criteria for precision • Use timing filters for seasonal
-                  campaigns • Preview updates in real-time
-                </Text>
-              </BlockStack>
-            </Card>
-          </BlockStack>
-        </Layout.Section>
-      </Layout>
-
-      {/* Results Section - Outside Layout */}
-      {results && (
-        <Card>
-          <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingLg">
-                🎉 Segment Created
-              </Text>
-              <Badge tone="success">{`${results.matchCount} customers`}</Badge>
-            </InlineStack>
-
-            <Banner tone="success">
-              <p>
-                Your audience segment has been created successfully! You can now
-                export the data or create targeted campaigns.
-              </p>
-            </Banner>
-
-            <BlockStack gap="200">
-              <Text as="h3" variant="headingMd">
-                Applied Filters:
-              </Text>
-              <InlineStack gap="200" wrap>
-                {Object.entries(results.filters).flatMap(([section, values]) =>
-                  (values as string[]).map((value, index) => (
-                    <Tag key={`${section}-${index}`}>{value}</Tag>
-                  )),
-                )}
-              </InlineStack>
-            </BlockStack>
-
-            <InlineStack gap="200">
-              <Button icon={ExportIcon}>Export CSV</Button>
-              <Button icon={ExportIcon}>Export Excel</Button>
-              <Button variant="primary" icon={EmailIcon}>
-                Create Campaign
-              </Button>
-            </InlineStack>
-          </BlockStack>
-        </Card>
-      )}
-    </Form>
   );
 }

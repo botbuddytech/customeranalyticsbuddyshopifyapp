@@ -32,3 +32,19 @@ model DashboardPreferences {
 
   @@map("dashboard_preferences")
 }
+
+// SavedCustomerList model - Stores saved customer segment lists per merchant
+model SavedCustomerList {
+  id          String   @id @default(uuid())
+  shop        String   // Shop identifier (not unique - merchant can have multiple lists)
+  listName    String   // Name of the saved list
+  queryData   String   @db.Text // JSON string of FilterData (complete query/filters)
+  customerIds String[] @default([]) // Array of customer IDs in this list (optional, for quick access)
+  source      String   @default("filter-audience") // Source: "ai-search", "filter-audience", or "manual"
+  status      String   @default("active") // Status: "active" or "archived"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([shop]) // Index for faster queries by shop
+  @@map("saved_customer_lists")
+}
