@@ -100,6 +100,7 @@ export function DashboardControls({
     initialVisibility || DEFAULT_VISIBILITY,
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Update visibility when initialVisibility changes (from Supabase on mount)
   useEffect(() => {
@@ -114,6 +115,11 @@ export function DashboardControls({
       setVisibility(currentVisibility);
     }
   }, [currentVisibility]);
+
+  // Set last updated date only on client side to avoid hydration mismatch
+  useEffect(() => {
+    setLastUpdated(new Date().toLocaleString());
+  }, []);
 
   const handleCustomizeClick = () => {
     // Reset to current applied state when opening modal (discard any unsaved changes)
@@ -134,16 +140,37 @@ export function DashboardControls({
       const formData = new FormData();
       formData.append("preferences", JSON.stringify(newVisibility));
 
+      console.log("[Dashboard Controls] Sending save request...");
       const response = await fetch("/api/dashboard/preferences", {
         method: "POST",
         body: formData,
       });
 
+      console.log(
+        "[Dashboard Controls] Response status:",
+        response.status,
+        response.ok,
+      );
+
       if (!response.ok) {
-        throw new Error("Failed to save preferences");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[Dashboard Controls] Response not OK:", errorData);
+        throw new Error(
+          errorData.error || `Failed to save preferences: ${response.status}`,
+        );
       }
 
-      return true;
+      const data = await response.json();
+      console.log("[Dashboard Controls] Response data:", data);
+
+      // Check if the response indicates success
+      if (data.success === true) {
+        console.log("[Dashboard Controls] Save successful!");
+        return true;
+      } else {
+        console.error("[Dashboard Controls] Response indicates failure:", data);
+        throw new Error(data.error || "Failed to save preferences");
+      }
     } catch (error) {
       console.error("[Dashboard Controls] Error saving preferences:", error);
       return false;
@@ -151,17 +178,31 @@ export function DashboardControls({
   };
 
   const handleSave = async () => {
+    if (isSaving) return; // Prevent double submission
+
     setIsSaving(true);
     try {
+      console.log("[Dashboard Controls] Saving preferences:", visibility);
       const success = await savePreferences(visibility);
+      console.log("[Dashboard Controls] Save result:", success);
+
       if (success) {
-        // Only update UI and close modal after successful save
+        // Update UI and close modal after successful save
+        console.log(
+          "[Dashboard Controls] Preferences saved successfully, closing modal",
+        );
         onVisibilityChange?.(visibility);
+        // Close modal immediately after successful save
         setShowCustomizeModal(false);
       } else {
-        // Show error message or keep modal open
-        // You could add a toast/notification here
+        // Keep modal open on error - user can try again
+        console.error(
+          "[Dashboard Controls] Failed to save preferences - keeping modal open",
+        );
       }
+    } catch (error) {
+      console.error("[Dashboard Controls] Error in handleSave:", error);
+      // Keep modal open on error so user can retry
     } finally {
       setIsSaving(false);
     }
@@ -181,7 +222,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           customersOverview: {
-            enabled: true, // Keep section enabled, just toggle cards
+            enabled: newValue, // Sync enabled state with card toggle
             cards: {
               totalCustomers: newValue,
               newCustomers: newValue,
@@ -194,7 +235,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           purchaseOrderBehavior: {
-            enabled: true, // Keep section enabled, just toggle cards
+            enabled: newValue, // Sync enabled state with card toggle
             cards: {
               codOrders: newValue,
               prepaidOrders: newValue,
@@ -207,7 +248,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           engagementPatterns: {
-            enabled: true, // Keep section enabled, just toggle cards
+            enabled: newValue, // Sync enabled state with card toggle
             cards: {
               discountUsers: newValue,
               wishlistUsers: newValue,
@@ -235,12 +276,15 @@ export function DashboardControls({
         ...prevSection.cards,
         [cardKey]: !prevSection.cards[cardKey],
       };
-      // Don't change section enabled state - just toggle the individual card
-      // The section header checkbox will reflect the state automatically
+
+      // Update enabled state based on if any card is checked
+      const isEnabled = Object.values(newCards).some((v) => v === true);
+
       const newVisibility = {
         ...prev,
         [section]: {
           ...prevSection,
+          enabled: isEnabled, // Sync enabled state
           cards: newCards,
         },
       };
@@ -264,7 +308,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           customersOverview: {
-            enabled: true, // Keep section enabled
+            enabled: newValue, // Sync enabled state
             cards: {
               totalCustomers: newValue,
               newCustomers: newValue,
@@ -277,7 +321,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           purchaseOrderBehavior: {
-            enabled: true, // Keep section enabled
+            enabled: newValue, // Sync enabled state
             cards: {
               codOrders: newValue,
               prepaidOrders: newValue,
@@ -290,7 +334,7 @@ export function DashboardControls({
         newVisibility = {
           ...prev,
           engagementPatterns: {
-            enabled: true, // Keep section enabled
+            enabled: newValue, // Sync enabled state
             cards: {
               discountUsers: newValue,
               wishlistUsers: newValue,
@@ -346,14 +390,18 @@ export function DashboardControls({
             {dateRangeValue === "last30Days"
               ? "the last 30 days"
               : "the selected period"}
-            . Last updated: {new Date().toLocaleString()}
+            {lastUpdated && `. Last updated: ${lastUpdated}`}
           </Text>
         </BlockStack>
       </Card>
 
       <Modal
         open={showCustomizeModal}
-        onClose={() => !isSaving && setShowCustomizeModal(false)}
+        onClose={() => {
+          if (!isSaving) {
+            setShowCustomizeModal(false);
+          }
+        }}
         title="Customize Dashboard"
         primaryAction={{
           content: isSaving ? "Saving..." : "Save",
@@ -364,7 +412,11 @@ export function DashboardControls({
         secondaryActions={[
           {
             content: "Cancel",
-            onAction: () => !isSaving && setShowCustomizeModal(false),
+            onAction: () => {
+              if (!isSaving) {
+                setShowCustomizeModal(false);
+              }
+            },
             disabled: isSaving,
           },
         ]}

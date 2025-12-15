@@ -35,10 +35,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shop = session.shop;
 
   try {
+    console.log(`[Dashboard Preferences API] Saving preferences for shop: ${shop}`);
     const formData = await request.formData();
     const preferencesJson = formData.get("preferences");
 
     if (!preferencesJson || typeof preferencesJson !== "string") {
+      console.error(`[Dashboard Preferences API] Invalid preferences data`);
       return Response.json(
         { error: "Invalid preferences data" },
         { status: 400 },
@@ -46,16 +48,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const preferences = JSON.parse(preferencesJson);
+    console.log(`[Dashboard Preferences API] Parsed preferences:`, preferences);
     await saveDashboardPreferences(shop, preferences);
+    console.log(`[Dashboard Preferences API] Preferences saved successfully`);
 
-    return Response.json({ success: true });
+    return Response.json({ success: true }, { status: 200 });
   } catch (error: any) {
     console.error(
       `[Dashboard Preferences API] Error saving preferences:`,
       error,
     );
     return Response.json(
-      { error: "Failed to save preferences" },
+      { error: "Failed to save preferences", success: false },
       { status: 500 },
     );
   }
