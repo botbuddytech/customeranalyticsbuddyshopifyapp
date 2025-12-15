@@ -13,11 +13,12 @@ datasource db {
 
 // Config model - Stores onboarding progress and app configuration per shop
 model Config {
-  id             String   @id @default(uuid())
-  shop           String   @unique
-  completedSteps String[] @default([])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  shop               String   @unique
+  completedSteps     String[] @default([]) // All completed steps (both manual and auto)
+  autoCompletedSteps String[] @default([]) // Steps that were auto-completed (cannot be undone)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("onboardingtaskdata")
 }
@@ -36,8 +37,8 @@ model DashboardPreferences {
 // SavedCustomerList model - Stores saved customer segment lists per merchant
 model SavedCustomerList {
   id          String   @id @default(uuid())
-  shop        String   // Shop identifier (not unique - merchant can have multiple lists)
-  listName    String   // Name of the saved list
+  shop        String // Shop identifier (not unique - merchant can have multiple lists)
+  listName    String // Name of the saved list
   queryData   String   @db.Text // JSON string of FilterData (complete query/filters)
   customerIds String[] @default([]) // Array of customer IDs in this list (optional, for quick access)
   source      String   @default("filter-audience") // Source: "ai-search", "filter-audience", or "manual"

@@ -1,8 +1,10 @@
-import { Card, BlockStack, InlineStack, Text, Badge, Box, Button, Icon } from "@shopify/polaris";
-import { CheckIcon, PersonIcon, FilterIcon, ViewIcon } from "@shopify/polaris-icons";
+import { useState } from "react";
+import { Card, BlockStack, InlineStack, Text, Badge, Box, Button, Icon, Collapsible } from "@shopify/polaris";
+import { CheckIcon, PersonIcon, FilterIcon, ViewIcon, ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
 
 interface QuickStartChecklistProps {
   completedSteps: number[];
+  autoCompletedSteps?: number[];
   onToggleStep: (stepId: number) => void;
   loadingStepId?: number | null;
 }
@@ -12,7 +14,14 @@ interface QuickStartChecklistProps {
  * 
  * Interactive onboarding checklist with progress tracking
  */
-export function QuickStartChecklist({ completedSteps, onToggleStep, loadingStepId = null }: QuickStartChecklistProps) {
+export function QuickStartChecklist({ 
+  completedSteps, 
+  autoCompletedSteps = [], 
+  onToggleStep, 
+  loadingStepId = null 
+}: QuickStartChecklistProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
   const quickStartSteps = [
     {
       id: 1,
@@ -32,67 +41,105 @@ export function QuickStartChecklist({ completedSteps, onToggleStep, loadingStepI
       description: "Engage your segments with targeted messaging",
       icon: ViewIcon,
     },
+    {
+      id: 4,
+      title: "First list saved",
+      description: "Save your first customer segment list",
+      icon: ViewIcon,
+    },
   ];
 
   return (
     <Card>
       <BlockStack gap="400">
         <BlockStack gap="200">
-          <InlineStack gap="200" align="space-between">
-            <Text as="h3" variant="headingMd">
-              Quick Start Guide
-            </Text>
-
-            <Badge tone="info">
-              {`${completedSteps.length}/${quickStartSteps.length} Completed`}
-            </Badge>
-          </InlineStack>
-
-          <Text variant="bodyMd" as="p" tone="subdued">
-            Follow these steps to get the most out of your app
-          </Text>
-        </BlockStack>
-
-        <BlockStack gap="300">
-          {quickStartSteps.map((step) => (
-            <Box
-              key={step.id}
-              padding="400"
-              background={completedSteps.includes(step.id) ? "bg-surface-success" : "bg-surface"}
-              borderRadius="200"
-              borderWidth="025"
-              borderColor={completedSteps.includes(step.id) ? "border-success" : "border"}
-            >
-              <InlineStack gap="300" align="space-between">
-                <InlineStack gap="300" align="start">
-                  <Icon
-                    source={completedSteps.includes(step.id) ? CheckIcon : step.icon}
-                    tone={completedSteps.includes(step.id) ? "success" : "base"}
-                  />
-
-                  <BlockStack gap="100">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      {step.title}
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      {step.description}
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
-
-                <Button
-                  variant="plain"
-                  onClick={() => onToggleStep(step.id)}
-                  loading={loadingStepId === step.id}
-                  disabled={loadingStepId === step.id}
-                  accessibilityLabel={`Mark step ${step.id} as ${completedSteps.includes(step.id) ? 'incomplete' : 'complete'}`}
-                >
-                  {completedSteps.includes(step.id) ? "Undo" : "Mark Complete"}
-                </Button>
+          <Box
+            padding="300"
+            background="bg-surface-secondary"
+            borderRadius="200"
+            cursor="pointer"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <InlineStack gap="300" align="space-between" blockAlign="center">
+              <InlineStack gap="300" blockAlign="center">
+                <Icon
+                  source={isExpanded ? ChevronUpIcon : ChevronDownIcon}
+                  tone="base"
+                />
+                <Text as="h3" variant="headingMd" fontWeight="semibold">
+                  Quick Start Guide
+                </Text>
+                <Badge tone="info">
+                  {`${completedSteps.length}/${quickStartSteps.length} Completed`}
+                </Badge>
               </InlineStack>
-            </Box>
-          ))}
+            </InlineStack>
+          </Box>
+
+          {isExpanded && (
+            <Text variant="bodyMd" as="p" tone="subdued">
+              Follow these steps to get the most out of your app
+            </Text>
+          )}
         </BlockStack>
+
+        <Collapsible open={isExpanded} id="quick-start-tasks">
+          <BlockStack gap="300">
+            {quickStartSteps.map((step) => {
+            const isCompleted = completedSteps.includes(step.id);
+            const isAutoCompleted = autoCompletedSteps.includes(step.id);
+            const canUndo = isCompleted && !isAutoCompleted;
+
+            return (
+              <Box
+                key={step.id}
+                padding="400"
+                background={isCompleted ? "bg-surface-success" : "bg-surface"}
+                borderRadius="200"
+                borderWidth="025"
+                borderColor={isCompleted ? "border-success" : "border"}
+              >
+                <InlineStack gap="300" align="space-between">
+                  <InlineStack gap="300" align="start">
+                    <Icon
+                      source={isCompleted ? CheckIcon : step.icon}
+                      tone={isCompleted ? "success" : "base"}
+                    />
+
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        {step.title}
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {step.description}
+                        {isAutoCompleted && (
+                          <Text as="span" tone="success" fontWeight="medium">
+                            {" "}(Auto-completed)
+                          </Text>
+                        )}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+
+                  <Button
+                    variant="plain"
+                    onClick={() => onToggleStep(step.id)}
+                    loading={loadingStepId === step.id}
+                    disabled={loadingStepId === step.id || (isCompleted && isAutoCompleted)}
+                    accessibilityLabel={`Mark step ${step.id} as ${isCompleted ? 'incomplete' : 'complete'}`}
+                  >
+                    {isCompleted && isAutoCompleted 
+                      ? "Auto-completed" 
+                      : isCompleted 
+                        ? "Undo" 
+                        : "Mark Complete"}
+                  </Button>
+                </InlineStack>
+              </Box>
+            );
+          })}
+          </BlockStack>
+        </Collapsible>
       </BlockStack>
     </Card>
   );

@@ -6,13 +6,14 @@
  * to help users get started with customer segmentation and campaigns.
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useFetcher } from "react-router";
 import { Page, Layout, BlockStack } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { checkAndUpdateAutomation } from "../services/onboarding/automation";
 
 // Import home page components
 import { WelcomeHeader } from "../components/home/WelcomeHeader";
@@ -30,25 +31,45 @@ import { QuickActions } from "../components/home/QuickActions";
  * It authenticates the user and fetches their onboarding progress.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
-    // Fetch onboarding progress from database using Prisma
-    const config = await db.config.findUnique({
-      where: { shop },
-      select: { completedSteps: true },
-    });
-
-    // If no record exists yet, return empty array
-    if (!config) {
-      return { completedSteps: [] };
+    // Check automation and update tasks if criteria are met
+    // Run automation FIRST to ensure database is updated before fetching config
+    try {
+      await checkAndUpdateAutomation(shop, admin);
+    } catch (automationError) {
+      console.error("Error checking automation (non-fatal):", automationError);
+      // Continue even if automation check fails
     }
 
-    return { completedSteps: config.completedSteps };
+    // Fetch config AFTER automation check completes to get updated data
+    const configData = await db.config.findUnique({
+      where: { shop },
+    });
+
+    // If no record exists yet, return empty arrays
+    if (!configData) {
+      return {
+        completedSteps: [],
+        autoCompletedSteps: [],
+      };
+    }
+
+    // Handle case where autoCompletedSteps field might not exist in DB yet
+    const autoCompletedSteps = (configData as any)?.autoCompletedSteps || [];
+
+    return {
+      completedSteps: configData.completedSteps || [],
+      autoCompletedSteps: autoCompletedSteps,
+    };
   } catch (error) {
     console.error("Error fetching onboarding progress:", error);
-    return { completedSteps: [] };
+    return {
+      completedSteps: [],
+      autoCompletedSteps: [],
+    };
   }
 };
 
@@ -70,24 +91,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { success: false, error: "completedSteps must be an array" };
     }
 
+    // Get current config to check auto-completed steps
+    const currentConfig = await db.config.findUnique({
+      where: { shop },
+      select: { autoCompletedSteps: true },
+    });
+
+    const autoCompletedSteps = currentConfig?.autoCompletedSteps || [];
+
     // Convert numbers to strings if needed
-    const stepsAsStrings = completedSteps.map(step => String(step));
+    const stepsAsStrings = completedSteps.map((step) => String(step));
+
+    // Prevent removing auto-completed steps
+    // If user tries to undo an auto-completed step, keep it in the array
+    const finalCompletedSteps = [
+      ...new Set([...stepsAsStrings, ...autoCompletedSteps]),
+    ];
 
     // Upsert the record (insert if doesn't exist, update if it does)
     const config = await db.config.upsert({
       where: { shop },
       update: {
-        completedSteps: stepsAsStrings,
+        completedSteps: finalCompletedSteps,
+        autoCompletedSteps: autoCompletedSteps, // Preserve auto-completed steps
         updatedAt: new Date(),
       },
       create: {
         shop,
-        completedSteps: stepsAsStrings,
+        completedSteps: finalCompletedSteps,
+        autoCompletedSteps: autoCompletedSteps,
       },
       select: {
         id: true,
         shop: true,
         completedSteps: true,
+        autoCompletedSteps: true,
         updatedAt: true,
       },
     });
@@ -109,31 +147,79 @@ export default function Index() {
   // Track which onboarding steps the user has completed
   const loaderData = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
-  
+
   const [completedSteps, setCompletedSteps] = useState<number[]>(
-    (loaderData?.completedSteps || []).map((step: string) => parseInt(step, 10))
+    (loaderData?.completedSteps || []).map((step: string) =>
+      parseInt(step, 10),
+    ),
+  );
+  const [autoCompletedSteps, setAutoCompletedSteps] = useState<number[]>(
+    (loaderData?.autoCompletedSteps || []).map((step: string) =>
+      parseInt(step, 10),
+    ),
   );
   const [loadingStepId, setLoadingStepId] = useState<number | null>(null);
+  const previousCompletedStepsRef = useRef<number[]>(completedSteps);
+
+  // Sync state with loader data when it changes
+  useEffect(() => {
+    const loadedSteps = (loaderData?.completedSteps || []).map((step: string) =>
+      parseInt(step, 10),
+    );
+    const loadedAutoSteps = (loaderData?.autoCompletedSteps || []).map(
+      (step: string) => parseInt(step, 10),
+    );
+    setCompletedSteps(loadedSteps);
+    setAutoCompletedSteps(loadedAutoSteps);
+    previousCompletedStepsRef.current = loadedSteps;
+  }, [loaderData?.completedSteps, loaderData?.autoCompletedSteps]);
+
+  // Handle fetcher state changes and errors
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data) {
+      // Request completed
+      setLoadingStepId(null);
+
+      if (fetcher.data.success && fetcher.data.data) {
+        // Success: sync with server response
+        const serverSteps = (fetcher.data.data.completedSteps || []).map(
+          (step: string) => parseInt(step, 10),
+        );
+        const serverAutoSteps = (
+          fetcher.data.data.autoCompletedSteps || []
+        ).map((step: string) => parseInt(step, 10));
+        setCompletedSteps(serverSteps);
+        setAutoCompletedSteps(serverAutoSteps);
+        previousCompletedStepsRef.current = serverSteps;
+      } else if (fetcher.data.success === false) {
+        // Error: revert to previous state
+        console.error(
+          "Failed to update onboarding progress:",
+          fetcher.data.error,
+        );
+        setCompletedSteps(previousCompletedStepsRef.current);
+      }
+    }
+  }, [fetcher.state, fetcher.data]);
 
   // Handle clicking "Mark Complete" or "Undo" on onboarding steps
-  // Handle clicking "Mark Complete" or "Undo" on onboarding steps
   const toggleStep = (stepId: number) => {
+    // Save current state for potential rollback
+    previousCompletedStepsRef.current = [...completedSteps];
+
     // Optimistic UI update
     const newCompletedSteps = completedSteps.includes(stepId)
-      ? completedSteps.filter(id => id !== stepId)
+      ? completedSteps.filter((id) => id !== stepId)
       : [...completedSteps, stepId];
-    
+
     setCompletedSteps(newCompletedSteps);
     setLoadingStepId(stepId);
 
     // Sync with database using the action function via fetcher
     fetcher.submit(
       { completedSteps: newCompletedSteps },
-      { method: "POST", encType: "application/json" }
+      { method: "POST", encType: "application/json" },
     );
-     
-    // Reset loading state after a short delay (or rely on fetcher.state)
-    setTimeout(() => setLoadingStepId(null), 500);
   };
 
   return (
@@ -154,8 +240,9 @@ export default function Index() {
 
           {/* Quick Start Checklist Section */}
           <Layout.Section>
-            <QuickStartChecklist 
+            <QuickStartChecklist
               completedSteps={completedSteps}
+              autoCompletedSteps={autoCompletedSteps}
               onToggleStep={toggleStep}
               loadingStepId={loadingStepId}
             />
