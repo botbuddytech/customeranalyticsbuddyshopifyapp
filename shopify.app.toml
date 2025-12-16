@@ -2,37 +2,18 @@
 
 client_id = "d5a42a94b23c58caef6dc110e896012a"
 name = "Customer Analytics Buddy"
-application_url = "https://example.com"
+application_url = "http://localhost:3000"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-01"
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
-
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# Scopes needed for Customer Analytics Dashboard:
-# - read_customers: Access customer data (total, new, returning, inactive)
-# - read_orders: Access order data (COD, prepaid, cancelled, purchase timing)
-# - read_checkouts: Access abandoned checkout data
-# - write_products: Original scope for product management
-scopes = "read_customers,read_orders,read_checkouts,write_products"
-
-# Protected customer data access - required for customer analytics
-# See: https://shopify.dev/docs/apps/launch/protected-customer-data
-[access_scopes.use_protected_customer_data_by_default]
-approved = true
+scopes = "read_checkouts,read_customers,read_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "http://localhost:3000/api/auth/shopify/callback" ]
