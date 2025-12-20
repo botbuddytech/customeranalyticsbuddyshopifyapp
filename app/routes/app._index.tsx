@@ -4,6 +4,8 @@
  * This page serves as the first-time onboarding experience for merchants.
  * It includes video tutorials, progress tracking, and quick action buttons
  * to help users get started with customer segmentation and campaigns.
+ *
+ * Uses Supabase with RLS (Row Level Security) for automatic shop filtering.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -12,7 +14,7 @@ import { useLoaderData, useFetcher } from "react-router";
 import { Page, Layout, BlockStack } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { getSupabaseForShop } from "../services/supabase-jwt.server";
 import { checkAndUpdateAutomation } from "../services/onboarding/automation";
 
 // Import home page components
@@ -44,10 +46,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Continue even if automation check fails
     }
 
-    // Fetch config AFTER automation check completes to get updated data
-    const configData = await db.config.findUnique({
-      where: { shop },
-    });
+    // Fetch config AFTER automation check completes (RLS filters by shop)
+    const supabase = getSupabaseForShop(shop);
+    const { data: configData, error } = await supabase
+      .from("onboardingtaskdata")
+      .select("*")
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("Error fetching onboarding progress:", error);
+    }
 
     // If no record exists yet, return empty arrays
     if (!configData) {
@@ -57,12 +65,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
     }
 
-    // Handle case where autoCompletedSteps field might not exist in DB yet
-    const autoCompletedSteps = (configData as any)?.autoCompletedSteps || [];
-
     return {
       completedSteps: configData.completedSteps || [],
-      autoCompletedSteps: autoCompletedSteps,
+      autoCompletedSteps: configData.autoCompletedSteps || [],
     };
   } catch (error) {
     console.error("Error fetching onboarding progress:", error);
@@ -74,9 +79,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 /**
- * Action Function - Update onboarding progress in Prisma
+ * Action Function - Update onboarding progress
  *
  * Handles POST requests to update completed steps
+ * Uses Supabase with RLS for automatic shop filtering
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -91,16 +97,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { success: false, error: "completedSteps must be an array" };
     }
 
-    // Get current config to check auto-completed steps
-    const currentConfig = await db.config.findUnique({
-      where: { shop },
-      select: { autoCompletedSteps: true },
-    });
+    const supabase = getSupabaseForShop(shop);
+    const now = new Date().toISOString();
 
-    const autoCompletedSteps = currentConfig?.autoCompletedSteps || [];
+    // Get current config to check auto-completed steps (RLS filters by shop)
+    const { data: currentConfig } = await supabase
+      .from("onboardingtaskdata")
+      .select("id, autoCompletedSteps, createdAt")
+      .single();
+
+    const autoCompletedSteps: string[] =
+      currentConfig?.autoCompletedSteps || [];
 
     // Convert numbers to strings if needed
-    const stepsAsStrings = completedSteps.map((step) => String(step));
+    const stepsAsStrings = completedSteps.map((step: unknown) => String(step));
 
     // Prevent removing auto-completed steps
     // If user tries to undo an auto-completed step, keep it in the array
@@ -108,27 +118,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ...new Set([...stepsAsStrings, ...autoCompletedSteps]),
     ];
 
-    // Upsert the record (insert if doesn't exist, update if it does)
-    const config = await db.config.upsert({
-      where: { shop },
-      update: {
-        completedSteps: finalCompletedSteps,
-        autoCompletedSteps: autoCompletedSteps, // Preserve auto-completed steps
-        updatedAt: new Date(),
-      },
-      create: {
-        shop,
-        completedSteps: finalCompletedSteps,
-        autoCompletedSteps: autoCompletedSteps,
-      },
-      select: {
-        id: true,
-        shop: true,
-        completedSteps: true,
-        autoCompletedSteps: true,
-        updatedAt: true,
-      },
-    });
+    // Upsert the record (RLS ensures we only update our own data)
+    const { data: config, error } = await supabase
+      .from("onboardingtaskdata")
+      .upsert(
+        {
+          id: currentConfig?.id || crypto.randomUUID(),
+          shop,
+          completedSteps: finalCompletedSteps,
+          autoCompletedSteps: autoCompletedSteps,
+          createdAt: currentConfig?.createdAt || now,
+          updatedAt: now,
+        },
+        {
+          onConflict: "shop",
+        },
+      )
+      .select("id, shop, completedSteps, autoCompletedSteps, updatedAt")
+      .single();
+
+    if (error) {
+      console.error("Error updating onboarding progress:", error);
+      return { success: false, error: "Failed to update data" };
+    }
 
     return { success: true, data: config };
   } catch (error) {

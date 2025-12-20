@@ -1,15 +1,22 @@
 /**
  * Settings Main Component
- * 
+ *
  * Orchestrates all settings components and handles state management
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { Layout, BlockStack, InlineStack, Text, Badge, Card, Button } from "@shopify/polaris";
+import {
+  Layout,
+  BlockStack,
+  InlineStack,
+  Text,
+  Badge,
+  Card,
+  Button,
+} from "@shopify/polaris";
 import { CommunicationSettingsCard } from "./CommunicationSettingsCard";
 import { AIAutomationCard } from "./AIAutomationCard";
 import { PlanBillingCard } from "./PlanBillingCard";
-import { QuickActionsCard } from "./QuickActionsCard";
 import { WhatsAppModal } from "./WhatsAppModal";
 import { EmailModal } from "./EmailModal";
 import { ScheduleModal } from "./ScheduleModal";
@@ -27,7 +34,7 @@ interface SettingsProps {
 
 /**
  * Main Settings Component
- * 
+ *
  * Provides a comprehensive settings interface with modals for
  * WhatsApp/Email configuration and form controls for all other settings.
  */
@@ -46,14 +53,28 @@ export function Settings({
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   // Form states
-  const [whatsappNumber, setWhatsappNumber] = useState(initialSettings.whatsappNumber);
+  const [whatsappNumber, setWhatsappNumber] = useState(
+    initialSettings.whatsappNumber,
+  );
   const [emailId, setEmailId] = useState(initialSettings.emailId);
-  const [selectedPlan, setSelectedPlan] = useState(initialSettings.selectedPlan);
-  const [reportFrequency, setReportFrequency] = useState(initialSettings.reportSchedule.frequency);
-  const [reportDay, setReportDay] = useState(initialSettings.reportSchedule.day);
-  const [reportTime, setReportTime] = useState(initialSettings.reportSchedule.time);
-  const [aiSuggestions, setAiSuggestions] = useState(initialSettings.aiSuggestions);
-  const [aiAudienceAnalysis, setAiAudienceAnalysis] = useState(initialSettings.aiAudienceAnalysis ?? true);
+  const [selectedPlan, setSelectedPlan] = useState(
+    initialSettings.selectedPlan,
+  );
+  const [reportFrequency, setReportFrequency] = useState(
+    initialSettings.reportSchedule.frequency,
+  );
+  const [reportDay, setReportDay] = useState(
+    initialSettings.reportSchedule.day,
+  );
+  const [reportTime, setReportTime] = useState(
+    initialSettings.reportSchedule.time,
+  );
+  const [aiSuggestions, setAiSuggestions] = useState(
+    initialSettings.aiSuggestions,
+  );
+  const [aiAudienceAnalysis, setAiAudienceAnalysis] = useState(
+    initialSettings.aiAudienceAnalysis ?? true,
+  );
 
   // Handle action data changes (success/error responses)
   useEffect(() => {
@@ -82,7 +103,17 @@ export function Settings({
     formData.append("aiAudienceAnalysis", aiAudienceAnalysis.toString());
 
     onSubmit(formData);
-  }, [onSubmit, whatsappNumber, emailId, selectedPlan, reportFrequency, reportDay, reportTime, aiSuggestions, aiAudienceAnalysis]);
+  }, [
+    onSubmit,
+    whatsappNumber,
+    emailId,
+    selectedPlan,
+    reportFrequency,
+    reportDay,
+    reportTime,
+    aiSuggestions,
+    aiAudienceAnalysis,
+  ]);
 
   // Handle WhatsApp test message
   const handleTestWhatsApp = useCallback(() => {
@@ -162,8 +193,6 @@ export function Settings({
             selectedPlan={selectedPlan}
             onPlanChange={setSelectedPlan}
           />
-
-          <QuickActionsCard />
         </Layout.Section>
       </Layout>
 
@@ -218,4 +247,3 @@ export function Settings({
     </BlockStack>
   );
 }
-

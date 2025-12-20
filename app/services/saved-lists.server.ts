@@ -1,11 +1,13 @@
 /**
  * Saved Customer Lists Service
- * 
+ *
  * Handles saving and loading customer segment lists for each merchant.
  * Each merchant (shop) can have multiple saved lists.
+ *
+ * Uses Supabase with RLS (Row Level Security) for automatic shop filtering.
  */
 
-import db from "../db.server";
+import { getSupabaseForShop } from "./supabase-jwt.server";
 import type { FilterData } from "../components/filter-audience/types";
 
 export interface SavedCustomerList {
@@ -20,27 +22,60 @@ export interface SavedCustomerList {
   updatedAt: Date;
 }
 
+// Database row type (snake_case from Supabase)
+interface SavedCustomerListRow {
+  id: string;
+  shop: string;
+  listName: string;
+  queryData: string;
+  customerIds: string[];
+  source: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Transform database row to application type
+ */
+function transformRow(row: SavedCustomerListRow): SavedCustomerList {
+  return {
+    id: row.id,
+    shop: row.shop,
+    listName: row.listName,
+    queryData: JSON.parse(row.queryData) as FilterData,
+    customerIds: row.customerIds,
+    source: (row.source || "filter-audience") as
+      | "ai-search"
+      | "filter-audience"
+      | "manual",
+    status: (row.status || "active") as "active" | "archived",
+    createdAt: new Date(row.createdAt),
+    updatedAt: new Date(row.updatedAt),
+  };
+}
+
 /**
  * Get all saved lists for a shop
+ * RLS automatically filters by shop from JWT
  */
-export async function getSavedLists(shop: string): Promise<SavedCustomerList[]> {
+export async function getSavedLists(
+  shop: string,
+): Promise<SavedCustomerList[]> {
   try {
-    const lists = await db.savedCustomerList.findMany({
-      where: { shop },
-      orderBy: { createdAt: "desc" },
-    });
+    const supabase = getSupabaseForShop(shop);
 
-    return lists.map((list) => ({
-      id: list.id,
-      shop: list.shop,
-      listName: list.listName,
-      queryData: JSON.parse(list.queryData) as FilterData,
-      customerIds: list.customerIds,
-      source: (list.source || "filter-audience") as "ai-search" | "filter-audience" | "manual",
-      status: (list.status || "active") as "active" | "archived",
-      createdAt: list.createdAt,
-      updatedAt: list.updatedAt,
-    }));
+    const { data, error } = await supabase
+      .from("saved_customer_lists")
+      .select("*")
+      .order("createdAt", { ascending: false });
+
+    if (error) {
+      console.error(`[Saved Lists] Supabase error for shop ${shop}:`, error);
+      return [];
+    }
+
+    return (data || []).map(transformRow);
   } catch (error) {
     console.error(
       `[Saved Lists] Error fetching lists for shop ${shop}:`,
@@ -52,34 +87,34 @@ export async function getSavedLists(shop: string): Promise<SavedCustomerList[]> 
 
 /**
  * Get a specific saved list by ID
+ * RLS automatically filters by shop from JWT
  */
 export async function getSavedListById(
   shop: string,
-  listId: string
+  listId: string,
 ): Promise<SavedCustomerList | null> {
   try {
-    const list = await db.savedCustomerList.findFirst({
-      where: {
-        id: listId,
-        shop, // Ensure the list belongs to this shop
-      },
-    });
+    const supabase = getSupabaseForShop(shop);
 
-    if (!list) {
+    const { data, error } = await supabase
+      .from("saved_customer_lists")
+      .select("*")
+      .eq("id", listId)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        // No rows found
+        return null;
+      }
+      console.error(
+        `[Saved Lists] Supabase error fetching list ${listId}:`,
+        error,
+      );
       return null;
     }
 
-    return {
-      id: list.id,
-      shop: list.shop,
-      listName: list.listName,
-      queryData: JSON.parse(list.queryData) as FilterData,
-      customerIds: list.customerIds,
-      source: (list.source || "filter-audience") as "ai-search" | "filter-audience" | "manual",
-      status: (list.status || "active") as "active" | "archived",
-      createdAt: list.createdAt,
-      updatedAt: list.updatedAt,
-    };
+    return transformRow(data);
   } catch (error) {
     console.error(
       `[Saved Lists] Error fetching list ${listId} for shop ${shop}:`,
@@ -97,42 +132,43 @@ export async function saveCustomerList(
   listName: string,
   queryData: FilterData,
   customerIds?: string[],
-  source: "ai-search" | "filter-audience" | "manual" = "filter-audience"
+  source: "ai-search" | "filter-audience" | "manual" = "filter-audience",
 ): Promise<SavedCustomerList> {
   try {
-    const savedList = await db.savedCustomerList.create({
-      data: {
+    const supabase = getSupabaseForShop(shop);
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("saved_customer_lists")
+      .insert({
+        id: crypto.randomUUID(),
         shop,
         listName,
         queryData: JSON.stringify(queryData),
         customerIds: customerIds || [],
         source,
         status: "active",
-      },
-    });
+        createdAt: now,
+        updatedAt: now,
+      })
+      .select()
+      .single();
 
-    return {
-      id: savedList.id,
-      shop: savedList.shop,
-      listName: savedList.listName,
-      queryData: JSON.parse(savedList.queryData) as FilterData,
-      customerIds: savedList.customerIds,
-      source: (savedList.source || "filter-audience") as "ai-search" | "filter-audience" | "manual",
-      status: (savedList.status || "active") as "active" | "archived",
-      createdAt: savedList.createdAt,
-      updatedAt: savedList.updatedAt,
-    };
+    if (error) {
+      console.error(`[Saved Lists] Supabase error saving list:`, error);
+      throw error;
+    }
+
+    return transformRow(data);
   } catch (error) {
-    console.error(
-      `[Saved Lists] Error saving list for shop ${shop}:`,
-      error,
-    );
+    console.error(`[Saved Lists] Error saving list for shop ${shop}:`, error);
     throw error;
   }
 }
 
 /**
  * Update an existing saved list
+ * RLS automatically ensures only shop's own lists can be updated
  */
 export async function updateSavedList(
   shop: string,
@@ -142,11 +178,13 @@ export async function updateSavedList(
     queryData?: FilterData;
     customerIds?: string[];
     status?: "active" | "archived";
-  }
+  },
 ): Promise<SavedCustomerList | null> {
   try {
-    const updateData: any = {
-      updatedAt: new Date(),
+    const supabase = getSupabaseForShop(shop);
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
     };
 
     if (updates.listName !== undefined) {
@@ -165,29 +203,26 @@ export async function updateSavedList(
       updateData.status = updates.status;
     }
 
-    const updatedList = await db.savedCustomerList.update({
-      where: {
-        id: listId,
-      },
-      data: updateData,
-    });
+    const { data, error } = await supabase
+      .from("saved_customer_lists")
+      .update(updateData)
+      .eq("id", listId)
+      .select()
+      .single();
 
-    // Verify the list belongs to this shop
-    if (updatedList.shop !== shop) {
-      return null;
+    if (error) {
+      if (error.code === "PGRST116") {
+        // No rows found (RLS blocked or doesn't exist)
+        return null;
+      }
+      console.error(
+        `[Saved Lists] Supabase error updating list ${listId}:`,
+        error,
+      );
+      throw error;
     }
 
-    return {
-      id: updatedList.id,
-      shop: updatedList.shop,
-      listName: updatedList.listName,
-      queryData: JSON.parse(updatedList.queryData) as FilterData,
-      customerIds: updatedList.customerIds,
-      source: (updatedList.source || "filter-audience") as "ai-search" | "filter-audience" | "manual",
-      status: (updatedList.status || "active") as "active" | "archived",
-      createdAt: updatedList.createdAt,
-      updatedAt: updatedList.updatedAt,
-    };
+    return transformRow(data);
   } catch (error) {
     console.error(
       `[Saved Lists] Error updating list ${listId} for shop ${shop}:`,
@@ -199,31 +234,30 @@ export async function updateSavedList(
 
 /**
  * Delete a saved list
+ * RLS automatically ensures only shop's own lists can be deleted
  */
 export async function deleteSavedList(
   shop: string,
-  listId: string
+  listId: string,
 ): Promise<boolean> {
   try {
-    // First verify the list belongs to this shop
-    const list = await db.savedCustomerList.findFirst({
-      where: {
-        id: listId,
-        shop,
-      },
-    });
+    const supabase = getSupabaseForShop(shop);
 
-    if (!list) {
-      return false;
+    const { error, count } = await supabase
+      .from("saved_customer_lists")
+      .delete()
+      .eq("id", listId);
+
+    if (error) {
+      console.error(
+        `[Saved Lists] Supabase error deleting list ${listId}:`,
+        error,
+      );
+      throw error;
     }
 
-    await db.savedCustomerList.delete({
-      where: {
-        id: listId,
-      },
-    });
-
-    return true;
+    // If count is 0, the list didn't exist or RLS blocked it
+    return (count ?? 0) > 0 || !error;
   } catch (error) {
     console.error(
       `[Saved Lists] Error deleting list ${listId} for shop ${shop}:`,

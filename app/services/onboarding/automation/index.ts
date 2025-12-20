@@ -1,13 +1,15 @@
 /**
  * Onboarding Task Automation Service
- * 
+ *
  * This service orchestrates the automation checks for all onboarding tasks.
  * It checks each task's completion criteria and automatically marks tasks as complete
  * when the criteria are met.
+ *
+ * Uses Supabase with RLS (Row Level Security) for automatic shop filtering.
  */
 
 import type { AdminGraphQL } from "../../dashboard.server";
-import db from "../../../db.server";
+import { getSupabaseForShop } from "../../supabase-jwt.server";
 
 // Import automation logic for each task
 import { checkTaskCompletion as checkTask1 } from "./use-ai-to-generate-first-customer-segment";
@@ -23,7 +25,10 @@ export interface AutomationContext {
 /**
  * Task configuration mapping
  */
-const TASK_AUTOMATION_MAP: Record<number, (context: AutomationContext) => Promise<boolean>> = {
+const TASK_AUTOMATION_MAP: Record<
+  number,
+  (context: AutomationContext) => Promise<boolean>
+> = {
   1: checkTask1, // "Use AI to generate your first customer segment"
   2: checkTask2, // "Filter customers manually using 20+ audience traits"
   3: checkTask3, // "Send your first WhatsApp or Email campaign"
@@ -32,27 +37,32 @@ const TASK_AUTOMATION_MAP: Record<number, (context: AutomationContext) => Promis
 
 /**
  * Check all tasks and auto-complete them if criteria are met
- * 
+ *
  * @param shop - Shop identifier
  * @param admin - Admin GraphQL client
  * @returns Updated auto-completed steps array
  */
 export async function checkAndUpdateAutomation(
   shop: string,
-  admin: AdminGraphQL
+  admin: AdminGraphQL,
 ): Promise<string[]> {
   try {
     const context: AutomationContext = { shop, admin };
+    const supabase = getSupabaseForShop(shop);
 
-    // Get current config
-    // Note: If autoCompletedSteps column doesn't exist yet, this will use empty array
-    const config = await db.config.findUnique({
-      where: { shop },
-    });
+    // Get current config (RLS automatically filters by shop)
+    const { data: config, error } = await supabase
+      .from("onboardingtaskdata")
+      .select("*")
+      .single();
 
-    const currentCompletedSteps = config?.completedSteps || [];
-    // Handle case where autoCompletedSteps field might not exist in DB yet
-    const currentAutoCompletedSteps = (config as any)?.autoCompletedSteps || [];
+    if (error && error.code !== "PGRST116") {
+      console.error("[Automation] Error fetching config:", error);
+    }
+
+    const currentCompletedSteps: string[] = config?.completedSteps || [];
+    const currentAutoCompletedSteps: string[] =
+      config?.autoCompletedSteps || [];
     const newAutoCompletedSteps: string[] = [...currentAutoCompletedSteps];
 
     // Check each task
@@ -97,20 +107,32 @@ export async function checkAndUpdateAutomation(
     // Update database if there are changes
     if (newAutoCompletedSteps.length !== currentAutoCompletedSteps.length) {
       try {
-        console.log(`[Automation] Updating database: ${currentAutoCompletedSteps.length} -> ${newAutoCompletedSteps.length} auto-completed steps`);
-        await db.config.upsert({
-          where: { shop },
-          update: {
-            completedSteps: currentCompletedSteps,
-            autoCompletedSteps: newAutoCompletedSteps,
-            updatedAt: new Date(),
-          },
-          create: {
-            shop,
-            completedSteps: currentCompletedSteps,
-            autoCompletedSteps: newAutoCompletedSteps,
-          },
-        });
+        console.log(
+          `[Automation] Updating database: ${currentAutoCompletedSteps.length} -> ${newAutoCompletedSteps.length} auto-completed steps`,
+        );
+
+        const now = new Date().toISOString();
+        const { error: upsertError } = await supabase
+          .from("onboardingtaskdata")
+          .upsert(
+            {
+              id: config?.id || crypto.randomUUID(),
+              shop,
+              completedSteps: currentCompletedSteps,
+              autoCompletedSteps: newAutoCompletedSteps,
+              createdAt: config?.createdAt || now,
+              updatedAt: now,
+            },
+            {
+              onConflict: "shop",
+            },
+          );
+
+        if (upsertError) {
+          console.error("Error updating automation in database:", upsertError);
+          return currentAutoCompletedSteps;
+        }
+
         console.log(`[Automation] Database updated successfully`);
       } catch (dbError) {
         console.error("Error updating automation in database:", dbError);
