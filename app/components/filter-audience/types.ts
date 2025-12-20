@@ -10,6 +10,7 @@ export interface FilterData {
 export interface FilterOption {
   label: string;
   value: string;
+  imageUrl?: string;
   children?: FilterOption[];
 }
 

@@ -13,6 +13,10 @@ export interface ShopifyProduct {
   productType: string | null;
   vendor: string | null;
   status: string;
+  featuredImage?: {
+    url: string;
+    altText: string | null;
+  } | null;
   collections?: {
     nodes: Array<{
       id: string;
@@ -55,6 +59,10 @@ export async function getProducts(
                 productType
                 vendor
                 status
+                featuredImage {
+                  url(transform: { maxWidth: 60, maxHeight: 60 })
+                  altText
+                }
                 collections(first: 10) {
                   nodes {
                     id
@@ -79,6 +87,10 @@ export async function getProducts(
                 productType
                 vendor
                 status
+                featuredImage {
+                  url(transform: { maxWidth: 60, maxHeight: 60 })
+                  altText
+                }
                 collections(first: 10) {
                   nodes {
                     id
@@ -284,7 +296,7 @@ export async function getUniqueShippingMethods(
       }
 
       const orders = json.data?.orders?.nodes || [];
-      
+
       orders.forEach((order: any) => {
         const shippingLines = order.shippingLines?.edges || [];
         shippingLines.forEach((edge: any) => {
@@ -368,7 +380,7 @@ export async function getUniquePaymentGateways(
       }
 
       const orders = json.data?.orders?.nodes || [];
-      
+
       orders.forEach((order: any) => {
         const gatewayNames = order.paymentGatewayNames || [];
         gatewayNames.forEach((gateway: string) => {
@@ -454,7 +466,7 @@ export async function getUniqueCountries(
       }
 
       const customers = json.data?.customers?.nodes || [];
-      
+
       customers.forEach((customer: any) => {
         const country = customer.defaultAddress?.country;
         if (country && country.trim() !== "") {

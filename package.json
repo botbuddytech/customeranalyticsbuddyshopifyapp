@@ -17,7 +17,11 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "seed": "npx tsx seed-data/seed.ts",
+    "seed:products": "npx tsx seed-data/seed.ts --only=products",
+    "seed:collections": "npx tsx seed-data/seed.ts --only=collections",
+    "seed:customers": "npx tsx seed-data/seed.ts --only=customers"
   },
   "type": "module",
   "engines": {
@@ -37,7 +41,9 @@
     "@shopify/shopify-app-session-storage-sqlite": "^5.0.3",
     "@supabase/supabase-js": "^2.87.0",
     "chart.js": "^4.5.1",
+    "dotenv": "^17.2.3",
     "isbot": "^5.1.31",
+    "jsonwebtoken": "^9.0.3",
     "prisma": "^6.16.3",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
@@ -62,6 +68,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "graphql-config": "^5.1.1",
     "prettier": "^3.6.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^6.3.6"
   },

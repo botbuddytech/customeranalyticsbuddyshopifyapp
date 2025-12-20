@@ -1,0 +1,134 @@
+{
+  "customers": [
+    {
+      "firstName": "John",
+      "lastName": "Smith",
+      "email": "john.smith@example.com",
+      "phone": "+1234567890",
+      "addresses": [
+        {
+          "address1": "123 Main Street",
+          "city": "New York",
+          "province": "NY",
+          "country": "US",
+          "zip": "10001"
+        }
+      ],
+      "tags": ["vip", "repeat-buyer"],
+      "note": "VIP customer - prefers express shipping"
+    },
+    {
+      "firstName": "Sarah",
+      "lastName": "Johnson",
+      "email": "sarah.j@example.com",
+      "phone": "+1987654321",
+      "addresses": [
+        {
+          "address1": "456 Oak Avenue",
+          "city": "Los Angeles",
+          "province": "CA",
+          "country": "US",
+          "zip": "90001"
+        }
+      ],
+      "tags": ["newsletter", "discount-lover"],
+      "note": "Subscribed to newsletter"
+    },
+    {
+      "firstName": "Michael",
+      "lastName": "Brown",
+      "email": "m.brown@example.com",
+      "addresses": [
+        {
+          "address1": "789 Pine Road",
+          "city": "Chicago",
+          "province": "IL",
+          "country": "US",
+          "zip": "60601"
+        }
+      ],
+      "tags": ["new-customer"]
+    },
+    {
+      "firstName": "Biki",
+      "lastName": "Mandal",
+      "email": "biki@example.com",
+      "phone": "+1122334455",
+      "addresses": [
+        {
+          "address1": "321 Elm Street",
+          "city": "Houston",
+          "province": "TX",
+          "country": "US",
+          "zip": "77001"
+        }
+      ],
+      "tags": ["vip", "early-adopter"],
+      "note": "Early adopter - interested in new products"
+    },
+    {
+      "firstName": "James",
+      "lastName": "Wilson",
+      "email": "j.wilson@example.com",
+      "addresses": [
+        {
+          "address1": "654 Maple Drive",
+          "city": "Phoenix",
+          "province": "AZ",
+          "country": "US",
+          "zip": "85001"
+        }
+      ],
+      "tags": ["wholesale"]
+    },
+    {
+      "firstName": "Emma",
+      "lastName": "Taylor",
+      "email": "emma.t@example.com",
+      "phone": "+1555666777",
+      "addresses": [
+        {
+          "address1": "10 Downing Street",
+          "city": "London",
+          "province": "England",
+          "country": "GB",
+          "zip": "SW1A 2AA"
+        }
+      ],
+      "tags": ["international", "repeat-buyer"]
+    },
+    {
+      "firstName": "David",
+      "lastName": "Martinez",
+      "email": "d.martinez@example.com",
+      "addresses": [
+        {
+          "address1": "999 Beach Blvd",
+          "city": "Miami",
+          "province": "FL",
+          "country": "US",
+          "zip": "33101"
+        }
+      ],
+      "tags": ["seasonal-buyer", "summer"]
+    },
+    {
+      "firstName": "Olivia",
+      "lastName": "Anderson",
+      "email": "olivia.a@example.com",
+      "phone": "+1888999000",
+      "addresses": [
+        {
+          "address1": "777 Tech Park",
+          "city": "San Francisco",
+          "province": "CA",
+          "country": "US",
+          "zip": "94102"
+        }
+      ],
+      "tags": ["tech-enthusiast", "vip"],
+      "note": "Interested in electronics"
+    }
+  ]
+}
+

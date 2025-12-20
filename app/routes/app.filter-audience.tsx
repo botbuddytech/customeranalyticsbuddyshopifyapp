@@ -44,7 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let savedList = null;
   let initialFilters: FilterData | null = null;
   let listName = "";
-  
+
   if (modifyListId) {
     try {
       savedList = await getSavedListById(shop, modifyListId);
@@ -53,7 +53,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         listName = savedList.listName;
       }
     } catch (error) {
-      console.error("[Filter Audience Loader] Error fetching saved list:", error);
+      console.error(
+        "[Filter Audience Loader] Error fetching saved list:",
+        error,
+      );
     }
   }
 
@@ -75,25 +78,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       getUniqueShippingMethods(admin),
     ]);
 
-    // Build category -> products tree structure
-    const categoryMap = new Map<string, string[]>();
+    // Build category -> products tree structure (with images)
+    const categoryMap = new Map<
+      string,
+      Array<{ title: string; imageUrl?: string }>
+    >();
     products.forEach((p) => {
       if (p.status === "ACTIVE") {
         const type = p.productType || "Uncategorized";
         if (!categoryMap.has(type)) {
           categoryMap.set(type, []);
         }
-        categoryMap.get(type)!.push(p.title);
+        categoryMap.get(type)!.push({
+          title: p.title,
+          imageUrl: p.featuredImage?.url,
+        });
       }
     });
 
-    const productOptions = Array.from(categoryMap.entries()).map(
-      ([category, prods]) => ({
+    const productOptions = Array.from(categoryMap.entries())
+      .map(([category, prods]) => ({
         label: category,
         value: category,
-        children: prods.sort().map((p) => ({ label: p, value: p })),
-      })
-    ).sort((a, b) => a.label.localeCompare(b.label));
+        children: prods
+          .sort((a, b) => a.title.localeCompare(b.title))
+          .map((p) => ({
+            label: p.title,
+            value: p.title,
+            imageUrl: p.imageUrl,
+          })),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
 
     // Format collections for display
     const collectionOptions = collections.map((c) => c.title);
@@ -123,7 +138,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error) {
     console.error("[Filter Audience Loader] Error fetching data:", error);
     // Return empty arrays on error
-      return {
+    return {
       products: [],
       collections: [],
       categories: [],

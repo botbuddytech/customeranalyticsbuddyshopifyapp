@@ -8,7 +8,7 @@ import {
   Tabs,
   Icon,
 } from "@shopify/polaris";
-import { SearchIcon, FilterIcon, ExportIcon } from "@shopify/polaris-icons";
+import { SearchIcon, FilterIcon } from "@shopify/polaris-icons";
 import { useCallback } from "react";
 
 interface SearchAndFilterCardProps {
@@ -18,13 +18,12 @@ interface SearchAndFilterCardProps {
   onTabChange: (selectedTabIndex: number) => void;
   tabs: Array<{ id: string; content: string }>;
   onFilterClick?: () => void;
-  onExportAllClick?: () => void;
 }
 
 /**
  * Search and Filter Card Component
- * 
- * Handles search input, tab navigation, and filter/export actions
+ *
+ * Handles search input, tab navigation, and filter actions
  */
 export function SearchAndFilterCard({
   searchQuery,
@@ -33,7 +32,6 @@ export function SearchAndFilterCard({
   onTabChange,
   tabs,
   onFilterClick,
-  onExportAllClick,
 }: SearchAndFilterCardProps) {
   const handleClearSearch = useCallback(() => {
     onSearchChange("");
@@ -46,23 +44,13 @@ export function SearchAndFilterCard({
           <Text as="h3" variant="headingMd">
             🔍 Search & Filter
           </Text>
-          <InlineStack gap="200">
-            <Button
-              size="slim"
-              icon={FilterIcon}
-              onClick={onFilterClick || (() => {})}
-            >
-              Filters
-            </Button>
-
-            <Button
-              size="slim"
-              icon={ExportIcon}
-              onClick={onExportAllClick || (() => {})}
-            >
-              Export All
-            </Button>
-          </InlineStack>
+          <Button
+            size="slim"
+            icon={FilterIcon}
+            onClick={onFilterClick || (() => {})}
+          >
+            Filters
+          </Button>
         </InlineStack>
 
         <InlineStack gap="300" align="space-between">
@@ -91,4 +79,3 @@ export function SearchAndFilterCard({
     </Card>
   );
 }
-

@@ -1,0 +1,75 @@
+{
+  "products": [
+    {
+      "title": "Classic Cotton T-Shirt",
+      "descriptionHtml": "<p>Premium quality cotton t-shirt. Comfortable and durable.</p>",
+      "vendor": "Fashion Brand",
+      "productType": "T-Shirts",
+      "tags": ["cotton", "casual", "summer"],
+      "variants": [
+        { "price": "29.99", "sku": "TSHIRT-BLK-S", "inventoryQuantity": 100, "options": ["Black", "S"] },
+        { "price": "29.99", "sku": "TSHIRT-BLK-M", "inventoryQuantity": 150, "options": ["Black", "M"] },
+        { "price": "29.99", "sku": "TSHIRT-BLK-L", "inventoryQuantity": 120, "options": ["Black", "L"] },
+        { "price": "29.99", "sku": "TSHIRT-WHT-S", "inventoryQuantity": 80, "options": ["White", "S"] },
+        { "price": "29.99", "sku": "TSHIRT-WHT-M", "inventoryQuantity": 100, "options": ["White", "M"] },
+        { "price": "29.99", "sku": "TSHIRT-WHT-L", "inventoryQuantity": 90, "options": ["White", "L"] }
+      ],
+      "options": ["Color", "Size"]
+    },
+    {
+      "title": "Slim Fit Jeans",
+      "descriptionHtml": "<p>Modern slim fit jeans with stretch comfort.</p>",
+      "vendor": "Denim Co",
+      "productType": "Jeans",
+      "tags": ["denim", "slim-fit", "casual"],
+      "variants": [
+        { "price": "59.99", "sku": "JEANS-BLU-30", "inventoryQuantity": 50, "options": ["Blue", "30"] },
+        { "price": "59.99", "sku": "JEANS-BLU-32", "inventoryQuantity": 75, "options": ["Blue", "32"] },
+        { "price": "59.99", "sku": "JEANS-BLU-34", "inventoryQuantity": 60, "options": ["Blue", "34"] },
+        { "price": "59.99", "sku": "JEANS-BLK-30", "inventoryQuantity": 40, "options": ["Black", "30"] },
+        { "price": "59.99", "sku": "JEANS-BLK-32", "inventoryQuantity": 55, "options": ["Black", "32"] }
+      ],
+      "options": ["Color", "Waist"]
+    },
+    {
+      "title": "Running Sneakers",
+      "descriptionHtml": "<p>Lightweight running shoes with cushioned sole.</p>",
+      "vendor": "SportGear",
+      "productType": "Footwear",
+      "tags": ["running", "sports", "athletic"],
+      "variants": [
+        { "price": "89.99", "sku": "SNKR-WHT-8", "inventoryQuantity": 30, "options": ["White", "8"] },
+        { "price": "89.99", "sku": "SNKR-WHT-9", "inventoryQuantity": 45, "options": ["White", "9"] },
+        { "price": "89.99", "sku": "SNKR-WHT-10", "inventoryQuantity": 40, "options": ["White", "10"] },
+        { "price": "89.99", "sku": "SNKR-BLK-9", "inventoryQuantity": 35, "options": ["Black", "9"] },
+        { "price": "89.99", "sku": "SNKR-BLK-10", "inventoryQuantity": 50, "options": ["Black", "10"] }
+      ],
+      "options": ["Color", "Size"]
+    },
+    {
+      "title": "Leather Wallet",
+      "descriptionHtml": "<p>Genuine leather wallet with multiple card slots.</p>",
+      "vendor": "Luxe Accessories",
+      "productType": "Accessories",
+      "tags": ["leather", "wallet", "gift"],
+      "variants": [
+        { "price": "49.99", "sku": "WALLET-BRN", "inventoryQuantity": 200, "options": ["Brown"] },
+        { "price": "49.99", "sku": "WALLET-BLK", "inventoryQuantity": 180, "options": ["Black"] }
+      ],
+      "options": ["Color"]
+    },
+    {
+      "title": "Wireless Earbuds",
+      "descriptionHtml": "<p>Bluetooth 5.0 wireless earbuds with charging case.</p>",
+      "vendor": "TechSound",
+      "productType": "Electronics",
+      "tags": ["wireless", "audio", "bluetooth"],
+      "variants": [
+        { "price": "79.99", "sku": "EARBUDS-WHT", "inventoryQuantity": 100, "options": ["White"] },
+        { "price": "79.99", "sku": "EARBUDS-BLK", "inventoryQuantity": 120, "options": ["Black"] }
+      ],
+      "options": ["Color"]
+    }
+  ]
+}
+
