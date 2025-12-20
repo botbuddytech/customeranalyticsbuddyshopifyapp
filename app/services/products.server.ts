@@ -224,8 +224,17 @@ export async function getUniqueShippingMethods(
                 endCursor
               }
               nodes {
-                shippingLines {
-                  title
+                shippingLines(first: 50) {
+                  edges {
+                    node {
+                      title
+                      originalPriceSet {
+                        shopMoney {
+                          amount
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -239,8 +248,17 @@ export async function getUniqueShippingMethods(
                 endCursor
               }
               nodes {
-                shippingLines {
-                  title
+                shippingLines(first: 50) {
+                  edges {
+                    node {
+                      title
+                      originalPriceSet {
+                        shopMoney {
+                          amount
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -268,8 +286,9 @@ export async function getUniqueShippingMethods(
       const orders = json.data?.orders?.nodes || [];
       
       orders.forEach((order: any) => {
-        const shippingLines = order.shippingLines || [];
-        shippingLines.forEach((line: any) => {
+        const shippingLines = order.shippingLines?.edges || [];
+        shippingLines.forEach((edge: any) => {
+          const line = edge?.node;
           const title = line?.title;
           if (title && title.trim() !== "") {
             shippingMethods.add(title);

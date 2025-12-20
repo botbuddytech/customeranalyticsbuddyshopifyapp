@@ -143,7 +143,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         `;
 
       const ordersResponse = await admin.graphql(ordersQuery);
-      const ordersJson = await ordersResponse.json();
+      const ordersJson: any = await ordersResponse.json();
 
       if (ordersJson.errors && ordersJson.errors.length > 0) {
         const accessError = ordersJson.errors.find(
@@ -207,7 +207,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }
         `);
 
-        const previousOrdersJson = await previousOrdersResponse.json();
+        const previousOrdersJson: any = await previousOrdersResponse.json();
 
         if (previousOrdersJson.errors && previousOrdersJson.errors.length > 0) {
           // Skip this customer if we can't check their previous orders

@@ -1,18 +1,23 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Layout, BlockStack, Grid } from "@shopify/polaris";
 import { FilterSummaryCard } from "./FilterSummaryCard";
-import { FilterSection } from "./FilterSection";
 import { SegmentPreview } from "./SegmentPreview";
 import { QuickActions } from "./QuickActions";
 import { FilterTips } from "./FilterTips";
 import { SegmentResultsModal } from "./SegmentResultsModal";
 import { SaveListModal } from "./SaveListModal";
-import { defaultFilterSections } from "./filterSections";
-import type { FilterData, SegmentResults, FilterSection } from "./types";
+import {
+  GeographicLocation,
+  ProductCategories,
+  ShoppingTiming,
+  PaymentMethods,
+  DeliveryPreferences,
+} from "./filters";
+import type { FilterData, SegmentResults, FilterOption } from "./types";
 
 interface AudienceFilterFormProps {
   onSubmit?: (filters: FilterData) => Promise<SegmentResults | null>;
-  products?: string[];
+  products?: (string | FilterOption)[];
   collections?: string[];
   categories?: string[];
   countries?: string[];
@@ -26,7 +31,7 @@ interface AudienceFilterFormProps {
 
 /**
  * Main Audience Filter Form Component
- * 
+ *
  * Orchestrates all filter sections and handles form state
  */
 export function AudienceFilterForm({
@@ -55,7 +60,7 @@ export function AudienceFilterForm({
         delivery: false,
       };
     }
-    
+
     return {
       location: (initialFilters.location?.length ?? 0) > 0 || true,
       products: (initialFilters.products?.length ?? 0) > 0 || false,
@@ -78,7 +83,7 @@ export function AudienceFilterForm({
       device: [],
       payment: [],
       delivery: [],
-    }
+    },
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,41 +96,6 @@ export function AudienceFilterForm({
   const [isExporting, setIsExporting] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const filterSections = useMemo((): FilterSection[] => {
-    return defaultFilterSections.map((section) => {
-      if (section.id === "products") {
-        return {
-          ...section,
-          options: [...products, ...collections, ...categories],
-        };
-      }
-      if (section.id === "location") {
-        return { ...section, options: countries };
-      }
-      if (section.id === "payment") {
-        const staticOptions = section.options || [];
-        return {
-          ...section,
-          options: [
-            ...staticOptions,
-            ...paymentMethods.filter((method) => !staticOptions.includes(method)),
-          ],
-        };
-      }
-      if (section.id === "delivery") {
-        const staticOptions = section.options || [];
-        return {
-          ...section,
-          options: [
-            ...staticOptions,
-            ...deliveryMethods.filter((method) => !staticOptions.includes(method)),
-          ],
-        };
-      }
-      return section;
-    });
-  }, [products, collections, categories, countries, paymentMethods, deliveryMethods]);
 
   // Toggle section expansion
   const toggleSection = (sectionId: string) => {
@@ -592,12 +562,15 @@ export function AudienceFilterForm({
 
     // If creating new, ensure results exist first
     const segmentResults = await ensureResults();
-    if (segmentResults && segmentResults.customers && segmentResults.customers.length > 0) {
+    if (
+      segmentResults &&
+      segmentResults.customers &&
+      segmentResults.customers.length > 0
+    ) {
       setSaveListError(null);
       setShowSaveListModal(true);
     }
   };
-
 
   // Handle save list
   const handleSaveList = () => {
@@ -642,12 +615,12 @@ export function AudienceFilterForm({
       formData.append("listName", listName);
       formData.append("filters", JSON.stringify(segmentResults.filters));
       formData.append("source", "filter-audience"); // Mark as saved from Filter Audience
-      
+
       // If modifying, include listId
       if (listId) {
         formData.append("listId", listId);
       }
-      
+
       // Optionally include customer IDs for quick access
       if (segmentResults.customers && segmentResults.customers.length > 0) {
         const customerIds = segmentResults.customers.map((c) => c.id);
@@ -681,7 +654,7 @@ export function AudienceFilterForm({
     } catch (error) {
       console.error("Error saving list:", error);
       setSaveListError(
-        error instanceof Error ? error.message : "Failed to save list"
+        error instanceof Error ? error.message : "Failed to save list",
       );
     } finally {
       setIsSavingList(false);
@@ -701,76 +674,70 @@ export function AudienceFilterForm({
               isSubmitting={isSubmitting}
             />
 
-            {/* Render all filter sections */}
-            {filterSections.map((section) => {
-              if (section.id === "payment" || section.id === "delivery") {
-                return null;
+            {/* Geographic Location Filter */}
+            <GeographicLocation
+              countries={countries}
+              selectedFilters={selectedFilters.location || []}
+              isExpanded={expandedSections.location || false}
+              onToggle={() => toggleSection("location")}
+              onFilterChange={(value: string, checked: boolean) =>
+                handleFilterChange("location", value, checked)
               }
+              isLoading={isLoading}
+            />
 
-              return (
-                <FilterSection
-                  key={section.id}
-                  section={section}
-                  selectedFilters={
-                    selectedFilters[section.id as keyof FilterData] || []
-                  }
-                  isExpanded={expandedSections[section.id] || false}
-                  onToggle={() => toggleSection(section.id)}
+            {/* Product Categories Filter */}
+            <ProductCategories
+              products={products}
+              collections={collections}
+              categories={categories}
+              selectedFilters={selectedFilters.products || []}
+              isExpanded={expandedSections.products || false}
+              onToggle={() => toggleSection("products")}
+              onFilterChange={(value, checked) =>
+                handleFilterChange("products", value, checked)
+              }
+              isLoading={isLoading}
+            />
+
+            {/* Shopping Timing Filter */}
+            <ShoppingTiming
+              selectedFilters={selectedFilters.timing || []}
+              isExpanded={expandedSections.timing || false}
+              onToggle={() => toggleSection("timing")}
+              onFilterChange={(value, checked) =>
+                handleFilterChange("timing", value, checked)
+              }
+              isLoading={isLoading}
+            />
+
+            {/* Payment and Delivery Filters in Grid */}
+            <Grid>
+              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                <PaymentMethods
+                  paymentMethods={paymentMethods}
+                  selectedFilters={selectedFilters.payment || []}
+                  isExpanded={expandedSections.payment || false}
+                  onToggle={() => toggleSection("payment")}
                   onFilterChange={(value, checked) =>
-                    handleFilterChange(section.id, value, checked)
+                    handleFilterChange("payment", value, checked)
                   }
                   isLoading={isLoading}
                 />
-              );
-            })}
+              </Grid.Cell>
 
-            <Grid>
-              {(() => {
-                const paymentSection = filterSections.find(
-                  (s) => s.id === "payment",
-                );
-                const deliverySection = filterSections.find(
-                  (s) => s.id === "delivery",
-                );
-
-                return (
-                  <>
-                    {paymentSection && (
-                      <Grid.Cell
-                        columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}
-                      >
-                        <FilterSection
-                          section={paymentSection}
-                          selectedFilters={selectedFilters.payment || []}
-                          isExpanded={expandedSections.payment || false}
-                          onToggle={() => toggleSection("payment")}
-                          onFilterChange={(value, checked) =>
-                            handleFilterChange("payment", value, checked)
-                          }
-                          isLoading={isLoading}
-                        />
-                      </Grid.Cell>
-                    )}
-
-                    {deliverySection && (
-                      <Grid.Cell
-                        columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}
-                      >
-                        <FilterSection
-                          section={deliverySection}
-                          selectedFilters={selectedFilters.delivery || []}
-                          isExpanded={expandedSections.delivery || false}
-                          onToggle={() => toggleSection("delivery")}
-                          onFilterChange={(value, checked) =>
-                            handleFilterChange("delivery", value, checked)
-                          }
-                          isLoading={isLoading}
-                        />
-                      </Grid.Cell>
-                    )}
-                  </>
-                );
-              })()}
+              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                <DeliveryPreferences
+                  deliveryMethods={deliveryMethods}
+                  selectedFilters={selectedFilters.delivery || []}
+                  isExpanded={expandedSections.delivery || false}
+                  onToggle={() => toggleSection("delivery")}
+                  onFilterChange={(value, checked) =>
+                    handleFilterChange("delivery", value, checked)
+                  }
+                  isLoading={isLoading}
+                />
+              </Grid.Cell>
             </Grid>
           </BlockStack>
         </Layout.Section>
@@ -778,7 +745,10 @@ export function AudienceFilterForm({
         {/* Right Column: Preview & Actions */}
         <Layout.Section variant="oneThird">
           <BlockStack gap="400">
-            <SegmentPreview previewCount={previewCount} isLoading={isLoadingPreview} />
+            <SegmentPreview
+              previewCount={previewCount}
+              isLoading={isLoadingPreview}
+            />
             <QuickActions
               hasResults={totalFiltersCount > 0}
               isExporting={isExporting}
@@ -824,9 +794,8 @@ export function AudienceFilterForm({
         error={saveListError}
         initialListName={listName}
         isModify={!!listId}
+        filters={selectedFilters}
       />
-
     </>
   );
 }
-

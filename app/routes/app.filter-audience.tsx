@@ -75,10 +75,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       getUniqueShippingMethods(admin),
     ]);
 
-    // Format products for display (title only)
-    const productOptions = products
-      .filter((p) => p.status === "ACTIVE") // Only active products
-      .map((p) => p.title);
+    // Build category -> products tree structure
+    const categoryMap = new Map<string, string[]>();
+    products.forEach((p) => {
+      if (p.status === "ACTIVE") {
+        const type = p.productType || "Uncategorized";
+        if (!categoryMap.has(type)) {
+          categoryMap.set(type, []);
+        }
+        categoryMap.get(type)!.push(p.title);
+      }
+    });
+
+    const productOptions = Array.from(categoryMap.entries()).map(
+      ([category, prods]) => ({
+        label: category,
+        value: category,
+        children: prods.sort().map((p) => ({ label: p, value: p })),
+      })
+    ).sort((a, b) => a.label.localeCompare(b.label));
 
     // Format collections for display
     const collectionOptions = collections.map((c) => c.title);

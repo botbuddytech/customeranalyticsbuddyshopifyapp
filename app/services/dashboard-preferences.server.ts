@@ -1,5 +1,5 @@
 import db from "../db.server";
-import type { DashboardVisibility } from "../components/dashboard/DashboardControls";
+import { type DashboardVisibility } from "../components/dashboard/dashboardConfig";
 
 /**
  * Dashboard Preferences Service
@@ -14,7 +14,7 @@ import type { DashboardVisibility } from "../components/dashboard/DashboardContr
  */
 export async function getDashboardPreferences(
   shop: string
-): Promise<DashboardVisibility> {
+): Promise<DashboardVisibility | null> {
   try {
     const preferences = await db.dashboardPreferences.findUnique({
       where: { shop },
@@ -22,23 +22,25 @@ export async function getDashboardPreferences(
 
     if (preferences && preferences.visibilityConfig) {
       try {
+        console.log(`[Dashboard Preferences] Found saved config for ${shop}`);
         return JSON.parse(preferences.visibilityConfig) as DashboardVisibility;
       } catch (e) {
         console.error(
           `[Dashboard Preferences] Error parsing preferences for shop ${shop}:`,
           e,
         );
-        return getDefaultPreferences();
+        return null;
       }
     }
 
-    return getDefaultPreferences();
+    console.log(`[Dashboard Preferences] No saved config found for ${shop} - returning null`);
+    return null;
   } catch (error) {
     console.error(
       `[Dashboard Preferences] Error fetching preferences for shop ${shop}:`,
       error,
     );
-    return getDefaultPreferences();
+    return null;
   }
 }
 

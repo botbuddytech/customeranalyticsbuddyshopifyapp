@@ -14,31 +14,20 @@ import {
 import {
   ChevronDownIcon,
   ChevronUpIcon,
-  LocationIcon,
-  ProductIcon,
-  ClockIcon,
-  PhoneIcon,
-  CreditCardIcon,
-  DeliveryIcon,
-  FilterIcon,
 } from "@shopify/polaris-icons";
-import type { FilterSection as FilterSectionType, FilterOption } from "./types";
+import type { FilterOption } from "../../types";
 
-interface FilterSectionProps {
-  section: FilterSectionType;
+interface BaseFilterSectionProps {
+  title: string;
+  emoji: string;
+  options: (string | FilterOption)[];
   selectedFilters: string[];
   isExpanded: boolean;
   onToggle: () => void;
   onFilterChange: (value: string, checked: boolean) => void;
   isLoading?: boolean;
+  emptyMessage?: string;
 }
-
-/**
- * Filter Section Component
- * 
- * Reusable collapsible filter section with checkboxes and tree structure
- */
-const DYNAMIC_SECTIONS = ["location", "products", "payment", "delivery"];
 
 // Tree structure styling constants
 const TREE_LINE_WIDTH = '2px';
@@ -47,36 +36,24 @@ const TREE_LINE_COLOR_CHILD = 'var(--p-color-border-secondary)';
 const TREE_INDENT = '32px';
 const TREE_LINE_OFFSET = '12px';
 
-export function FilterSection({
-  section,
+/**
+ * Base Filter Section Component
+ * 
+ * Shared component for all filter sections with common functionality
+ */
+export function BaseFilterSection({
+  title,
+  emoji,
+  options,
   selectedFilters,
   isExpanded,
   onToggle,
   onFilterChange,
   isLoading = false,
-}: FilterSectionProps) {
+  emptyMessage,
+}: BaseFilterSectionProps) {
   const selectedCount = selectedFilters.length;
-  const isDynamic = DYNAMIC_SECTIONS.includes(section.id);
-  const showSkeleton = isLoading && isDynamic && section.options.length === 0;
-
-  const getSectionIcon = () => {
-    switch (section.id) {
-      case "location":
-        return LocationIcon;
-      case "products":
-        return ProductIcon;
-      case "timing":
-        return ClockIcon;
-      case "device":
-        return PhoneIcon;
-      case "payment":
-        return CreditCardIcon;
-      case "delivery":
-        return DeliveryIcon;
-      default:
-        return FilterIcon;
-    }
-  };
+  const showSkeleton = isLoading && options.length === 0;
 
   const renderOption = (opt: string | FilterOption, depth = 0, index = 0, isLastChild = false) => {
     // Handle null/undefined options
@@ -209,7 +186,7 @@ export function FilterSection({
           <InlineStack align="space-between" blockAlign="center">
             <InlineStack gap="300" blockAlign="center">
               <Text as="h3" variant="headingMd" fontWeight="semibold">
-                {section.emoji} {section.title}
+                {emoji} {title}
               </Text>
               {selectedCount > 0 && (
                 <Badge tone="success">
@@ -230,7 +207,7 @@ export function FilterSection({
         <Divider />
 
         {/* Collapsible Content */}
-        <Collapsible open={isExpanded} id={`section-${section.id}`}>
+        <Collapsible open={isExpanded} id={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}>
           <Box padding="400">
             {showSkeleton ? (
               <BlockStack gap="300">
@@ -238,28 +215,20 @@ export function FilterSection({
                   <SkeletonBodyText key={index} lines={1} />
                 ))}
               </BlockStack>
-            ) : section.options.length === 0 ? (
+            ) : options.length === 0 ? (
               <Box paddingBlock="600">
                 <BlockStack gap="200" inlineAlign="center">
                   <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                    {isDynamic 
-                      ? `No ${section.title.toLowerCase()} available in your store`
-                      : "No options available"
-                    }
+                    {emptyMessage || `No ${title.toLowerCase()} available in your store`}
                   </Text>
-                  {section.id === "products" && (
-                    <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                      Add products with categories to see filtering options
-                    </Text>
-                  )}
                 </BlockStack>
               </Box>
             ) : (
               <div style={{ paddingTop: '4px', paddingBottom: '4px' }}>
-                {section.options
+                {options
                   .filter((option): option is string | FilterOption => option != null)
                   .map((option, index) =>
-                    renderOption(option, 0, index, index === section.options.length - 1)
+                    renderOption(option, 0, index, index === options.length - 1)
                   )}
               </div>
             )}
@@ -269,3 +238,4 @@ export function FilterSection({
     </Card>
   );
 }
+

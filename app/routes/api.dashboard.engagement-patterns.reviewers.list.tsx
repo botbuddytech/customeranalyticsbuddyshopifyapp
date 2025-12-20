@@ -133,7 +133,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         `;
 
       const response = await admin.graphql(ordersQuery);
-      const json = await response.json();
+      const json: any = await response.json();
 
       if (json.errors && json.errors.length > 0) {
         const accessError = json.errors.find(
@@ -241,7 +241,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         `;
 
       const customersResponse = await admin.graphql(customersQuery);
-      const customersJson = await customersResponse.json();
+      const customersJson: any = await customersResponse.json();
 
       if (customersJson.errors && customersJson.errors.length > 0) {
         const accessError = customersJson.errors.find(

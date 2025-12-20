@@ -22,7 +22,7 @@ interface BehavioralBreakdownProps {
 }
 
 /**
- * Chart options for Bar Chart
+ * Chart options for Bar Chart - Enhanced design
  */
 const behavioralChartOptions = {
   responsive: true,
@@ -33,7 +33,7 @@ const behavioralChartOptions = {
       display: false,
     },
     tooltip: {
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      backgroundColor: "rgba(0, 0, 0, 0.9)",
       titleFont: {
         size: 14,
         weight: "bold" as const,
@@ -41,11 +41,11 @@ const behavioralChartOptions = {
       bodyFont: {
         size: 13,
       },
-      padding: 12,
-      cornerRadius: 4,
+      padding: 14,
+      cornerRadius: 8,
       displayColors: true,
-      boxWidth: 10,
-      boxHeight: 10,
+      boxWidth: 12,
+      boxHeight: 12,
       usePointStyle: true,
       callbacks: {
         label: function (context: any) {
@@ -57,12 +57,14 @@ const behavioralChartOptions = {
   scales: {
     x: {
       grid: {
-        color: "rgba(0, 0, 0, 0.05)",
+        color: "rgba(0, 0, 0, 0.06)",
+        lineWidth: 1,
       },
       ticks: {
         font: {
           size: 12,
         },
+        color: "#6D7175",
       },
     },
     y: {
@@ -74,6 +76,7 @@ const behavioralChartOptions = {
           size: 13,
           weight: "bold" as const,
         },
+        color: "#202223",
       },
     },
   },
@@ -81,8 +84,8 @@ const behavioralChartOptions = {
     duration: 1000,
     easing: "easeOutQuart" as const,
   },
-  barThickness: 25,
-  borderRadius: 4,
+  barThickness: 28,
+  borderRadius: 6,
 };
 
 /**
@@ -161,4 +164,3 @@ export function BehavioralBreakdown({
     </div>
   );
 }
-

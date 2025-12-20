@@ -4,8 +4,12 @@ import {
   TextField,
   Text,
   Banner,
+  Button,
+  InlineStack,
 } from "@shopify/polaris";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import type { FilterData } from "./types";
+import { suggestListName } from "../../utils/listNameGenerator";
 
 interface SaveListModalProps {
   open: boolean;
@@ -15,7 +19,35 @@ interface SaveListModalProps {
   error?: string | null;
   initialListName?: string;
   isModify?: boolean;
+  filters?: FilterData;
 }
+
+const LIST_NAME_CONFIG = {
+  location: {
+    priority: 1,
+    format: (v: string[]) => `from ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+  products: {
+    priority: 2,
+    format: (v: string[]) => `bought ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+  timing: {
+    priority: 3,
+    format: (v: string[]) => `in ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+  device: {
+    priority: 4,
+    format: (v: string[]) => `using ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+  payment: {
+    priority: 5,
+    format: (v: string[]) => `with ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+  delivery: {
+    priority: 6,
+    format: (v: string[]) => `via ${v.slice(0, 3).join(", ")}${v.length > 3 ? "..." : ""}`,
+  },
+};
 
 /**
  * Save List Modal Component
@@ -30,6 +62,7 @@ export function SaveListModal({
   error = null,
   initialListName = "",
   isModify = false,
+  filters,
 }: SaveListModalProps) {
   const [listName, setListName] = useState(initialListName);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -41,10 +74,30 @@ export function SaveListModal({
     }
   }, [initialListName]);
 
+  // Generate suggested name
+  const suggestedName = useMemo(() => {
+    if (!filters) return "";
+    const name = suggestListName(filters, LIST_NAME_CONFIG);
+    // Capitalize first letter
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }, [filters]);
+
+  // Pre-fill if not modifying and list name is empty
+  useEffect(() => {
+    if (open && !isModify && !listName && suggestedName) {
+      setListName(suggestedName);
+    }
+  }, [open, isModify, suggestedName]); // Removed listName from dep array to avoid overwrite if user clears it
+
   const handleListNameChange = useCallback((value: string) => {
     setListName(value);
     setLocalError(null);
   }, []);
+
+  const handleUseSuggestion = useCallback(() => {
+    setListName(suggestedName);
+    setLocalError(null);
+  }, [suggestedName]);
 
   const handleSave = useCallback(async () => {
     // Validate list name
@@ -69,10 +122,10 @@ export function SaveListModal({
   }, [listName, onSave]);
 
   const handleClose = useCallback(() => {
-    setListName("");
+    if (!isModify) setListName("");
     setLocalError(null);
     onClose();
-  }, [onClose]);
+  }, [onClose, isModify]);
 
   return (
     <Modal
@@ -107,17 +160,29 @@ export function SaveListModal({
             </Banner>
           )}
 
-          <TextField
-            label="List Name"
-            value={listName}
-            onChange={handleListNameChange}
-            placeholder="e.g., High-Value US Customers"
-            autoComplete="off"
-            maxLength={100}
-            showCharacterCount
-            error={localError || undefined}
-            disabled={isLoading}
-          />
+          <BlockStack gap="200">
+            <TextField
+              label="List Name"
+              value={listName}
+              onChange={handleListNameChange}
+              placeholder="e.g., High-Value US Customers"
+              autoComplete="off"
+              maxLength={100}
+              showCharacterCount
+              error={localError || undefined}
+              disabled={isLoading}
+            />
+            {suggestedName && suggestedName !== listName && (
+              <InlineStack align="start">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Suggestion:{" "}
+                  <Button variant="plain" onClick={handleUseSuggestion}>
+                    {suggestedName}
+                  </Button>
+                </Text>
+              </InlineStack>
+            )}
+          </BlockStack>
         </BlockStack>
       </Modal.Section>
     </Modal>

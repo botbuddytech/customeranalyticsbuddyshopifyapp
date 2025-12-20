@@ -1,11 +1,12 @@
 import type { AdminGraphQL } from "../../../../services/dashboard.server";
-import { calculateDateRange } from "../../../../services/dashboard.server";
 
 /**
- * Total Customers Query Logic
+ * Total Customers Query Logic - OPTIMIZED VERSION
  * 
- * Contains the GraphQL query and data processing logic for Total Customers card.
- * Returns both the final count and data points for graphing.
+ * Optimizations:
+ * 1. Batch all queries using Promise.all for parallel execution
+ * 2. Consolidated error handling to reduce code duplication
+ * 3. Single data structure for all results
  * 
  * Note: Total customers count is always the current total, but we query historical
  * counts by filtering customers created up to specific dates to approximate
@@ -15,9 +16,6 @@ export async function getTotalCustomersQuery(
   admin: AdminGraphQL,
   dateRange: string = "30days"
 ) {
-  const dataPoints: Array<{ date: string; count: number }> = [];
-
-  // Calculate start date and end date based on dateRange
   const now = new Date();
   let startDate: Date;
   let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -60,66 +58,59 @@ export async function getTotalCustomersQuery(
       break;
   }
 
-  // For "today", only use 1 date point (today)
-  // For other ranges, use 2 points (start date and end date)
-  const dates = dateRange === "today" 
-    ? [endDate] 
-    : [startDate, endDate];
+  const dates = dateRange === "today" ? [endDate] : [startDate, endDate];
 
-  // Fetch data for each date point
-  // We approximate historical total by counting customers created up to that date
-  for (const date of dates) {
-    const dateEndISO = date.toISOString();
-    
+  /**
+   * Helper function to query customer count with error handling
+   */
+  async function getCustomerCount(query: string): Promise<number> {
     try {
-      // Query customers created up to this date to approximate total at that time
-      const response = await admin.graphql(`
-        query {
-          customersCount(query: "created_at:<='${dateEndISO}'") {
-            count
-          }
-        }
-      `);
-
+      const response = await admin.graphql(query);
       const json = await response.json();
-      
-      // Check for access denied errors
+
       if (json.errors && json.errors.length > 0) {
-        const accessError = json.errors.find((error: any) => 
-          error.message?.includes("not approved") || 
+        const accessError = json.errors.find((error: any) =>
+          error.message?.includes("not approved") ||
           error.message?.includes("protected customer data") ||
           error.message?.includes("Customer")
         );
         if (accessError) {
           throw new Error("PROTECTED_CUSTOMER_DATA_ACCESS_DENIED");
         }
+        throw new Error(json.errors[0].message || "Unknown GraphQL error");
       }
 
-      const totalCustomers = json.data?.customersCount?.count || 0;
-
-      // Format date for the data point
-      const dateString = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-
-      dataPoints.push({
-        date: dateString,
-        count: totalCustomers,
-      });
+      return json.data?.customersCount?.count || 0;
     } catch (error: any) {
-      // Check if it's an access denied error
-      if (error.message === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" || 
-          error.message?.includes("not approved") ||
-          error.message?.includes("protected customer data")) {
+      if (error.message === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" ||
+        error.message?.includes("not approved") ||
+        error.message?.includes("protected customer data")) {
         throw new Error("PROTECTED_CUSTOMER_DATA_ACCESS_DENIED");
       }
-      // Re-throw other errors
       throw error;
     }
   }
 
-  // Get the final count (current total customers)
-  let finalTotalCustomers = 0;
   try {
-    const finalResponse = await admin.graphql(`
+    /**
+     * OPTIMIZATION: Execute all queries in parallel using Promise.all
+     * This reduces total execution time from sequential to concurrent
+     */
+
+    // Build all queries
+    const historicalQueries = dates.map(date => {
+      const dateEndISO = date.toISOString();
+      return getCustomerCount(`
+        query {
+          customersCount(query: "created_at:<='${dateEndISO}'") {
+            count
+          }
+        }
+      `);
+    });
+
+    // Add the final count query (current total)
+    const finalCountQuery = getCustomerCount(`
       query {
         customersCount {
           count
@@ -127,35 +118,28 @@ export async function getTotalCustomersQuery(
       }
     `);
 
-    const finalJson = await finalResponse.json();
-    
-    // Check for access denied errors in final query
-    if (finalJson.errors && finalJson.errors.length > 0) {
-      const accessError = finalJson.errors.find((error: any) => 
-        error.message?.includes("not approved") || 
-        error.message?.includes("protected customer data") ||
-        error.message?.includes("Customer")
-      );
-      if (accessError) {
-        throw new Error("PROTECTED_CUSTOMER_DATA_ACCESS_DENIED");
-      }
-    }
-    
-    finalTotalCustomers = finalJson.data?.customersCount?.count || 0;
+    // Execute all queries in parallel
+    const [finalTotalCustomers, ...historicalCounts] = await Promise.all([
+      finalCountQuery,
+      ...historicalQueries
+    ]);
+
+    // Build data points from results
+    const dataPoints = dates.map((date, index) => ({
+      date: date.toISOString().split('T')[0],
+      count: historicalCounts[index],
+    }));
+
+    return {
+      count: finalTotalCustomers,
+      dataPoints: dataPoints,
+    };
   } catch (error: any) {
-    // Check if it's an access denied error
-    if (error.message === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" || 
-        error.message?.includes("not approved") ||
-        error.message?.includes("protected customer data")) {
+    if (error.message === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" ||
+      error.message?.includes("not approved") ||
+      error.message?.includes("protected customer data")) {
       throw new Error("PROTECTED_CUSTOMER_DATA_ACCESS_DENIED");
     }
-    // Re-throw other errors
     throw error;
   }
-
-  return {
-    count: finalTotalCustomers,
-    dataPoints: dataPoints,
-  };
 }
-

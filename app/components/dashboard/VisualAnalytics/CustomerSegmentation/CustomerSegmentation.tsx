@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, BlockStack, Text, Spinner } from "@shopify/polaris";
 import { useFetcher } from "react-router";
-import { Pie } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 
 interface CustomerSegmentationData {
   chartData: {
@@ -21,11 +21,12 @@ interface CustomerSegmentationProps {
 }
 
 /**
- * Chart options for Pie Chart
+ * Chart options for Donut Chart
  */
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  cutout: "60%", // This creates the donut hole (hollow center)
   plugins: {
     legend: {
       position: "bottom" as const,
@@ -59,7 +60,7 @@ const chartOptions = {
 /**
  * Customer Segmentation Chart Component
  * 
- * Displays a pie chart showing distribution of orders by payment type and status.
+ * Displays a donut chart showing distribution of orders by payment type and status.
  * Fetches its own data independently.
  */
 export function CustomerSegmentation({
@@ -117,7 +118,7 @@ export function CustomerSegmentation({
             Customer Segmentation
           </Text>
           <div style={{ height: "350px", padding: "16px" }}>
-            <Pie data={chartData} options={chartOptions} />
+            <Doughnut data={chartData} options={chartOptions} />
           </div>
           <Text as="p" variant="bodySm" tone="subdued">
             Distribution of orders by payment type and status
@@ -127,4 +128,3 @@ export function CustomerSegmentation({
     </div>
   );
 }
-

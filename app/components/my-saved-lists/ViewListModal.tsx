@@ -214,7 +214,7 @@ export function ViewListModal({
           disabled: !customers || customers.length === 0,
         },
       ]}
-      large
+      size="large"
     >
       <Modal.Section>
         <BlockStack gap="400">
@@ -277,9 +277,9 @@ export function ViewListModal({
 
           {/* Loading State */}
           {isLoading && (
-            <Box
-              padding="800"
+            <div
               style={{
+                padding: "2rem",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -287,7 +287,7 @@ export function ViewListModal({
               }}
             >
               <Spinner size="large" />
-            </Box>
+            </div>
           )}
 
           {/* Customer Table */}

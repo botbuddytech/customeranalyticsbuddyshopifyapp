@@ -7,11 +7,17 @@ export interface FilterData {
   delivery: string[];
 }
 
+export interface FilterOption {
+  label: string;
+  value: string;
+  children?: FilterOption[];
+}
+
 export interface FilterSection {
   id: string;
   title: string;
   emoji: string;
-  options: string[];
+  options: (string | FilterOption)[];
 }
 
 export interface FilteredCustomer {

@@ -53,28 +53,28 @@ export function QuickStartChecklist({
     <Card>
       <BlockStack gap="400">
         <BlockStack gap="200">
-          <Box
-            padding="300"
-            background="bg-surface-secondary"
-            borderRadius="200"
-            cursor="pointer"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <InlineStack gap="300" align="space-between" blockAlign="center">
-              <InlineStack gap="300" blockAlign="center">
-                <Icon
-                  source={isExpanded ? ChevronUpIcon : ChevronDownIcon}
-                  tone="base"
-                />
-                <Text as="h3" variant="headingMd" fontWeight="semibold">
-                  Quick Start Guide
-                </Text>
-                <Badge tone="info">
-                  {`${completedSteps.length}/${quickStartSteps.length} Completed`}
-                </Badge>
+          <div style={{ cursor: "pointer" }} onClick={() => setIsExpanded(!isExpanded)}>
+            <Box
+              padding="300"
+              background="bg-surface-secondary"
+              borderRadius="200"
+            >
+              <InlineStack gap="300" align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Icon
+                    source={isExpanded ? ChevronUpIcon : ChevronDownIcon}
+                    tone="base"
+                  />
+                  <Text as="h3" variant="headingMd" fontWeight="semibold">
+                    Quick Start Guide
+                  </Text>
+                  <Badge tone="info">
+                    {`${completedSteps.length}/${quickStartSteps.length} Completed`}
+                  </Badge>
+                </InlineStack>
               </InlineStack>
-            </InlineStack>
-          </Box>
+            </Box>
+          </div>
 
           {isExpanded && (
             <Text variant="bodyMd" as="p" tone="subdued">

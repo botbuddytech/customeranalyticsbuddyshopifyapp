@@ -1,4 +1,4 @@
-import { Layout, BlockStack, Text, Grid } from "@shopify/polaris";
+import { Layout, BlockStack, Text, InlineGrid } from "@shopify/polaris";
 import { CODOrders } from "./CODOrders/CODOrders";
 import { PrepaidOrders } from "./PrepaidOrders/PrepaidOrders";
 import { CancelledOrders } from "./CancelledOrders/CancelledOrders";
@@ -48,42 +48,33 @@ export function PurchaseOrderBehavior({
         <Text as="h2" variant="headingLg">
           Purchase & Order Behavior
         </Text>
-        <Grid>
+        <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
           {showCODOrders && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <CODOrders dateRange={dateRange} onViewSegment={onViewSegment} />
-            </Grid.Cell>
+            <CODOrders dateRange={dateRange} onViewSegment={onViewSegment} />
           )}
 
           {showPrepaidOrders && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <PrepaidOrders
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <PrepaidOrders
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showCancelledOrders && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <CancelledOrders
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <CancelledOrders
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showAbandonedCarts && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <AbandonedCarts
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <AbandonedCarts
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
-        </Grid>
+        </InlineGrid>
       </BlockStack>
     </Layout.Section>
   );
 }
-

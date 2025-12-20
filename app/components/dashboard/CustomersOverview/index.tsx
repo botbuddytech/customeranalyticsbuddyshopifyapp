@@ -1,4 +1,4 @@
-import { Layout, BlockStack, Text, Grid } from "@shopify/polaris";
+import { Layout, BlockStack, Text, InlineGrid } from "@shopify/polaris";
 import { TotalCustomers } from "./TotalCustomers/TotalCustomers";
 import { NewCustomers } from "./NewCustomers/NewCustomers";
 import { ReturningCustomers } from "./ReturningCustomers/ReturningCustomers";
@@ -48,42 +48,33 @@ export function CustomersOverview({
         <Text as="h2" variant="headingLg">
           Customers Overview
         </Text>
-        <Grid>
+        <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
           {showTotalCustomers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <TotalCustomers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <TotalCustomers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showNewCustomers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <NewCustomers dateRange={dateRange} onViewSegment={onViewSegment} />
-            </Grid.Cell>
+            <NewCustomers dateRange={dateRange} onViewSegment={onViewSegment} />
           )}
 
           {showReturningCustomers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <ReturningCustomers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <ReturningCustomers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showInactiveCustomers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <InactiveCustomers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <InactiveCustomers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
-        </Grid>
+        </InlineGrid>
       </BlockStack>
     </Layout.Section>
   );
 }
-

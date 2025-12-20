@@ -1,16 +1,12 @@
 import type { AdminGraphQL } from "../../../../services/dashboard.server";
 
 /**
- * Returning Customers Query Logic
+ * Returning Customers Query Logic - OPTIMIZED VERSION
  *
- * Uses GraphQL queries to get:
- * - total returning customers in a date range (customers who placed orders in the range AND have placed orders before)
- * - data points for charting (today = 1 point, others = 2 points: start & end)
- *
- * NOTE:
- * - Requires `read_orders` scope.
- * - If your app isn't approved for protected order data,
- *   Shopify will return an error and we'll return default values.
+ * Key optimizations:
+ * 1. Single query to fetch ALL orders (with pagination)
+ * 2. In-memory processing instead of multiple API calls per customer
+ * 3. Efficient data structures for O(1) lookups
  */
 export async function getReturningCustomersQuery(
   admin: AdminGraphQL,
@@ -78,95 +74,86 @@ export async function getReturningCustomersQuery(
 
   const dates = dateRange === "today" ? [endDate] : [startDate, endDate];
 
-  // Helper function to get returning customers count for a date range
-  async function getReturningCustomersForRange(
-    rangeStart: Date,
-    rangeEnd: Date
-  ): Promise<number> {
-    const rangeStartISO = rangeStart.toISOString();
-    const rangeEndISO = rangeEnd.toISOString();
+  /**
+   * OPTIMIZATION: Fetch ALL orders once with pagination
+   * This replaces multiple individual queries
+   */
+  async function fetchAllOrders(): Promise<Array<{ id: string; customerId: string; createdAt: string }>> {
+    const allOrders: Array<{ id: string; customerId: string; createdAt: string }> = [];
+    let hasNextPage = true;
+    let cursor: string | null = null;
 
     try {
-      // Get all orders in the date range
-      const ordersResponse = await admin.graphql(`
-        query ReturningCustomersOrders {
-          orders(first: 250, query: "created_at:>='${rangeStartISO}' created_at:<='${rangeEndISO}'") {
-            nodes {
-              id
-              customer {
-                id
-              }
-              createdAt
-            }
-          }
-        }
-      `);
-
-      const ordersJson = await ordersResponse.json();
-
-      if (ordersJson.errors && ordersJson.errors.length > 0) {
-        const accessError = ordersJson.errors.find(
-          (error: any) =>
-            error.message?.includes("not approved") ||
-            error.message?.includes("protected") ||
-            error.message?.includes("Order")
-        );
-        if (accessError) {
-          throw new Error("PROTECTED_ORDER_DATA_ACCESS_DENIED");
-        }
-        throw new Error(ordersJson.errors[0].message || "Unknown GraphQL error");
-      }
-
-      const orders = ordersJson.data?.orders?.nodes || [];
-      
-      // Get unique customer IDs from orders in this range
-      const customerIds = new Set<string>();
-      orders.forEach((order: any) => {
-        if (order.customer?.id) {
-          customerIds.add(order.customer.id);
-        }
-      });
-
-      if (customerIds.size === 0) {
-        return 0;
-      }
-
-      // For each customer, check if they have orders before the range start
-      let returningCount = 0;
-      const customerIdArray = Array.from(customerIds);
-
-      // Process customers in batches to avoid query limits
-      for (const customerId of customerIdArray) {
-        try {
-          // Check if this customer has orders before the range start
-          const previousOrdersResponse = await admin.graphql(`
-            query PreviousOrders {
-              orders(first: 1, query: "customer_id:${customerId} created_at:<'${rangeStartISO}'") {
+      while (hasNextPage) {
+        const query = cursor
+          ? `query AllOrders {
+              orders(first: 250, after: "${cursor}") {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
                 nodes {
                   id
+                  customer {
+                    id
+                  }
+                  createdAt
                 }
               }
-            }
-          `);
+            }`
+          : `query AllOrders {
+              orders(first: 250) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  id
+                  customer {
+                    id
+                  }
+                  createdAt
+                }
+              }
+            }`;
 
-          const previousOrdersJson = await previousOrdersResponse.json();
-          
-          if (previousOrdersJson.errors && previousOrdersJson.errors.length > 0) {
-            // Skip this customer if we can't check their previous orders
-            continue;
-          }
+        const response = await admin.graphql(query);
+        const json = await response.json();
 
-          const previousOrders = previousOrdersJson.data?.orders?.nodes || [];
-          if (previousOrders.length > 0) {
-            returningCount++;
+        if (json.errors && json.errors.length > 0) {
+          const accessError = json.errors.find(
+            (error: any) =>
+              error.message?.includes("not approved") ||
+              error.message?.includes("protected") ||
+              error.message?.includes("Order")
+          );
+          if (accessError) {
+            throw new Error("PROTECTED_ORDER_DATA_ACCESS_DENIED");
           }
-        } catch (error: any) {
-          // Skip this customer if there's an error
-          continue;
+          throw new Error(json.errors[0].message || "Unknown GraphQL error");
+        }
+
+        const orders = json.data?.orders?.nodes || [];
+        orders.forEach((order: any) => {
+          if (order.customer?.id) {
+            allOrders.push({
+              id: order.id,
+              customerId: order.customer.id,
+              createdAt: order.createdAt,
+            });
+          }
+        });
+
+        hasNextPage = json.data?.orders?.pageInfo?.hasNextPage || false;
+        cursor = json.data?.orders?.pageInfo?.endCursor || null;
+
+        // Safety break to prevent infinite loops (adjust based on your store size)
+        if (allOrders.length > 10000) {
+          break;
         }
       }
 
-      return returningCount;
+      return allOrders;
     } catch (error: any) {
       if (
         error.message === "PROTECTED_ORDER_DATA_ACCESS_DENIED" ||
@@ -179,62 +166,36 @@ export async function getReturningCustomersQuery(
     }
   }
 
-  // 1) Build dataPoints (for chart)
-  // For "today", only use 1 date point (today)
-  // For other ranges, use 2 points (start date and end date)
-  // We calculate cumulative returning customers up to each date point
-  // A returning customer at a point in time is one who has placed multiple orders up to that date
-  for (const date of dates) {
-    const dateEndISO = date.toISOString();
-    
-    try {
-      // Get all orders up to this date
-      const ordersResponse = await admin.graphql(`
-        query OrdersUpToDate {
-          orders(first: 250, query: "created_at:<='${dateEndISO}'") {
-            nodes {
-              id
-              customer {
-                id
-              }
-              createdAt
-            }
-          }
-        }
-      `);
+  /**
+   * OPTIMIZATION: Process all orders in memory
+   * Group orders by customer and sort by date
+   */
+  try {
+    const allOrders = await fetchAllOrders();
 
-      const ordersJson = await ordersResponse.json();
-
-      if (ordersJson.errors && ordersJson.errors.length > 0) {
-        const accessError = ordersJson.errors.find(
-          (error: any) =>
-            error.message?.includes("not approved") ||
-            error.message?.includes("protected") ||
-            error.message?.includes("Order")
-        );
-        if (accessError) {
-          throw new Error("PROTECTED_ORDER_DATA_ACCESS_DENIED");
-        }
-        throw new Error(ordersJson.errors[0].message || "Unknown GraphQL error");
+    // Group orders by customer
+    const customerOrders = new Map<string, Date[]>();
+    allOrders.forEach((order) => {
+      const orderDate = new Date(order.createdAt);
+      if (!customerOrders.has(order.customerId)) {
+        customerOrders.set(order.customerId, []);
       }
+      customerOrders.get(order.customerId)!.push(orderDate);
+    });
 
-      const orders = ordersJson.data?.orders?.nodes || [];
-      
-      // Count orders per customer to find returning customers (customers with multiple orders)
-      const customerOrderCount = new Map<string, number>();
-      
-      orders.forEach((order: any) => {
-        if (order.customer?.id) {
-          const customerId = order.customer.id;
-          const currentCount = customerOrderCount.get(customerId) || 0;
-          customerOrderCount.set(customerId, currentCount + 1);
-        }
-      });
+    // Sort each customer's orders by date
+    for (const [customerId, orders] of customerOrders.entries()) {
+      orders.sort((a, b) => a.getTime() - b.getTime());
+    }
 
-      // Count customers who have more than 1 order (returning customers)
+    // 1) Build dataPoints (for chart)
+    for (const date of dates) {
       let returningCount = 0;
-      for (const [customerId, orderCount] of customerOrderCount.entries()) {
-        if (orderCount > 1) {
+
+      // Count customers who have multiple orders up to this date
+      for (const [customerId, orders] of customerOrders.entries()) {
+        const ordersUpToDate = orders.filter((orderDate) => orderDate <= date);
+        if (ordersUpToDate.length > 1) {
           returningCount++;
         }
       }
@@ -244,30 +205,31 @@ export async function getReturningCustomersQuery(
         date: dateString,
         count: returningCount,
       });
-    } catch (error: any) {
-      if (
-        error.message === "PROTECTED_ORDER_DATA_ACCESS_DENIED" ||
-        error.message?.includes("not approved") ||
-        error.message?.includes("protected")
-      ) {
-        throw new Error("PROTECTED_ORDER_DATA_ACCESS_DENIED");
-      }
-      // For other errors, push 0 as fallback
-      const dateString = date.toISOString().split("T")[0];
-      dataPoints.push({
-        date: dateString,
-        count: 0,
-      });
     }
-  }
 
-  // 2) Final total count for whole dateRange
-  const finalStartDateISO = startDate.toISOString();
-  const finalEndDateISO = endDate.toISOString();
+    // 2) Final total count for whole dateRange
+    // Count customers who placed orders in the range AND have orders before the range
+    let finalReturningCustomers = 0;
 
-  let finalReturningCustomers = 0;
-  try {
-    finalReturningCustomers = await getReturningCustomersForRange(startDate, endDate);
+    for (const [customerId, orders] of customerOrders.entries()) {
+      // Check if customer has orders in the date range
+      const ordersInRange = orders.filter(
+        (orderDate) => orderDate >= startDate && orderDate <= endDate
+      );
+
+      if (ordersInRange.length > 0) {
+        // Check if customer has orders before the range
+        const ordersBeforeRange = orders.filter((orderDate) => orderDate < startDate);
+        if (ordersBeforeRange.length > 0) {
+          finalReturningCustomers++;
+        }
+      }
+    }
+
+    return {
+      count: finalReturningCustomers,
+      dataPoints,
+    };
   } catch (error: any) {
     if (
       error.message === "PROTECTED_ORDER_DATA_ACCESS_DENIED" ||
@@ -276,12 +238,14 @@ export async function getReturningCustomersQuery(
     ) {
       throw new Error("PROTECTED_ORDER_DATA_ACCESS_DENIED");
     }
-    // Return 0 as fallback for other errors
-    finalReturningCustomers = 0;
-  }
 
-  return {
-    count: finalReturningCustomers,
-    dataPoints,
-  };
+    // Return default values on error
+    return {
+      count: 0,
+      dataPoints: dates.map((date) => ({
+        date: date.toISOString().split("T")[0],
+        count: 0,
+      })),
+    };
+  }
 }

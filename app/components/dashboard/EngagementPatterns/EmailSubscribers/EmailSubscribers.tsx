@@ -71,7 +71,7 @@ function getDescription(dateRange: string): string {
   }
 }
 
-function getStatusFromGrowth(growth: number): "success" | "warning" | "critical" {
+function getStatusFromGrowth(growth: number): "success" | "warning" | "critical" | "info" {
   if (growth === 0) return "info";
   if (growth > 0) {
     if (growth < 5) return "warning";

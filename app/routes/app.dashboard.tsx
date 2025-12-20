@@ -25,6 +25,7 @@ import {
   EmptyState,
   Text,
   Layout,
+  Box,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
@@ -41,10 +42,11 @@ import {
 } from "chart.js";
 
 // Import modular dashboard components
+import { DashboardControls } from "../components/dashboard/DashboardControls";
 import {
-  DashboardControls,
   type DashboardVisibility,
-} from "../components/dashboard/DashboardControls";
+  DEFAULT_VISIBILITY,
+} from "../components/dashboard/dashboardConfig";
 import { CustomersOverview } from "../components/dashboard/CustomersOverview/index";
 import { PurchaseOrderBehavior } from "../components/dashboard/PurchaseOrderBehavior/index";
 import { EngagementPatterns } from "../components/dashboard/EngagementPatterns/index";
@@ -75,6 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     const preferences = await getDashboardPreferences(shop);
+    console.log(`[Dashboard Loader] Preferences from service:`, preferences ? "Found" : "Null (using defaults)");
     return { preferences };
   } catch (error) {
     console.error(
@@ -100,7 +103,7 @@ export default function Dashboard() {
   const [dateRangeValue, setDateRangeValue] = useState("last30Days");
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [visibility, setVisibility] = useState<DashboardVisibility | null>(
-    savedPreferences || null,
+    savedPreferences || DEFAULT_VISIBILITY,
   );
 
   // Load saved preferences on mount
@@ -144,7 +147,7 @@ export default function Dashboard() {
                   : "30days";
 
   return (
-    <Page fullWidth>
+    <Page>
       <TitleBar title="Customer Insights Dashboard" />
 
       {/* Segment View Modal */}
@@ -180,61 +183,63 @@ export default function Dashboard() {
         </Modal>
       )}
 
-      <BlockStack gap="600">
-        {/* Dashboard Controls */}
-        <DashboardControls
-          dateRangeValue={dateRangeValue}
-          onDateRangeChange={setDateRangeValue}
-          onCustomize={handleCustomizeDashboard}
-          onVisibilityChange={handleVisibilityChange}
-          initialVisibility={savedPreferences}
-          currentVisibility={visibility}
-        />
-
-        {/* Customers Overview Section - Fetches its own data */}
-        {visibility?.customersOverview.enabled !== false && (
-          <Layout>
-            <CustomersOverview
-              dateRange={apiDateRange}
-              onViewSegment={handleViewSegment}
-              visibility={visibility?.customersOverview.cards}
-            />
-          </Layout>
-        )}
-
-        {/* Purchase & Order Behavior Section - Fetches its own data */}
-        {visibility?.purchaseOrderBehavior.enabled !== false && (
-          <Layout>
-            <PurchaseOrderBehavior
-              dateRange={apiDateRange}
-              onViewSegment={handleViewSegment}
-              visibility={visibility?.purchaseOrderBehavior.cards}
-            />
-          </Layout>
-        )}
-
-        {/* Engagement Patterns Section - Fetches its own data */}
-        {visibility?.engagementPatterns.enabled !== false && (
-          <Layout>
-            <EngagementPatterns
-              dateRange={apiDateRange}
-              onViewSegment={handleViewSegment}
-              visibility={visibility?.engagementPatterns.cards}
-            />
-          </Layout>
-        )}
-
-        {/* Visual Analytics Section - Fetches its own data */}
-        <VisualAnalytics dateRange={apiDateRange} />
-
-        {/* Purchase Timing Section - Fetches its own data */}
-        <Layout>
-          <PurchaseTiming
-            dateRange={apiDateRange}
-            onViewSegment={handleViewSegment}
+      <Box paddingInlineStart="400" paddingInlineEnd="400">
+        <BlockStack gap="600">
+          {/* Dashboard Controls */}
+          <DashboardControls
+            dateRangeValue={dateRangeValue}
+            onDateRangeChange={setDateRangeValue}
+            onCustomize={handleCustomizeDashboard}
+            onVisibilityChange={handleVisibilityChange}
+            initialVisibility={savedPreferences}
+            currentVisibility={visibility}
           />
-        </Layout>
-      </BlockStack>
+
+          {/* Customers Overview Section - Fetches its own data */}
+          {visibility?.customersOverview.enabled !== false && (
+            <Layout>
+              <CustomersOverview
+                dateRange={apiDateRange}
+                onViewSegment={handleViewSegment}
+                visibility={visibility?.customersOverview.cards}
+              />
+            </Layout>
+          )}
+
+          {/* Purchase & Order Behavior Section - Fetches its own data */}
+          {visibility?.purchaseOrderBehavior.enabled !== false && (
+            <Layout>
+              <PurchaseOrderBehavior
+                dateRange={apiDateRange}
+                onViewSegment={handleViewSegment}
+                visibility={visibility?.purchaseOrderBehavior.cards}
+              />
+            </Layout>
+          )}
+
+          {/* Engagement Patterns Section - Fetches its own data */}
+          {visibility?.engagementPatterns.enabled !== false && (
+            <Layout>
+              <EngagementPatterns
+                dateRange={apiDateRange}
+                onViewSegment={handleViewSegment}
+                visibility={visibility?.engagementPatterns.cards}
+              />
+            </Layout>
+          )}
+
+          {/* Visual Analytics Section - Fetches its own data */}
+          <VisualAnalytics dateRange={apiDateRange} />
+
+          {/* Purchase Timing Section - Fetches its own data */}
+          <Layout>
+            <PurchaseTiming
+              dateRange={apiDateRange}
+              onViewSegment={handleViewSegment}
+            />
+          </Layout>
+        </BlockStack>
+      </Box>
     </Page>
   );
 }

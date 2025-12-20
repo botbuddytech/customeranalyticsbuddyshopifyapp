@@ -1,4 +1,4 @@
-import { Layout, BlockStack, Text, Grid } from "@shopify/polaris";
+import { Layout, BlockStack, Text, InlineGrid } from "@shopify/polaris";
 import { DiscountUsers } from "./DiscountUsers/DiscountUsers";
 import { WishlistUsers } from "./WishlistUsers/WishlistUsers";
 import { Reviewers } from "./Reviewers/Reviewers";
@@ -48,42 +48,33 @@ export function EngagementPatterns({
         <Text as="h2" variant="headingLg">
           Engagement Patterns
         </Text>
-        <Grid>
+        <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
           {showDiscountUsers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <DiscountUsers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <DiscountUsers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showWishlistUsers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <WishlistUsers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <WishlistUsers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
 
           {showReviewers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <Reviewers dateRange={dateRange} onViewSegment={onViewSegment} />
-            </Grid.Cell>
+            <Reviewers dateRange={dateRange} onViewSegment={onViewSegment} />
           )}
 
           {showEmailSubscribers && (
-            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-              <EmailSubscribers
-                dateRange={dateRange}
-                onViewSegment={onViewSegment}
-              />
-            </Grid.Cell>
+            <EmailSubscribers
+              dateRange={dateRange}
+              onViewSegment={onViewSegment}
+            />
           )}
-        </Grid>
+        </InlineGrid>
       </BlockStack>
     </Layout.Section>
   );
 }
-

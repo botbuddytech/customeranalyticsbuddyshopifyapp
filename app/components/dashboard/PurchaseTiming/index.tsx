@@ -1,4 +1,4 @@
-import { Layout, BlockStack, Text, Grid } from "@shopify/polaris";
+import { Layout, BlockStack, Text, InlineGrid } from "@shopify/polaris";
 import { MorningPurchases } from "./MorningPurchases/MorningPurchases";
 import { AfternoonPurchases } from "./AfternoonPurchases/AfternoonPurchases";
 import { EveningPurchases } from "./EveningPurchases/EveningPurchases";
@@ -25,25 +25,16 @@ export function PurchaseTiming({
         <Text as="h2" variant="headingLg">
           Purchase Timing
         </Text>
-        <Grid>
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <MorningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+        <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
+          <MorningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <AfternoonPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          <AfternoonPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <EveningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
+          <EveningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
 
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-            <WeekendPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
-          </Grid.Cell>
-        </Grid>
+          {/* <WeekendPurchases dateRange={dateRange} onViewSegment={onViewSegment} /> */}
+        </InlineGrid>
       </BlockStack>
     </Layout.Section>
   );
 }
-
