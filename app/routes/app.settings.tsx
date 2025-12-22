@@ -159,8 +159,8 @@ export default function SettingsPage() {
   }, [submit]);
 
   return (
-    <Frame>
-      <Page fullWidth>
+  <Frame>
+    <Page>
         <TitleBar title="Settings" />
 
         {/* Toast for success/error messages */}
@@ -172,19 +172,15 @@ export default function SettingsPage() {
           />
         )}
 
-        <Layout>
-          <Layout.Section>
-            <Settings
-              settings={loaderData.settings}
-              actionData={actionData}
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-              isSaving={isSaving}
-              isTestingWhatsApp={isTestingWhatsApp}
-              isTestingEmail={isTestingEmail}
-            />
-          </Layout.Section>
-        </Layout>
+      <Settings
+        settings={loaderData.settings}
+        actionData={actionData}
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        isSaving={isSaving}
+        isTestingWhatsApp={isTestingWhatsApp}
+        isTestingEmail={isTestingEmail}
+      />
       </Page>
     </Frame>
   );

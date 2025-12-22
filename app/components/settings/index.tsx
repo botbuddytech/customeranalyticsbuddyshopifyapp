@@ -1,18 +1,11 @@
-/**
- * Settings Main Component
- *
- * Orchestrates all settings components and handles state management
- */
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
-  Layout,
   BlockStack,
   InlineStack,
   Text,
-  Badge,
-  Card,
   Button,
+  Box,
+  Grid,
 } from "@shopify/polaris";
 import { CommunicationSettingsCard } from "./CommunicationSettingsCard";
 import { AIAutomationCard } from "./AIAutomationCard";
@@ -30,6 +23,60 @@ interface SettingsProps {
   isSaving: boolean;
   isTestingWhatsApp: boolean;
   isTestingEmail: boolean;
+}
+
+interface SettingsSectionProps {
+  title: string;
+  description: string;
+  children: ReactNode;
+}
+
+/**
+ * Reusable two‑column settings section.
+ * Left: title + description. Right: settings card/content.
+ * Uses flexbox for layout (2 columns on desktop, stacked on mobile).
+ */
+function SettingsSection({
+  title,
+  description,
+  children,
+}: SettingsSectionProps) {
+  return (
+    <Box paddingBlockStart="400">
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--p-space-400)",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            flex: "0 0 260px",
+            maxWidth: "260px",
+          }}
+        >
+          <BlockStack gap="200">
+            <Text as="h2" variant="headingMd">
+              {title}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {description}
+            </Text>
+          </BlockStack>
+        </div>
+        <div
+          style={{
+            flex: "1 1 0",
+            minWidth: "260px",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </Box>
+  );
 }
 
 /**
@@ -152,98 +199,138 @@ export function Settings({
   }, [handleSaveSettings]);
 
   return (
-    <BlockStack gap="500">
-      {/* Compact Page Header */}
-      <InlineStack align="space-between" blockAlign="center">
-        <BlockStack gap="100">
-          <Text as="h1" variant="headingLg">
-            App Settings
-          </Text>
-          <Text as="p" variant="bodyMd" tone="subdued">
-            Configure your app preferences and communication settings
-          </Text>
-        </BlockStack>
-        <Badge tone="info">Configuration</Badge>
-      </InlineStack>
+    <div
+      style={{
+        // backgroundColor: "#F6F6F7",
+        minHeight: "100vh",
+        paddingBlock: "var(--p-space-400)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "900px",
+          width: "100%",
+          margin: "0 auto",
+          paddingInline: "var(--p-space-400)",
+        }}
+      >
+        <BlockStack gap="600">
+          {/* Page Header aligned with content flex layout */}
+          <Box paddingBlockEnd="200">
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--p-space-400)",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  flex: "0 0 260px",
+                  maxWidth: "260px",
+                }}
+              >
+                <Text as="h1" variant="headingLg">
+                  Settings
+                </Text>
+              </div>
+              <div
+                style={{
+                  flex: "1 1 0",
+                  minWidth: "260px",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <Button
+                  variant="primary"
+                  onClick={handleSaveSettings}
+                  loading={isSaving}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </Box>
 
-      {/* Compact Settings Grid */}
-      <Layout>
-        <Layout.Section variant="oneHalf">
-          <CommunicationSettingsCard
+          {/* Section: Waitlist Settings */}
+          <SettingsSection
+            title="Waitlist Settings"
+            description="Customize your waitlist settings for out of stock products to ensure a seamless customer experience."
+          >
+            <CommunicationSettingsCard
+              whatsappNumber={whatsappNumber}
+              emailId={emailId}
+              onConfigureWhatsApp={() => setWhatsappModalOpen(true)}
+              onConfigureEmail={() => setEmailModalOpen(true)}
+            />
+          </SettingsSection>
+
+          {/* Section: Email Settings */}
+          <SettingsSection
+            title="Email Settings"
+            description="Customize the email template and tracking for your waitlist notifications."
+          >
+            <AIAutomationCard
+              aiSuggestions={aiSuggestions}
+              aiAudienceAnalysis={aiAudienceAnalysis}
+              reportFrequency={reportFrequency}
+              reportDay={reportDay}
+              reportTime={reportTime}
+              onToggleAISuggestions={setAiSuggestions}
+              onToggleAIAudienceAnalysis={setAiAudienceAnalysis}
+              onConfigureSchedule={() => setScheduleModalOpen(true)}
+            />
+          </SettingsSection>
+
+          {/* Section: Plan & Billing */}
+          <SettingsSection
+            title="Plan & Billing"
+            description="Choose the plan that best fits your store and understand how billing is handled."
+          >
+            <PlanBillingCard
+              selectedPlan={selectedPlan}
+              onPlanChange={setSelectedPlan}
+            />
+          </SettingsSection>
+
+          {/* Modals */}
+          <WhatsAppModal
+            open={whatsappModalOpen}
+            onClose={() => setWhatsappModalOpen(false)}
             whatsappNumber={whatsappNumber}
-            emailId={emailId}
-            onConfigureWhatsApp={() => setWhatsappModalOpen(true)}
-            onConfigureEmail={() => setEmailModalOpen(true)}
+            onNumberChange={setWhatsappNumber}
+            onSave={handleWhatsAppSave}
+            onTest={handleTestWhatsApp}
+            isLoading={isSaving}
+            isTesting={isTestingWhatsApp}
           />
 
-          <AIAutomationCard
-            aiSuggestions={aiSuggestions}
-            aiAudienceAnalysis={aiAudienceAnalysis}
+          <EmailModal
+            open={emailModalOpen}
+            onClose={() => setEmailModalOpen(false)}
+            emailId={emailId}
+            onEmailChange={setEmailId}
+            onSave={handleEmailSave}
+            onTest={handleTestEmail}
+            isLoading={isSaving}
+            isTesting={isTestingEmail}
+          />
+
+          <ScheduleModal
+            open={scheduleModalOpen}
+            onClose={() => setScheduleModalOpen(false)}
             reportFrequency={reportFrequency}
             reportDay={reportDay}
             reportTime={reportTime}
-            onToggleAISuggestions={setAiSuggestions}
-            onToggleAIAudienceAnalysis={setAiAudienceAnalysis}
-            onConfigureSchedule={() => setScheduleModalOpen(true)}
+            onFrequencyChange={setReportFrequency}
+            onDayChange={setReportDay}
+            onTimeChange={setReportTime}
+            onSave={handleScheduleSave}
           />
-        </Layout.Section>
-
-        <Layout.Section variant="oneHalf">
-          <PlanBillingCard
-            selectedPlan={selectedPlan}
-            onPlanChange={setSelectedPlan}
-          />
-        </Layout.Section>
-      </Layout>
-
-      {/* Compact Save Button */}
-      <Card>
-        <InlineStack align="center">
-          <Button
-            variant="primary"
-            onClick={handleSaveSettings}
-            loading={isSaving}
-            size="large"
-          >
-            💾 Save All Settings
-          </Button>
-        </InlineStack>
-      </Card>
-
-      {/* Modals */}
-      <WhatsAppModal
-        open={whatsappModalOpen}
-        onClose={() => setWhatsappModalOpen(false)}
-        whatsappNumber={whatsappNumber}
-        onNumberChange={setWhatsappNumber}
-        onSave={handleWhatsAppSave}
-        onTest={handleTestWhatsApp}
-        isLoading={isSaving}
-        isTesting={isTestingWhatsApp}
-      />
-
-      <EmailModal
-        open={emailModalOpen}
-        onClose={() => setEmailModalOpen(false)}
-        emailId={emailId}
-        onEmailChange={setEmailId}
-        onSave={handleEmailSave}
-        onTest={handleTestEmail}
-        isLoading={isSaving}
-        isTesting={isTestingEmail}
-      />
-
-      <ScheduleModal
-        open={scheduleModalOpen}
-        onClose={() => setScheduleModalOpen(false)}
-        reportFrequency={reportFrequency}
-        reportDay={reportDay}
-        reportTime={reportTime}
-        onFrequencyChange={setReportFrequency}
-        onDayChange={setReportDay}
-        onTimeChange={setReportTime}
-        onSave={handleScheduleSave}
-      />
-    </BlockStack>
+        </BlockStack>
+      </div>
+    </div>
   );
 }

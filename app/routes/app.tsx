@@ -26,6 +26,8 @@ export default function App() {
           <s-link href="/app/ai-search-analyzer">AI Search & Analyzer</s-link>
           <s-link href="/app/filter-audience">Filter Audience</s-link>
           <s-link href="/app/my-saved-lists">My Saved Lists</s-link>
+          <s-link href="/app/onboarding">Onboarding</s-link>
+          <s-link href="/app/subscription">Subscription</s-link>
           <s-link href="/app/settings">Settings</s-link>
         </s-app-nav>
         <Outlet />
