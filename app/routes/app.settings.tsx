@@ -9,13 +9,26 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useActionData, useSubmit, useNavigation } from "react-router";
+import {
+  useLoaderData,
+  useActionData,
+  useSubmit,
+  useNavigation,
+} from "react-router";
 import { Page, Frame, Toast, Layout } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { Settings } from "../components/settings";
-import type { LoaderData, ActionData } from "../components/settings/types";
+import type {
+  LoaderData,
+  ActionData,
+  UserPreferences,
+} from "../components/settings/types";
 import { useState, useEffect, useCallback } from "react";
+import {
+  getUserPreferences,
+  saveUserPreferences,
+} from "../services/user-preferences.server";
 
 // ==========================================
 // Server-side Functions
@@ -28,22 +41,28 @@ import { useState, useEffect, useCallback } from "react";
  * In a real app, this would query your settings table.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const defaultLanguage =
+    (session as any).locale?.toString().split(/[-_]/)[0] || "en";
 
   // Mock current settings - replace with actual database query
+  const userPreferences = await getUserPreferences(shop, defaultLanguage);
+
   return {
     settings: {
-      whatsappNumber: "+1234567890", // Current WhatsApp number
-      emailId: "merchant@example.com", // Current email
-      selectedPlan: "basic", // Current plan
+      whatsappNumber: "+1234567890",
+      emailId: "merchant@example.com",
+      selectedPlan: "basic",
       reportSchedule: {
         frequency: "weekly",
         day: "monday",
-        time: "09:00"
+        time: "09:00",
       },
-      aiSuggestions: true, // AI suggestions enabled/disabled
-      aiAudienceAnalysis: true, // AI audience analysis enabled/disabled (default: true)
-    }
+      aiSuggestions: true,
+      aiAudienceAnalysis: true,
+    },
+    userPreferences,
   };
 };
 
@@ -54,7 +73,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
  * Also handles test message/email sending.
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
 
   const formData = await request.formData();
   const actionType = formData.get("actionType");
@@ -76,13 +96,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           aiAudienceAnalysis: formData.get("aiAudienceAnalysis") === "true",
         };
 
-        // In a real app, save to database here
-        console.log("Saving settings:", settings);
+        // In a real app, save to database here (Prisma/Supabase/etc.)
+        const language = (formData.get("language") as string) || "en";
+        const userPreferences: UserPreferences = {
+          language,
+        };
+
+        await saveUserPreferences(shop, userPreferences);
 
         return {
           success: true,
           message: "Settings saved successfully!",
-          settings
+          settings,
+          userPreferences,
         };
 
       case "testWhatsApp":
@@ -93,7 +119,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return {
           success: true,
           message: `Test WhatsApp message sent to ${whatsappNumber}`,
-          type: "whatsapp"
+          type: "whatsapp",
         };
 
       case "testEmail":
@@ -104,23 +130,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return {
           success: true,
           message: `Test email sent to ${emailId}`,
-          type: "email"
+          type: "email",
         };
 
       default:
         return {
           success: false,
-          message: "Invalid action type"
+          message: "Invalid action type",
         };
     }
   } catch (error) {
     return {
       success: false,
-      message: "An error occurred while saving settings"
+      message: "An error occurred while saving settings",
     };
   }
 };
-
 
 /**
  * Settings Page Component
@@ -150,17 +175,21 @@ export default function SettingsPage() {
   // Loading states
   const isLoading = navigation.state === "submitting";
   const isSaving = navigation.formData?.get("actionType") === "saveSettings";
-  const isTestingWhatsApp = navigation.formData?.get("actionType") === "testWhatsApp";
+  const isTestingWhatsApp =
+    navigation.formData?.get("actionType") === "testWhatsApp";
   const isTestingEmail = navigation.formData?.get("actionType") === "testEmail";
 
   // Handle form submission
-  const handleSubmit = useCallback((formData: FormData) => {
-    submit(formData, { method: "post" });
-  }, [submit]);
+  const handleSubmit = useCallback(
+    (formData: FormData) => {
+      submit(formData, { method: "post" });
+    },
+    [submit],
+  );
 
   return (
-  <Frame>
-    <Page>
+    <Frame>
+      <Page>
         <TitleBar title="Settings" />
 
         {/* Toast for success/error messages */}
@@ -172,15 +201,16 @@ export default function SettingsPage() {
           />
         )}
 
-      <Settings
-        settings={loaderData.settings}
-        actionData={actionData}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        isSaving={isSaving}
-        isTestingWhatsApp={isTestingWhatsApp}
-        isTestingEmail={isTestingEmail}
-      />
+        <Settings
+          settings={loaderData.settings}
+          initialLanguage={loaderData.userPreferences.language}
+          actionData={actionData}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          isSaving={isSaving}
+          isTestingWhatsApp={isTestingWhatsApp}
+          isTestingEmail={isTestingEmail}
+        />
       </Page>
     </Frame>
   );

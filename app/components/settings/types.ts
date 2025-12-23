@@ -15,8 +15,13 @@ export interface Settings {
   aiAudienceAnalysis: boolean;
 }
 
+export interface UserPreferences {
+  language: string;
+}
+
 export interface LoaderData {
   settings: Settings;
+  userPreferences: UserPreferences;
 }
 
 export interface ActionData {
@@ -24,5 +29,6 @@ export interface ActionData {
   message: string;
   type?: string;
   settings?: Settings;
+  userPreferences?: UserPreferences;
 }
 

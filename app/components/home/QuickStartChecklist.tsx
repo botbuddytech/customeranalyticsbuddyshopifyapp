@@ -1,6 +1,23 @@
 import { useState } from "react";
-import { Card, BlockStack, InlineStack, Text, Badge, Box, Button, Icon, Collapsible } from "@shopify/polaris";
-import { CheckIcon, PersonIcon, FilterIcon, ViewIcon, ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
+import {
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Badge,
+  Box,
+  Button,
+  Icon,
+  Collapsible,
+} from "@shopify/polaris";
+import {
+  CheckIcon,
+  PersonIcon,
+  FilterIcon,
+  ViewIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+} from "@shopify/polaris-icons";
 
 interface QuickStartChecklistProps {
   completedSteps: number[];
@@ -11,14 +28,14 @@ interface QuickStartChecklistProps {
 
 /**
  * Quick Start Checklist Component
- * 
+ *
  * Interactive onboarding checklist with progress tracking
  */
-export function QuickStartChecklist({ 
-  completedSteps, 
-  autoCompletedSteps = [], 
-  onToggleStep, 
-  loadingStepId = null 
+export function QuickStartChecklist({
+  completedSteps,
+  autoCompletedSteps = [],
+  onToggleStep,
+  loadingStepId = null,
 }: QuickStartChecklistProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -53,7 +70,10 @@ export function QuickStartChecklist({
     <Card>
       <BlockStack gap="400">
         <BlockStack gap="200">
-          <div style={{ cursor: "pointer" }} onClick={() => setIsExpanded(!isExpanded)}>
+          <div
+            style={{ cursor: "pointer" }}
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
             <Box
               padding="300"
               background="bg-surface-secondary"
@@ -86,58 +106,62 @@ export function QuickStartChecklist({
         <Collapsible open={isExpanded} id="quick-start-tasks">
           <BlockStack gap="300">
             {quickStartSteps.map((step) => {
-            const isCompleted = completedSteps.includes(step.id);
-            const isAutoCompleted = autoCompletedSteps.includes(step.id);
-            const canUndo = isCompleted && !isAutoCompleted;
+              const isCompleted = completedSteps.includes(step.id);
+              const isAutoCompleted = autoCompletedSteps.includes(step.id);
+              const canUndo = isCompleted && !isAutoCompleted;
 
-            return (
-              <Box
-                key={step.id}
-                padding="400"
-                background={isCompleted ? "bg-surface-success" : "bg-surface"}
-                borderRadius="200"
-                borderWidth="025"
-                borderColor={isCompleted ? "border-success" : "border"}
-              >
-                <InlineStack gap="300" align="space-between">
-                  <InlineStack gap="300" align="start">
-                    <Icon
-                      source={isCompleted ? CheckIcon : step.icon}
-                      tone={isCompleted ? "success" : "base"}
-                    />
+              return (
+                <Box
+                  key={step.id}
+                  padding="400"
+                  background={isCompleted ? "bg-surface-success" : "bg-surface"}
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor={isCompleted ? "border-success" : "border"}
+                >
+                  <InlineStack gap="300" align="space-between">
+                    <InlineStack gap="300" align="start">
+                      <Icon
+                        source={isCompleted ? CheckIcon : step.icon}
+                        tone={isCompleted ? "success" : "base"}
+                      />
 
-                    <BlockStack gap="100">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        {step.title}
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        {step.description}
-                        {isAutoCompleted && (
-                          <Text as="span" tone="success" fontWeight="medium">
-                            {" "}(Auto-completed)
-                          </Text>
-                        )}
-                      </Text>
-                    </BlockStack>
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodyMd" fontWeight="semibold">
+                          {step.title}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {step.description}
+                          {isAutoCompleted && (
+                            <Text as="span" tone="success" fontWeight="medium">
+                              {" "}
+                              (Auto-completed)
+                            </Text>
+                          )}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+
+                    <Button
+                      variant="plain"
+                      onClick={() => onToggleStep(step.id)}
+                      loading={loadingStepId === step.id}
+                      disabled={
+                        loadingStepId === step.id ||
+                        (isCompleted && isAutoCompleted)
+                      }
+                      accessibilityLabel={`Mark step ${step.id} as ${isCompleted ? "incomplete" : "complete"}`}
+                    >
+                      {isCompleted && isAutoCompleted
+                        ? "Auto-completed"
+                        : isCompleted
+                          ? "Undo"
+                          : "Mark Complete"}
+                    </Button>
                   </InlineStack>
-
-                  <Button
-                    variant="plain"
-                    onClick={() => onToggleStep(step.id)}
-                    loading={loadingStepId === step.id}
-                    disabled={loadingStepId === step.id || (isCompleted && isAutoCompleted)}
-                    accessibilityLabel={`Mark step ${step.id} as ${isCompleted ? 'incomplete' : 'complete'}`}
-                  >
-                    {isCompleted && isAutoCompleted 
-                      ? "Auto-completed" 
-                      : isCompleted 
-                        ? "Undo" 
-                        : "Mark Complete"}
-                  </Button>
-                </InlineStack>
-              </Box>
-            );
-          })}
+                </Box>
+              );
+            })}
           </BlockStack>
         </Collapsible>
       </BlockStack>

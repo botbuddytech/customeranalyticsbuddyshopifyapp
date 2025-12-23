@@ -1,18 +1,13 @@
 import { useState, useCallback, useEffect, type ReactNode } from "react";
-import {
-  BlockStack,
-  InlineStack,
-  Text,
-  Button,
-  Box,
-  Grid,
-} from "@shopify/polaris";
+import { BlockStack, InlineStack, Text, Button, Box } from "@shopify/polaris";
 import { CommunicationSettingsCard } from "./CommunicationSettingsCard";
 import { AIAutomationCard } from "./AIAutomationCard";
 import { PlanBillingCard } from "./PlanBillingCard";
 import { WhatsAppModal } from "./WhatsAppModal";
 import { EmailModal } from "./EmailModal";
 import { ScheduleModal } from "./ScheduleModal";
+import { LanguageSettingsCard, LANGUAGE_CONFIG } from "./LanguageSettingsCard";
+import { saveUserPreferencesToCookie } from "../../utils/userPreferences.client";
 import type { Settings, ActionData } from "./types";
 
 interface SettingsProps {
@@ -23,6 +18,7 @@ interface SettingsProps {
   isSaving: boolean;
   isTestingWhatsApp: boolean;
   isTestingEmail: boolean;
+  initialLanguage: string;
 }
 
 interface SettingsSectionProps {
@@ -93,7 +89,13 @@ export function Settings({
   isSaving,
   isTestingWhatsApp,
   isTestingEmail,
+  initialLanguage,
 }: SettingsProps) {
+  // Language / localization state (for future Weglot / i18n integration)
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    initialLanguage || "en",
+  );
+
   // Modal states
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -138,6 +140,9 @@ export function Settings({
 
   // Handle form submission for saving all settings
   const handleSaveSettings = useCallback(() => {
+    // Keep cookie in sync with current selection
+    saveUserPreferencesToCookie({ language: selectedLanguage });
+
     const formData = new FormData();
     formData.append("actionType", "saveSettings");
     formData.append("whatsappNumber", whatsappNumber);
@@ -148,6 +153,7 @@ export function Settings({
     formData.append("reportTime", reportTime);
     formData.append("aiSuggestions", aiSuggestions.toString());
     formData.append("aiAudienceAnalysis", aiAudienceAnalysis.toString());
+    formData.append("language", selectedLanguage);
 
     onSubmit(formData);
   }, [
@@ -160,6 +166,7 @@ export function Settings({
     reportTime,
     aiSuggestions,
     aiAudienceAnalysis,
+    selectedLanguage,
   ]);
 
   // Handle WhatsApp test message
@@ -253,6 +260,17 @@ export function Settings({
               </div>
             </div>
           </Box>
+
+          {/* Section: Language & Localization */}
+          <SettingsSection
+            title="Language & Localization"
+            description="Control which language your dashboard uses. Later, this can be connected to Weglot or another translation service."
+          >
+            <LanguageSettingsCard
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+            />
+          </SettingsSection>
 
           {/* Section: Waitlist Settings */}
           <SettingsSection

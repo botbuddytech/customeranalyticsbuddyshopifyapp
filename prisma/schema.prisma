@@ -49,3 +49,14 @@ model SavedCustomerList {
   @@index([shop]) // Index for faster queries by shop
   @@map("saved_customer_lists")
 }
+
+// UserPreferences model - Stores per-shop UI/user preferences (e.g. language)
+model UserPreferences {
+  id          String   @id @default(uuid())
+  shop        String   @unique
+  preferences String   @db.Text // JSON string of UserPreferences (currently just language)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("user_preferences")
+}

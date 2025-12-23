@@ -1,9 +1,22 @@
-import { Card, BlockStack, InlineStack, Text, Grid, Button, Icon } from "@shopify/polaris";
-import { PersonIcon, FilterIcon, CollectionIcon, SettingsIcon } from "@shopify/polaris-icons";
+import {
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Grid,
+  Button,
+  Icon,
+} from "@shopify/polaris";
+import {
+  PersonIcon,
+  FilterIcon,
+  CollectionIcon,
+  SettingsIcon,
+} from "@shopify/polaris-icons";
 
 /**
  * Quick Actions Component
- * 
+ *
  * Displays quick navigation buttons to main app features
  */
 export function QuickActions() {
@@ -71,11 +84,7 @@ export function QuickActions() {
                     </BlockStack>
                   </InlineStack>
 
-                  <Button
-                    variant={link.variant}
-                    url={link.url}
-                    fullWidth
-                  >
+                  <Button variant={link.variant} url={link.url} fullWidth>
                     {link.title}
                   </Button>
                 </BlockStack>
