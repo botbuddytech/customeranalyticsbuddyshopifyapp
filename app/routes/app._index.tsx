@@ -11,11 +11,14 @@
 import { useState, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useFetcher } from "react-router";
-import { Page, Layout, BlockStack } from "@shopify/polaris";
+import { Page, Layout, BlockStack, Frame } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { getSupabaseForShop } from "../services/supabase-jwt.server";
 import { checkAndUpdateAutomation } from "../services/onboarding/automation";
+import { sendRawEmail } from "../utils/email/sendEmail.server";
+import { buildOwnerFeedbackEmail } from "../utils/email/templates/feedback/ownerFeedbackEmail.server";
+import { buildUserFeedbackEmail } from "../utils/email/templates/feedback/userFeedbackEmail.server";
 
 // Import home page components
 import { WelcomeHeader } from "../components/home/WelcomeHeader";
@@ -90,6 +93,61 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const body = await request.json();
+    const { intent } = body as { intent?: string };
+
+    if (intent === "feedback") {
+      const { category, email, message } = body as {
+        category?: string;
+        email?: string;
+        message?: string;
+      };
+
+      if (!category || !email || !message) {
+        return { success: false, error: "Missing feedback fields" };
+      }
+
+      const ownerEmail = process.env.GMAIL_USER;
+      if (!ownerEmail) {
+        console.error(
+          "GMAIL_USER is not configured; cannot send owner feedback email.",
+        );
+      }
+
+      // Send thank-you email to the user
+      const userEmailContent = buildUserFeedbackEmail({
+        category: category as any,
+        message,
+      });
+
+      await sendRawEmail({
+        to: email,
+        subject: userEmailContent.subject,
+        html: userEmailContent.html,
+        text: userEmailContent.text,
+        replyTo: ownerEmail,
+      });
+
+      // Send notification email to the owner (if configured)
+      if (ownerEmail) {
+        const ownerEmailContent = buildOwnerFeedbackEmail({
+          shop,
+          userEmail: email,
+          category: category as any,
+          message,
+        });
+
+        await sendRawEmail({
+          to: ownerEmail,
+          subject: ownerEmailContent.subject,
+          html: ownerEmailContent.html,
+          text: ownerEmailContent.text,
+          replyTo: email,
+        });
+      }
+
+      return { success: true };
+    }
+
     const { completedSteps } = body;
 
     // Validate input
@@ -139,13 +197,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (error) {
       console.error("Error updating onboarding progress:", error);
-      return { success: false, error: "Failed to update data" };
+      return {
+        success: false,
+        error: error.message || "Failed to update data",
+      };
     }
 
     return { success: true, data: config };
   } catch (error) {
-    console.error("Error updating onboarding progress:", error);
-    return { success: false, error: "Failed to update data" };
+    console.error("Error in action handler:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to update data";
+    return { success: false, error: message };
   }
 };
 
@@ -235,50 +298,52 @@ export default function Index() {
   };
 
   return (
-    <Page>
-      <TitleBar title="AI Audience Insight" />
+    <Frame>
+      <Page>
+        <TitleBar title="AI Audience Insight" />
 
-      <BlockStack gap="500">
-        <Layout>
-          {/* Welcome Header Section */}
-          <Layout.Section>
-            <WelcomeHeader />
-          </Layout.Section>
+        <BlockStack gap="500">
+          <Layout>
+            {/* Welcome Header Section */}
+            <Layout.Section>
+              <WelcomeHeader />
+            </Layout.Section>
 
-          {/* Video Tutorial Section */}
-          <Layout.Section>
-            <VideoTutorial />
-          </Layout.Section>
+            {/* Video Tutorial Section */}
+            <Layout.Section>
+              <VideoTutorial />
+            </Layout.Section>
 
-          {/* Quick Start Checklist Section */}
-          <Layout.Section>
-            <QuickStartChecklist
-              completedSteps={completedSteps}
-              autoCompletedSteps={autoCompletedSteps}
-              onToggleStep={toggleStep}
-              loadingStepId={loadingStepId}
-            />
-          </Layout.Section>
+            {/* Quick Start Checklist Section */}
+            <Layout.Section>
+              <QuickStartChecklist
+                completedSteps={completedSteps}
+                autoCompletedSteps={autoCompletedSteps}
+                onToggleStep={toggleStep}
+                loadingStepId={loadingStepId}
+              />
+            </Layout.Section>
 
-          {/* Feedback & Rating Section */}
-          <Layout.Section>
-            <FeedbackRating />
-          </Layout.Section>
+            {/* Feedback & Rating Section */}
+            <Layout.Section>
+              <FeedbackRating />
+            </Layout.Section>
 
-          {/* Progress Metrics Sidebar */}
-          <Layout.Section variant="oneThird">
-            <BlockStack gap="500">
-              <ProgressMetrics />
-              <CustomerSupport />
-            </BlockStack>
-          </Layout.Section>
+            {/* Progress Metrics Sidebar */}
+            <Layout.Section variant="oneThird">
+              <BlockStack gap="500">
+                <ProgressMetrics />
+                <CustomerSupport />
+              </BlockStack>
+            </Layout.Section>
 
-          {/* Quick Action Links Section */}
-          <Layout.Section>
-            <QuickActions />
-          </Layout.Section>
-        </Layout>
-      </BlockStack>
-    </Page>
+            {/* Quick Action Links Section */}
+            <Layout.Section>
+              <QuickActions />
+            </Layout.Section>
+          </Layout>
+        </BlockStack>
+      </Page>
+    </Frame>
   );
 }

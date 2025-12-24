@@ -1,26 +1,25 @@
-import { Card, BlockStack, Text, FormLayout, Select, Box } from "@shopify/polaris";
+import { Card, BlockStack, Text, Box } from "@shopify/polaris";
 
 interface PlanBillingCardProps {
-  selectedPlan: string;
-  onPlanChange: (value: string) => void;
+  currentPlan: string;
 }
 
-const planOptions = [
-  { label: "Free Plan - Basic features", value: "free" },
-  { label: "Basic Plan - $29/month", value: "basic" },
-  { label: "Growth Plan - $79/month", value: "growth" },
-  { label: "Enterprise Plan - $199/month", value: "enterprise" },
-];
+const planLabels: Record<string, string> = {
+  free: "Free Plan — Basic features",
+  basic: "Basic Plan — $29/month",
+  growth: "Growth Plan — $79/month",
+  enterprise: "Enterprise Plan — $199/month",
+};
 
 /**
  * Plan & Billing Settings Card Component
- * 
- * Displays plan selection and billing information
+ *
+ * Displays read-only current plan and how billing is handled.
  */
-export function PlanBillingCard({
-  selectedPlan,
-  onPlanChange,
-}: PlanBillingCardProps) {
+export function PlanBillingCard({ currentPlan }: PlanBillingCardProps) {
+  const planLabel =
+    planLabels[currentPlan] ?? currentPlan ?? "Managed via Shopify billing";
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -28,28 +27,26 @@ export function PlanBillingCard({
           💰 Plan & Billing
         </Text>
 
-        <FormLayout>
-          <Select
-            label="Current Plan"
-            options={planOptions}
-            value={selectedPlan}
-            onChange={onPlanChange}
-          />
+        <BlockStack gap="200">
+          <Box
+            padding="300"
+            borderRadius="200"
+            background="bg-surface-secondary"
+          >
+            <Text as="p" variant="bodySm" tone="subdued">
+              Current Shopify plan
+            </Text>
+            <Text as="p" variant="headingSm">
+              {planLabel}
+            </Text>
+          </Box>
 
-          {selectedPlan !== "free" && (
-            <Box
-              background="bg-surface-info"
-              padding="300"
-              borderRadius="200"
-            >
-              <Text as="p" variant="bodySm">
-                💡 Changes apply to your next billing cycle
-              </Text>
-            </Box>
-          )}
-        </FormLayout>
+          <Text as="p" variant="bodySm" tone="subdued">
+            Plan upgrades, downgrades, and billing are fully managed by Shopify.{" "}
+            Use your Shopify admin billing settings to change plans.
+          </Text>
+        </BlockStack>
       </BlockStack>
     </Card>
   );
 }
-

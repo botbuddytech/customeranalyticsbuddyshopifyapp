@@ -8,9 +8,17 @@ import {
   Box,
 } from "@shopify/polaris";
 import { SubscriptionSection } from "./SubscriptionSection";
-import { SUBSCRIPTION_PLANS } from "./planConfig";
+import type { SubscriptionPlan, SubscriptionPlanBenefit } from "@prisma/client";
 
-export function PlanOptionsSection() {
+type PlanWithBenefits = SubscriptionPlan & {
+  benefits: SubscriptionPlanBenefit[];
+};
+
+interface PlanOptionsSectionProps {
+  plans: PlanWithBenefits[];
+}
+
+export function PlanOptionsSection({ plans }: PlanOptionsSectionProps) {
   return (
     <SubscriptionSection
       title="Plan options"
@@ -18,7 +26,7 @@ export function PlanOptionsSection() {
     >
       <BlockStack gap="400">
         <InlineStack gap="400" wrap>
-          {SUBSCRIPTION_PLANS.map((plan) => (
+          {plans.map((plan) => (
             <Box key={plan.id} minWidth="260px" maxWidth="360px">
               <Card roundedAbove="sm">
                 <BlockStack gap="400">
@@ -28,8 +36,14 @@ export function PlanOptionsSection() {
                       <Text as="h3" variant="headingMd">
                         {plan.name}
                       </Text>
-                      {plan.badge && (
-                        <Badge tone={plan.badge.tone}>{plan.badge.label}</Badge>
+                      {plan.badgeTone && plan.badgeLabel && (
+                        <Badge
+                          tone={
+                            plan.badgeTone as "success" | "attention" | "info"
+                          }
+                        >
+                          {plan.badgeLabel}
+                        </Badge>
                       )}
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
@@ -47,17 +61,31 @@ export function PlanOptionsSection() {
                     </Text>
                   </BlockStack>
 
-                  {/* Features */}
+                  {/* Features from Prisma benefits */}
                   <BlockStack gap="100">
-                    {plan.features.map((feature) => (
-                      <Text key={feature} as="p" variant="bodySm">
-                        • {feature}
+                    {plan.benefits.map((benefit) => (
+                      <Text key={benefit.id} as="p" variant="bodySm">
+                        • {benefit.label}
                       </Text>
                     ))}
                   </BlockStack>
 
                   {/* CTA */}
-                  <Button fullWidth variant={plan.primaryCtaVariant} disabled>
+                  <Button
+                    fullWidth
+                    variant={
+                      plan.primaryCtaVariant as
+                        | "primary"
+                        | "secondary"
+                        | "plain"
+                    }
+                    disabled={plan.isCurrentDefault}
+                    onClick={() => {
+                      // Navigate to Shopify billing settings page
+                      // Open in new tab to ensure it works in embedded apps
+                      window.open("/settings/billing", "_blank");
+                    }}
+                  >
                     {plan.primaryCtaLabel}
                   </Button>
                 </BlockStack>

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router";
 import {
   Card,
   BlockStack,
@@ -20,11 +21,12 @@ import {
  * Displays quick navigation buttons to main app features
  */
 export function QuickActions() {
+  const navigate = useNavigate();
   const quickLinks = [
     {
       title: "Start with AI Search",
       description: "Generate segments using AI",
-      url: "/app/dashboard",
+      url: "/app/ai-search-analyzer",
       icon: PersonIcon,
       variant: "primary" as const,
     },
@@ -38,7 +40,7 @@ export function QuickActions() {
     {
       title: "View Saved Lists",
       description: "Manage your segments",
-      url: "/app/saved-lists",
+      url: "/app/my-saved-lists",
       icon: CollectionIcon,
       variant: "secondary" as const,
     },
@@ -84,7 +86,11 @@ export function QuickActions() {
                     </BlockStack>
                   </InlineStack>
 
-                  <Button variant={link.variant} url={link.url} fullWidth>
+                  <Button
+                    variant={link.variant}
+                    onClick={() => navigate(link.url)}
+                    fullWidth
+                  >
                     {link.title}
                   </Button>
                 </BlockStack>

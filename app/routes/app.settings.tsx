@@ -41,19 +41,50 @@ import {
  * In a real app, this would query your settings table.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const defaultLanguage =
     (session as any).locale?.toString().split(/[-_]/)[0] || "en";
 
-  // Mock current settings - replace with actual database query
   const userPreferences = await getUserPreferences(shop, defaultLanguage);
+
+  // Try to fetch the merchant's current app subscription from Shopify.
+  // If we can't, fall back to a neutral "managed via Shopify" label instead of a fake plan.
+  let selectedPlan: string = "Managed via Shopify billing";
+
+  try {
+    const response = await admin.graphql(`
+      query AppCurrentSubscription {
+        appInstallation {
+          activeSubscriptions {
+            name
+            status
+          }
+        }
+      }
+    `);
+
+    const json = await response.json();
+    const activeSub =
+      json.data?.appInstallation?.activeSubscriptions?.[0] || null;
+
+    if (activeSub?.name) {
+      // Use the subscription name directly (e.g. "Growth Plan")
+      selectedPlan = activeSub.name as string;
+    }
+  } catch (error) {
+    console.error(
+      "[Settings loader] Error fetching current subscription:",
+      error,
+    );
+    // Fall back to default "basic" if the query fails
+  }
 
   return {
     settings: {
       whatsappNumber: "+1234567890",
       emailId: "merchant@example.com",
-      selectedPlan: "basic",
+      selectedPlan,
       reportSchedule: {
         frequency: "weekly",
         day: "monday",

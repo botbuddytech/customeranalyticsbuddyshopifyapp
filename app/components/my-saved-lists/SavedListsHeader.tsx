@@ -1,5 +1,6 @@
 import { InlineStack, BlockStack, Text, Button } from "@shopify/polaris";
 import { PlusIcon } from "@shopify/polaris-icons";
+import { useNavigate } from "react-router";
 
 interface SavedListsHeaderProps {
   onCreateNew?: () => void;
@@ -11,6 +12,17 @@ interface SavedListsHeaderProps {
  * Displays the page title, description, and create new list button
  */
 export function SavedListsHeader({ onCreateNew }: SavedListsHeaderProps) {
+  const navigate = useNavigate();
+
+  const handleCreateNew = () => {
+    if (onCreateNew) {
+      onCreateNew();
+    } else {
+      // Navigate to AI search page using client-side navigation
+      navigate("/app/ai-search-analyzer");
+    }
+  };
+
   return (
     <InlineStack align="space-between" blockAlign="center">
       <BlockStack gap="100">
@@ -24,8 +36,7 @@ export function SavedListsHeader({ onCreateNew }: SavedListsHeaderProps) {
       <Button
         variant="primary"
         icon={PlusIcon}
-        url="/app/ai-search-analyzer"
-        onClick={onCreateNew}
+        onClick={handleCreateNew}
       >
         Create New List
       </Button>

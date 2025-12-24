@@ -7,6 +7,7 @@ import { WhatsAppModal } from "./WhatsAppModal";
 import { EmailModal } from "./EmailModal";
 import { ScheduleModal } from "./ScheduleModal";
 import { LanguageSettingsCard, LANGUAGE_CONFIG } from "./LanguageSettingsCard";
+import { IntegrationSettings } from "./integration";
 import { saveUserPreferencesToCookie } from "../../utils/userPreferences.client";
 import type { Settings, ActionData } from "./types";
 
@@ -302,17 +303,25 @@ export function Settings({
             />
           </SettingsSection>
 
+          {/* Section: Integrations */}
+          <SettingsSection
+            title="Integrations"
+            description="Connect your existing email tools like Mailchimp and Klaviyo (coming soon) with your audience insights."
+          >
+            <IntegrationSettings />
+          </SettingsSection>
+
           {/* Section: Plan & Billing */}
           <SettingsSection
             title="Plan & Billing"
-            description="Choose the plan that best fits your store and understand how billing is handled."
+            description="View your current plan. Changes are managed directly in your Shopify billing settings."
           >
-            <PlanBillingCard
-              selectedPlan={selectedPlan}
-              onPlanChange={setSelectedPlan}
-            />
+            <PlanBillingCard currentPlan={selectedPlan} />
           </SettingsSection>
 
+          {/* Modals */}
+          {/* Modals */}
+          {/* Modals */}
           {/* Modals */}
           <WhatsAppModal
             open={whatsappModalOpen}

@@ -1,61 +1,80 @@
-import { useState } from "react";
-import { Card, BlockStack, InlineStack, Text, Box, Button, Grid } from "@shopify/polaris";
+import { useEffect, useState } from "react";
+import { useFetcher } from "react-router";
+import { Card, BlockStack, Text, Grid, Toast } from "@shopify/polaris";
+import type { FeedbackCategoryType } from "./feedback/feedbackCategories";
+import { FeedbackForm } from "./feedback/FeedbackForm";
+import { BugFeedbackCard } from "./feedback/BugFeedbackCard";
+import { FeatureFeedbackCard } from "./feedback/FeatureFeedbackCard";
+import { ImprovementFeedbackCard } from "./feedback/ImprovementFeedbackCard";
+import { GeneralFeedbackCard } from "./feedback/GeneralFeedbackCard";
 
-/**
- * Feedback and Rating Component
- * 
- * Star rating system with feedback categories and submission form
- */
 export function FeedbackRating() {
-  const [currentRating, setCurrentRating] = useState<number>(0);
+  const fetcher = useFetcher();
   const [showFeedbackForm, setShowFeedbackForm] = useState<boolean>(false);
-  const [feedbackText, setFeedbackText] = useState<string>('');
+  const [email, setEmail] = useState<string>("");
+  const [feedbackText, setFeedbackText] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] =
+    useState<FeedbackCategoryType | null>(null);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastError, setToastError] = useState(false);
+  const isSubmitting = fetcher.state !== "idle";
 
-  const feedbackCategories = [
-    {
-      type: 'bug',
-      title: 'Report a Bug',
-      icon: '🐛',
-      buttonText: 'Report Issue'
-    },
-    {
-      type: 'feature',
-      title: 'Request Feature',
-      icon: '💡',
-      buttonText: 'Suggest Feature'
-    },
-    {
-      type: 'improvement',
-      title: 'Suggest Improvement',
-      icon: '✨',
-      buttonText: 'Share Idea'
-    },
-    {
-      type: 'general',
-      title: 'General Feedback',
-      icon: '💬',
-      buttonText: 'Give Feedback'
-    }
-  ];
-
-  const handleStarRating = (rating: number) => {
-    setCurrentRating(rating);
-  };
-
-  const handleFeedbackCategory = (type: string) => {
+  const handleFeedbackCategory = (type: FeedbackCategoryType) => {
+    setSelectedCategory(type);
+    // Open the feedback form for all categories
     setShowFeedbackForm(true);
   };
 
   const handleSubmitFeedback = () => {
-    alert(`Thank you for your ${currentRating > 0 ? `${currentRating}-star ` : ''}feedback! We'll review it and get back to you.`);
-    setFeedbackText('');
-    setShowFeedbackForm(false);
-    setCurrentRating(0);
+    if (!selectedCategory || isSubmitting) return;
+
+    fetcher.submit(
+      {
+        intent: "feedback",
+        category: selectedCategory,
+        email,
+        message: feedbackText,
+      },
+      { method: "POST", encType: "application/json" },
+    );
   };
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data) {
+      const data = fetcher.data as any;
+
+      if (data.success) {
+        setToastMessage("Thanks for your feedback!");
+        setToastError(false);
+        setToastActive(true);
+
+        // Reset and close the modal on success
+        setEmail("");
+        setFeedbackText("");
+        setSelectedCategory(null);
+        setShowFeedbackForm(false);
+      } else {
+        setToastMessage(
+          data.error || "Failed to send feedback. Please try again.",
+        );
+        setToastError(true);
+        setToastActive(true);
+      }
+    }
+  }, [fetcher.state, fetcher.data]);
 
   return (
     <Card>
       <BlockStack gap="400">
+        {toastActive && (
+          <Toast
+            content={toastMessage}
+            error={toastError}
+            onDismiss={() => setToastActive(false)}
+          />
+        )}
+
         <BlockStack gap="200">
           <Text as="h3" variant="headingMd">
             Share Your Feedback
@@ -66,114 +85,33 @@ export function FeedbackRating() {
         </BlockStack>
 
         <BlockStack gap="300">
-          {/* Rating System */}
-          <Box
-            padding="400"
-            background="bg-surface-secondary"
-            borderRadius="200"
-            borderWidth="025"
-            borderColor="border"
-          >
-            <BlockStack gap="300">
-              <Text as="p" variant="bodyMd" fontWeight="semibold">
-                How would you rate your experience?
-              </Text>
-              
-              <InlineStack gap="200" align="center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Button
-                    key={star}
-                    variant="plain"
-                    onClick={() => handleStarRating(star)}
-                    accessibilityLabel={`Rate ${star} star${star > 1 ? 's' : ''}`}
-                  >
-                    {star <= currentRating ? '⭐' : '☆'}
-                  </Button>
-                ))}
-                <Text as="span" variant="bodyMd" tone="subdued">
-                  {currentRating > 0 ? `${currentRating}/5` : 'Rate us'}
-                </Text>
-              </InlineStack>
-            </BlockStack>
-          </Box>
-
           {/* Feedback Categories */}
           <Grid>
-            {feedbackCategories.map((category, index) => (
-              <Grid.Cell
-                key={index}
-                columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}
-              >
-                <Card>
-                  <BlockStack gap="300">
-                    <InlineStack gap="200" align="center">
-                      <Text as="span" variant="headingMd">{category.icon}</Text>
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        {category.title}
-                      </Text>
-                    </InlineStack>
-                    
-                    <Button
-                      variant="secondary"
-                      onClick={() => handleFeedbackCategory(category.type)}
-                      fullWidth
-                    >
-                      {category.buttonText}
-                    </Button>
-                  </BlockStack>
-                </Card>
-              </Grid.Cell>
-            ))}
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <BugFeedbackCard onClick={handleFeedbackCategory} />
+            </Grid.Cell>
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <FeatureFeedbackCard onClick={handleFeedbackCategory} />
+            </Grid.Cell>
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <ImprovementFeedbackCard onClick={handleFeedbackCategory} />
+            </Grid.Cell>
+            <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+              <GeneralFeedbackCard onClick={handleFeedbackCategory} />
+            </Grid.Cell>
           </Grid>
 
           {/* Feedback Form */}
-          {showFeedbackForm && (
-            <Box
-              padding="400"
-              background="bg-surface"
-              borderRadius="200"
-              borderWidth="025"
-              borderColor="border"
-            >
-              <BlockStack gap="300">
-                <Text as="p" variant="bodyMd" fontWeight="semibold">
-                  Tell us more about your experience
-                </Text>
-                
-                <textarea
-                  placeholder="What did you like? What could be improved? Any suggestions?"
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: '100px',
-                    padding: '12px',
-                    border: '1px solid #c9cccf',
-                    borderRadius: '6px',
-                    fontFamily: 'inherit',
-                    fontSize: '14px',
-                    resize: 'vertical'
-                  }}
-                />
-                
-                <InlineStack gap="200" align="end">
-                  <Button
-                    variant="plain"
-                    onClick={() => setShowFeedbackForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleSubmitFeedback}
-                    disabled={!feedbackText.trim()}
-                  >
-                    Submit Feedback
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Box>
-          )}
+          <FeedbackForm
+            open={showFeedbackForm}
+            email={email}
+            setEmail={setEmail}
+            feedbackText={feedbackText}
+            setFeedbackText={setFeedbackText}
+            onCancel={() => setShowFeedbackForm(false)}
+            onSubmit={handleSubmitFeedback}
+            isSubmitting={isSubmitting}
+          />
         </BlockStack>
       </BlockStack>
     </Card>

@@ -60,3 +60,33 @@ model UserPreferences {
 
   @@map("user_preferences")
 }
+
+model SubscriptionPlan {
+  id                String  @id @default(uuid())
+  code              String  @unique // e.g. "free", "paid"
+  name              String // e.g. "Free", "Growth"
+  price             String // e.g. "$0", "$79"
+  priceNote         String
+  description       String
+  badgeTone         String? // "success" | "attention" | "info"
+  badgeLabel        String?
+  primaryCtaLabel   String
+  primaryCtaVariant String // "primary" | "secondary" | "plain"
+  isCurrentDefault  Boolean @default(false)
+
+  benefits SubscriptionPlanBenefit[]
+
+  @@map("subscription_plans")
+}
+
+model SubscriptionPlanBenefit {
+  id        String @id @default(uuid())
+  planId    String
+  sortOrder Int
+  label     String
+
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, sortOrder])
+  @@map("subscription_plan_benefits")
+}
