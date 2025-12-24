@@ -7,7 +7,6 @@ import {
   Button,
   Select,
 } from "@shopify/polaris";
-import { StoreSelector } from "./StoreSelector";
 import { CustomizeDashboardModal } from "./CustomizeDashboard/CustomizeDashboardModal";
 
 interface DashboardControlsProps {
@@ -19,7 +18,10 @@ interface DashboardControlsProps {
   currentVisibility?: DashboardVisibility | null; // Current applied visibility state
 }
 
-import { DEFAULT_VISIBILITY, type DashboardVisibility } from "./dashboardConfig";
+import {
+  DEFAULT_VISIBILITY,
+  type DashboardVisibility,
+} from "./dashboardConfig";
 
 /**
  * Dashboard Controls Component
@@ -43,7 +45,6 @@ export function DashboardControls({
   const [isSaving, setIsSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [selectedStore, setSelectedStore] = useState("store1");
-
 
   // Update visibility when initialVisibility changes (from Supabase on mount)
   useEffect(() => {
@@ -180,17 +181,11 @@ export function DashboardControls({
               />
             </InlineStack>
 
-          <InlineStack gap="200" blockAlign="center">
-            <StoreSelector 
-              selectedStore={selectedStore} 
-              onChange={setSelectedStore} 
-            />
-
-            <Button onClick={handleCustomizeClick} variant="secondary">
-              Customize Dashboard
-            </Button>
-          </InlineStack>
-
+            <InlineStack gap="200" blockAlign="center">
+              <Button onClick={handleCustomizeClick} variant="secondary">
+                Customize Dashboard
+              </Button>
+            </InlineStack>
           </InlineStack>
 
           <Text variant="bodyMd" as="p" tone="subdued">
@@ -208,16 +203,18 @@ export function DashboardControls({
         onClose={() => setShowCustomizeModal(false)}
         initialVisibility={visibility}
         onSave={async (newVisibility) => {
-           const success = await savePreferences(newVisibility);
-           if (success) {
-               console.log("[Dashboard Controls] Save successful, updating local state");
-               // Update local state to reflect changes immediately
-               setVisibility(newVisibility);
-               // Also notify parent if needed
-               onVisibilityChange?.(newVisibility);
-               return true;
-           }
-           return false;
+          const success = await savePreferences(newVisibility);
+          if (success) {
+            console.log(
+              "[Dashboard Controls] Save successful, updating local state",
+            );
+            // Update local state to reflect changes immediately
+            setVisibility(newVisibility);
+            // Also notify parent if needed
+            onVisibilityChange?.(newVisibility);
+            return true;
+          }
+          return false;
         }}
       />
     </>

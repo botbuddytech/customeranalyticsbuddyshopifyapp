@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
-import { Modal, DataTable, Text, Spinner, BlockStack } from "@shopify/polaris";
 import { useFetcher } from "react-router";
 import { InsightCard } from "../../InsightCard";
 import { InsightCardSkeleton } from "../../InsightCardSkeleton";
 import { miniChartOptions } from "../../dashboardUtils";
-import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
+import {
+  DashboardSegmentModal,
+  type DashboardSegmentData,
+} from "../../DashboardSegmentModal";
 
 interface EmailSubscribersData {
   count: number;
@@ -15,22 +17,10 @@ interface EmailSubscribersData {
 interface EmailSubscribersProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  onShowToast?: (message: string) => void;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-  numberOfOrders: number;
-  totalSpent: string;
-}
-
-interface CustomersListData {
-  customers: Customer[];
-  total: number;
-  error?: string;
-}
+// Using shared types from DashboardSegmentModal
 
 function getDateRangeLabel(dateRange: string): string {
   switch (dateRange) {
@@ -86,16 +76,15 @@ function getStatusFromGrowth(growth: number): "success" | "warning" | "critical"
 export function EmailSubscribers({
   dateRange = "30days",
   onViewSegment,
+  onShowToast,
 }: EmailSubscribersProps) {
   const fetcher = useFetcher<EmailSubscribersData>();
-  const customersListFetcher = useFetcher<CustomersListData>();
+  const customersListFetcher = useFetcher<DashboardSegmentData>();
   const [data, setData] = useState<EmailSubscribersData | null>(null);
-  const [showAccessModal, setShowAccessModal] = useState(false);
   const [showCustomersModal, setShowCustomersModal] = useState(false);
 
   useEffect(() => {
     setData(null);
-    setShowAccessModal(false);
     setShowCustomersModal(false);
     fetcher.load(
       `/api/dashboard/engagement-patterns/email-subscribers?dateRange=${dateRange}`,
@@ -105,7 +94,6 @@ export function EmailSubscribers({
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
-        setShowAccessModal(true);
         setData(null);
       } else if (typeof fetcher.data.count === "number") {
         setData({
@@ -184,19 +172,8 @@ export function EmailSubscribers({
     }, [data, dateRange]);
 
   // Show skeleton while loading
-  if (!data && !showAccessModal) {
-    return <InsightCardSkeleton />;
-  }
-
   if (!data) {
-    return showAccessModal ? (
-      <ProtectedDataAccessModal
-        open={showAccessModal}
-        onClose={() => setShowAccessModal(false)}
-        dataType="customer"
-        featureName="Email Subscribers"
-      />
-    ) : null;
+    return <InsightCardSkeleton />;
   }
 
   const chartData =
@@ -273,7 +250,7 @@ export function EmailSubscribers({
   };
 
   // Handle export data to CSV
-  const handleExportData = () => {
+  const handleExportCSV = () => {
     const customers = customersListFetcher.data?.customers;
     if (!customers || customers.length === 0) {
       return;
@@ -342,75 +319,17 @@ export function EmailSubscribers({
         miniChartOptions={customChartOptions}
       />
 
-      <ProtectedDataAccessModal
-        open={showAccessModal}
-        onClose={() => setShowAccessModal(false)}
-        dataType="customer"
-        featureName="Email Subscribers"
-      />
-
-      <Modal
+      <DashboardSegmentModal
         open={showCustomersModal}
         onClose={() => setShowCustomersModal(false)}
-        title={`Email Subscribers - ${getDateRangeLabel(dateRange)}`}
-        primaryAction={{
-          content: "Close",
-          onAction: () => setShowCustomersModal(false),
-        }}
-        secondaryActions={[
-          {
-            content: "Export Data",
-            onAction: handleExportData,
-            disabled:
-              !customersListFetcher.data?.customers ||
-              customersListFetcher.data.customers.length === 0 ||
-              customersListFetcher.state === "loading",
-          },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="400">
-            {customersListFetcher.state === "loading" ? (
-              <div style={{ textAlign: "center", padding: "2rem" }}>
-                <Spinner size="large" />
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Loading customers...
-                </Text>
-              </div>
-            ) : customersListFetcher.data?.error ===
-              "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED" ? (
-              <Text as="p" variant="bodyMd" tone="critical">
-                Access to customer data is required to view this list. Please
-                request access in your Partner Dashboard.
-              </Text>
-            ) : customersListFetcher.data?.customers &&
-              customersListFetcher.data.customers.length > 0 ? (
-              <>
-                <Text as="p" variant="bodyMd">
-                  Showing {customersListFetcher.data.total} customer
-                  {customersListFetcher.data.total !== 1 ? "s" : ""} who subscribed to email for{" "}
-                  {getDateRangeLabel(dateRange)}.
-                </Text>
-                <DataTable
-                  columnContentTypes={[
-                    "text",
-                    "text",
-                    "text",
-                    "numeric",
-                    "text",
-                  ]}
-                  headings={tableHeadings}
-                  rows={tableRows}
-                />
-              </>
-            ) : (
-              <Text as="p" variant="bodyMd">
-                No email subscribers found for {getDateRangeLabel(dateRange)}.
-              </Text>
-            )}
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        title={`Email Subscribers${getDateRangeLabel(dateRange) ? ` - ${getDateRangeLabel(dateRange)}` : ""}`}
+        data={customersListFetcher.data || null}
+        isLoading={customersListFetcher.state === "loading"}
+        dateRangeLabel={getDateRangeLabel(dateRange)}
+        onExportCSV={handleExportCSV}
+        featureName="Email Subscribers"
+        onShowToast={onShowToast}
+      />
     </>
   );
 }

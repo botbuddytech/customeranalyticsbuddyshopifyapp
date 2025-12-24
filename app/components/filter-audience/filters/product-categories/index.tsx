@@ -64,6 +64,16 @@ export function ProductCategories({
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
+
+  const toggleCategory = useCallback((value: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [value]: !prev[value],
+    }));
+  }, []);
 
   // Combine products, collections, and categories into a single options array
   const options = useMemo(
@@ -151,6 +161,7 @@ export function ProductCategories({
       const imageUrl = typeof opt === "string" ? undefined : opt.imageUrl;
       const isChecked = selectedFiltersSet.has(value);
       const hasChildren = children.length > 0;
+      const isCategoryExpanded = expandedCategories[value] ?? false;
       // Show image only for child items (products), not parent categories
       const showImage = depth > 0 && !hasChildren;
 
@@ -214,33 +225,47 @@ export function ProductCategories({
               </>
             )}
 
-            <Checkbox
-              label={
-                <InlineStack gap="200" blockAlign="center">
-                  {showImage && (
-                    <Thumbnail
-                      source={imageUrl || ImageIcon}
-                      alt={label}
-                      size="small"
-                    />
-                  )}
-                  <Text as="span" variant="bodyMd">
-                    {label}
-                  </Text>
-                  {hasChildren && (
-                    <Badge tone="info" size="small">
-                      {`${children.length}`}
-                    </Badge>
-                  )}
-                </InlineStack>
-              }
-              checked={isChecked}
-              onChange={(checked) => onFilterChange(value, checked)}
-            />
+            <InlineStack align="space-between" blockAlign="center" gap="200">
+              <Checkbox
+                label={
+                  <InlineStack gap="200" blockAlign="center">
+                    {showImage && (
+                      <Thumbnail
+                        source={imageUrl || ImageIcon}
+                        alt={label}
+                        size="small"
+                      />
+                    )}
+                    <Text as="span" variant="bodyMd">
+                      {label}
+                    </Text>
+                    {hasChildren && (
+                      <Badge tone="info" size="small">
+                        {`${children.length}`}
+                      </Badge>
+                    )}
+                  </InlineStack>
+                }
+                checked={isChecked}
+                onChange={(checked) => onFilterChange(value, checked)}
+              />
+
+              {hasChildren && depth === 0 && (
+                <Button
+                  size="slim"
+                  variant="plain"
+                  icon={isCategoryExpanded ? ChevronUpIcon : ChevronDownIcon}
+                  onClick={() => toggleCategory(value)}
+                  accessibilityLabel={
+                    isCategoryExpanded ? "Collapse category" : "Expand category"
+                  }
+                />
+              )}
+            </InlineStack>
           </div>
 
           {/* Render children with proper tree structure */}
-          {hasChildren && (
+          {hasChildren && isCategoryExpanded && (
             <div
               style={{
                 paddingLeft: depth === 0 ? TREE_LINE_OFFSET : "0",
@@ -276,7 +301,7 @@ export function ProductCategories({
         </div>
       );
     },
-    [selectedFiltersSet, onFilterChange],
+    [selectedFiltersSet, onFilterChange, expandedCategories, toggleCategory],
   );
 
   return (

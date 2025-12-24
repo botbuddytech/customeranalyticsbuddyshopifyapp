@@ -1,4 +1,4 @@
-import { Card, BlockStack, Text, Button, Popover, ActionList } from "@shopify/polaris";
+import { Card, BlockStack, Text, Button, Popover, ActionList, InlineStack } from "@shopify/polaris";
 import { ExportIcon, EmailIcon } from "@shopify/polaris-icons";
 import { useState, useCallback } from "react";
 
@@ -60,19 +60,18 @@ export function QuickActions({
           ⚡ Quick Actions
         </Text>
 
-        <BlockStack gap="200">
+        <InlineStack gap="200" wrap>
           <Popover
             active={exportPopoverOpen}
             activator={
               <Button
                 variant="secondary"
-                fullWidth
                 icon={isExporting ? undefined : ExportIcon}
                 loading={isExporting}
                 disabled={!hasResults || isExporting}
                 onClick={toggleExportPopover}
               >
-                Export Segment
+                Export
               </Button>
             }
             onClose={toggleExportPopover}
@@ -97,23 +96,21 @@ export function QuickActions({
 
           <Button
             variant="secondary"
-            fullWidth
             icon={EmailIcon}
             disabled={true}
             onClick={onCreateCampaign}
           >
-            Create Campaign
+            Create campaign
           </Button>
 
           <Button
             variant="secondary"
-            fullWidth
             disabled={!hasResults}
             onClick={onSaveToList}
           >
-            Save to Lists
+            Save to lists
           </Button>
-        </BlockStack>
+        </InlineStack>
       </BlockStack>
     </Card>
   );

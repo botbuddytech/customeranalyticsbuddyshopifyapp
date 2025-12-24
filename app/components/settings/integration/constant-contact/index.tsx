@@ -1,10 +1,12 @@
 import { Card, BlockStack, InlineStack, Text, Button } from "@shopify/polaris";
 
-interface KlaviyoIntegrationProps {
+interface ConstantContactIntegrationProps {
   onConnect: () => void;
 }
 
-export function KlaviyoIntegration({ onConnect }: KlaviyoIntegrationProps) {
+export function ConstantContactIntegration({
+  onConnect,
+}: ConstantContactIntegrationProps) {
   return (
     <Card>
       <BlockStack gap="200">
@@ -15,31 +17,30 @@ export function KlaviyoIntegration({ onConnect }: KlaviyoIntegrationProps) {
                 width: "32px",
                 height: "32px",
                 borderRadius: "50%",
-                backgroundColor: "#F9EEED",
+                backgroundColor: "#E6F0FF",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontWeight: 800,
                 fontSize: "16px",
-                color: "#E45B5B",
+                color: "#0052CC",
               }}
             >
-              K
+              C
             </div>
             <BlockStack gap="050">
               <Text as="h3" variant="headingSm">
-                Klaviyo
+                Constant Contact
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                Connect Klaviyo to power advanced email flows with your audience
-                insights.
+                Sync segments to Constant Contact for newsletters and campaigns.
               </Text>
             </BlockStack>
           </InlineStack>
         </InlineStack>
         <InlineStack align="end">
           <Button variant="secondary" onClick={onConnect}>
-            Connect Klaviyo
+            Connect Constant Contact
           </Button>
         </InlineStack>
       </BlockStack>

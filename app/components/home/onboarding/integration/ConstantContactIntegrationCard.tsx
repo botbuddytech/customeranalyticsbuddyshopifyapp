@@ -1,0 +1,63 @@
+import React from "react";
+import { AddressBookIcon } from "../icons";
+
+interface ProviderCardProps {
+  selected: string;
+  onSelect: (id: string) => void;
+}
+
+export const ConstantContactIntegrationCard: React.FC<ProviderCardProps> = ({
+  selected,
+  onSelect,
+}) => {
+  const id = "constant";
+  const isSelected = selected === id;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(id)}
+      style={{
+        padding: "24px",
+        borderRadius: "12px",
+        border: "2px solid",
+        transition: "all 0.2s",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "12px",
+        cursor: "pointer",
+        borderColor: isSelected ? "#008060" : "#F3F4F6",
+        backgroundColor: isSelected ? "rgba(240, 253, 244, 0.3)" : "white",
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.borderColor = "#D1D5DB";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.borderColor = "#F3F4F6";
+        }
+      }}
+    >
+      <div
+        style={{
+          width: "48px",
+          height: "48px",
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#E6F0FF",
+          color: "#0052CC",
+        }}
+      >
+        <AddressBookIcon />
+      </div>
+      <span style={{ fontWeight: "700", fontSize: "14px" }}>Constant Contact</span>
+    </button>
+  );
+};
+
+

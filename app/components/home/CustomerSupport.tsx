@@ -106,7 +106,7 @@ export function CustomerSupport() {
             </InlineStack>
           </Box>
 
-          <Box
+          {/* <Box
             padding="300"
             background="bg-surface-secondary"
             borderRadius="200"
@@ -128,7 +128,7 @@ export function CustomerSupport() {
                 Join Now
               </Button>
             </InlineStack>
-          </Box>
+          </Box> */}
         </BlockStack>
       </BlockStack>
     </Card>

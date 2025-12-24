@@ -663,106 +663,111 @@ export function AudienceFilterForm({
 
   return (
     <>
-      <Layout>
-        {/* Left Column: Filter Sections */}
-        <Layout.Section>
-          <BlockStack gap="400">
-            <FilterSummaryCard
-              totalFiltersCount={totalFiltersCount}
-              onClearAll={handleClearAll}
-              onSubmit={() => handleSubmit()}
-              isSubmitting={isSubmitting}
-            />
+      <div
+        style={{
+          maxWidth: "960px",
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
+        <Layout>
+          {/* Left Column: Filter Sections */}
+          <Layout.Section>
+            <BlockStack gap="400">
+              <FilterSummaryCard
+                totalFiltersCount={totalFiltersCount}
+                onClearAll={handleClearAll}
+                onSubmit={() => handleSubmit()}
+                isSubmitting={isSubmitting}
+              />
 
-            {/* Geographic Location Filter */}
-            <GeographicLocation
-              countries={countries}
-              selectedFilters={selectedFilters.location || []}
-              isExpanded={expandedSections.location || false}
-              onToggle={() => toggleSection("location")}
-              onFilterChange={(value: string, checked: boolean) =>
-                handleFilterChange("location", value, checked)
-              }
-              isLoading={isLoading}
-            />
+              {/* Segment preview directly under active filters */}
+              <SegmentPreview
+                previewCount={previewCount}
+                isLoading={isLoadingPreview}
+              />
 
-            {/* Product Categories Filter */}
-            <ProductCategories
-              products={products}
-              collections={collections}
-              categories={categories}
-              selectedFilters={selectedFilters.products || []}
-              isExpanded={expandedSections.products || false}
-              onToggle={() => toggleSection("products")}
-              onFilterChange={(value, checked) =>
-                handleFilterChange("products", value, checked)
-              }
-              isLoading={isLoading}
-            />
+              {/* Quick actions in a single row under preview */}
+              <QuickActions
+                hasResults={totalFiltersCount > 0}
+                isExporting={isExporting}
+                onExportPDF={handleExportPDF}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onCreateCampaign={handleCreateCampaign}
+                onSaveToList={handleSaveToList}
+                onExportStart={() => setIsExporting(true)}
+              />
 
-            {/* Shopping Timing Filter */}
-            <ShoppingTiming
-              selectedFilters={selectedFilters.timing || []}
-              isExpanded={expandedSections.timing || false}
-              onToggle={() => toggleSection("timing")}
-              onFilterChange={(value, checked) =>
-                handleFilterChange("timing", value, checked)
-              }
-              isLoading={isLoading}
-            />
+              {/* Geographic Location Filter */}
+              <GeographicLocation
+                countries={countries}
+                selectedFilters={selectedFilters.location || []}
+                isExpanded={expandedSections.location || false}
+                onToggle={() => toggleSection("location")}
+                onFilterChange={(value: string, checked: boolean) =>
+                  handleFilterChange("location", value, checked)
+                }
+                isLoading={isLoading}
+              />
 
-            {/* Payment and Delivery Filters in Grid */}
-            <Grid>
-              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                <PaymentMethods
-                  paymentMethods={paymentMethods}
-                  selectedFilters={selectedFilters.payment || []}
-                  isExpanded={expandedSections.payment || false}
-                  onToggle={() => toggleSection("payment")}
-                  onFilterChange={(value, checked) =>
-                    handleFilterChange("payment", value, checked)
-                  }
-                  isLoading={isLoading}
-                />
-              </Grid.Cell>
+              {/* Product Categories Filter */}
+              <ProductCategories
+                products={products}
+                collections={collections}
+                categories={categories}
+                selectedFilters={selectedFilters.products || []}
+                isExpanded={expandedSections.products || false}
+                onToggle={() => toggleSection("products")}
+                onFilterChange={(value, checked) =>
+                  handleFilterChange("products", value, checked)
+                }
+                isLoading={isLoading}
+              />
 
-              <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                <DeliveryPreferences
-                  deliveryMethods={deliveryMethods}
-                  selectedFilters={selectedFilters.delivery || []}
-                  isExpanded={expandedSections.delivery || false}
-                  onToggle={() => toggleSection("delivery")}
-                  onFilterChange={(value, checked) =>
-                    handleFilterChange("delivery", value, checked)
-                  }
-                  isLoading={isLoading}
-                />
-              </Grid.Cell>
-            </Grid>
-          </BlockStack>
-        </Layout.Section>
+              {/* Shopping Timing Filter */}
+              <ShoppingTiming
+                selectedFilters={selectedFilters.timing || []}
+                isExpanded={expandedSections.timing || false}
+                onToggle={() => toggleSection("timing")}
+                onFilterChange={(value, checked) =>
+                  handleFilterChange("timing", value, checked)
+                }
+                isLoading={isLoading}
+              />
 
-        {/* Right Column: Preview & Actions */}
-        <Layout.Section variant="oneThird">
-          <BlockStack gap="400">
-            <SegmentPreview
-              previewCount={previewCount}
-              isLoading={isLoadingPreview}
-            />
-            <QuickActions
-              hasResults={totalFiltersCount > 0}
-              isExporting={isExporting}
-              onExportPDF={handleExportPDF}
-              onExportCSV={handleExportCSV}
-              onExportExcel={handleExportExcel}
-              onCreateCampaign={handleCreateCampaign}
-              onSaveToList={handleSaveToList}
-              onExportStart={() => setIsExporting(true)}
-            />
-            <FilterTips />
-          </BlockStack>
-        </Layout.Section>
-      </Layout>
+              {/* Payment and Delivery Filters in Grid */}
+              <Grid>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                  <PaymentMethods
+                    paymentMethods={paymentMethods}
+                    selectedFilters={selectedFilters.payment || []}
+                    isExpanded={expandedSections.payment || false}
+                    onToggle={() => toggleSection("payment")}
+                    onFilterChange={(value, checked) =>
+                      handleFilterChange("payment", value, checked)
+                    }
+                    isLoading={isLoading}
+                  />
+                </Grid.Cell>
+
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                  <DeliveryPreferences
+                    deliveryMethods={deliveryMethods}
+                    selectedFilters={selectedFilters.delivery || []}
+                    isExpanded={expandedSections.delivery || false}
+                    onToggle={() => toggleSection("delivery")}
+                    onFilterChange={(value, checked) =>
+                      handleFilterChange("delivery", value, checked)
+                    }
+                    isLoading={isLoading}
+                  />
+                </Grid.Cell>
+              </Grid>
+            </BlockStack>
+          </Layout.Section>
+        </Layout>
+      </div>
 
       {/* Results Modal */}
       <SegmentResultsModal

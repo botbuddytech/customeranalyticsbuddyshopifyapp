@@ -14,17 +14,6 @@ import {
 import { SendIcon } from "@shopify/polaris-icons";
 import { PrebuiltQueriesCard } from "./PrebuiltQueriesCard";
 
-// Hide scrollbar styles
-const hideScrollbarStyle = `
-  .chat-messages-container::-webkit-scrollbar {
-    display: none;
-  }
-  .chat-messages-container {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-`;
-
 interface Customer {
   id: number;
   name: string;
@@ -60,24 +49,18 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [showPrebuiltQueries, setShowPrebuiltQueries] = useState(true);
   const [processingSteps, setProcessingSteps] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    // Scroll the window to show the latest message
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({
+    // Only scroll within the chat messages container, not the entire page
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
         behavior: "smooth",
-        block: "end",
       });
     }
-    // Also scroll the page if needed
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: "smooth",
-    });
   };
 
   useEffect(() => {
@@ -103,7 +86,6 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
     setQuery("");
     setIsLoading(true);
     setProcessingSteps([]);
-    setShowPrebuiltQueries(false);
 
     const steps = [
       "Understanding your question",
@@ -229,19 +211,6 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
     setIsLoading(false);
   };
 
-  const handlePrebuiltQuery = useCallback((q: string) => {
-    setQuery(q);
-    // Small delay to ensure state is updated
-    setTimeout(() => {
-      const event = new KeyboardEvent("keydown", {
-        key: "Enter",
-        code: "Enter",
-        bubbles: true,
-      });
-      // Trigger submit after setting query
-    }, 0);
-  }, []);
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -249,90 +218,70 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
     }
   };
 
-  // Show initial state (search box + prebuilt queries) when no messages
-  const showInitialState = messages.length === 0 && !isLoading;
+  // Last assistant message with data for results section
+  const lastResultMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && m.data?.results?.length);
 
   return (
     <>
-      <style>{hideScrollbarStyle}</style>
       <div
         style={{
           display: "flex",
           flexDirection: "column",
+          gap: "20px",
+          padding: "40px 20px",
+          backgroundColor: "#f6f6f7",
           minHeight: "calc(100vh - 200px)",
-          width: "100%",
         }}
       >
-        {showInitialState ? (
-          /* Initial State: Search Box at Top/Center */
-          <div
-            style={{
-              flex: 1,
-              padding: "40px 20px 20px 20px",
-              backgroundColor: "#f6f6f7",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-            }}
-          >
-            {/* Search Box - Centered */}
-            <div style={{ maxWidth: "800px", width: "100%" }}>
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h2" variant="headingLg" alignment="center">
-                    Ask about your customers
-                  </Text>
-                  <Text
-                    as="p"
-                    variant="bodyMd"
-                    tone="subdued"
-                    alignment="center"
-                  >
-                    Use natural language to find and analyze your customer data
-                  </Text>
-                  <div onKeyDown={handleKeyPress}>
-                    <TextField
-                      label=""
-                      labelHidden
-                      value={query}
-                      onChange={setQuery}
-                      placeholder="Example: Which customers haven't ordered in the last 90 days?"
-                      autoComplete="off"
-                      multiline={3}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <Button
-                    variant="primary"
-                    icon={SendIcon}
-                    onClick={handleSubmit}
-                    loading={isLoading}
-                    disabled={isLoading || !query.trim()}
-                    size="large"
-                    fullWidth
-                  >
-                    Search customers
-                  </Button>
-                </BlockStack>
-              </Card>
-            </div>
-          </div>
-        ) : (
-          /* Chat View: Messages with Fixed Input at Bottom */
-          <>
-            {/* Chat Messages Area - Expands with content */}
+        {/* Chat widget (like Crisp) */}
+        <div
+          style={{
+            alignSelf: "center",
+            width: "100%",
+            maxWidth: "520px",
+          }}
+        >
+          <Card>
+            {/* Header */}
             <div
-              ref={chatContainerRef}
               style={{
-                width: "100%",
-                padding: "20px",
-                backgroundColor: "#f6f6f7",
+                backgroundColor: "#0070f3",
+                color: "white",
+                padding: "10px 14px",
+                borderTopLeftRadius: "12px",
+                borderTopRightRadius: "12px",
                 display: "flex",
-                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              <BlockStack gap="400">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="span" variant="bodySm" fontWeight="semibold">
+                  AI Customer Assistant
+                </Text>
+              </InlineStack>
+            </div>
+
+            {/* Messages */}
+            <div
+              ref={messagesContainerRef}
+              style={{
+                padding: "12px 14px",
+                minHeight: "260px",
+                maxHeight: "460px",
+                overflowY: "auto",
+                backgroundColor: "white",
+              }}
+            >
+              <BlockStack gap="300">
+                {messages.length === 0 && !isLoading && (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Ask a question about your customers to get started.
+                  </Text>
+                )}
+
                 {messages.map((message) => (
                   <div key={message.id}>
                     {message.role === "user" ? (
@@ -340,22 +289,21 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
                         style={{
                           display: "flex",
                           justifyContent: "flex-end",
-                          marginBottom: "16px",
+                          marginBottom: "8px",
                         }}
                       >
                         <div
                           style={{
-                            maxWidth: "75%",
+                            maxWidth: "80%",
                             backgroundColor: "#0070f3",
                             color: "white",
-                            padding: "12px 16px",
-                            borderRadius: "18px",
+                            padding: "8px 12px",
+                            borderRadius: "16px",
                             borderBottomRightRadius: "4px",
+                            fontSize: "13px",
                           }}
                         >
-                          <Text as="p" variant="bodyMd" tone="base">
-                            {message.content}
-                          </Text>
+                          {message.content}
                         </div>
                       </div>
                     ) : (
@@ -363,62 +311,20 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
                         style={{
                           display: "flex",
                           justifyContent: "flex-start",
-                          marginBottom: "16px",
+                          marginBottom: "8px",
                         }}
                       >
                         <div
                           style={{
-                            maxWidth: "85%",
-                            backgroundColor: "white",
-                            padding: "16px",
-                            borderRadius: "18px",
+                            maxWidth: "80%",
+                            backgroundColor: "#f3f4f6",
+                            padding: "8px 12px",
+                            borderRadius: "16px",
                             borderBottomLeftRadius: "4px",
-                            border: "1px solid #e5e7eb",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            fontSize: "13px",
                           }}
                         >
-                          <BlockStack gap="300">
-                            <Text as="p" variant="bodyMd">
-                              {message.content}
-                            </Text>
-                            {message.data?.results &&
-                              message.data.results.length > 0 && (
-                                <BlockStack gap="300">
-                                  <InlineStack
-                                    align="space-between"
-                                    blockAlign="center"
-                                  >
-                                    <Text
-                                      as="p"
-                                      variant="bodySm"
-                                      fontWeight="semibold"
-                                    >
-                                      Results
-                                    </Text>
-                                    <Badge tone="success">
-                                      {`${message.data.results.length} found`}
-                                    </Badge>
-                                  </InlineStack>
-                                  <DataTable
-                                    columnContentTypes={[
-                                      "text",
-                                      "text",
-                                      "text",
-                                      "text",
-                                      "numeric",
-                                    ]}
-                                    headings={[
-                                      "Name",
-                                      "Email",
-                                      "Last Purchase",
-                                      "Total Spent",
-                                      "Orders",
-                                    ]}
-                                    rows={message.data.tableRows || []}
-                                  />
-                                </BlockStack>
-                              )}
-                          </BlockStack>
+                          {message.content}
                         </div>
                       </div>
                     )}
@@ -430,43 +336,40 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
                     style={{
                       display: "flex",
                       justifyContent: "flex-start",
-                      marginBottom: "16px",
+                      marginTop: "4px",
                     }}
                   >
                     <div
                       style={{
-                        backgroundColor: "white",
-                        padding: "16px",
-                        borderRadius: "18px",
+                        backgroundColor: "#f3f4f6",
+                        padding: "8px 12px",
+                        borderRadius: "16px",
                         borderBottomLeftRadius: "4px",
-                        border: "1px solid #e5e7eb",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                        fontSize: "13px",
                       }}
                     >
-                      <BlockStack gap="200">
-                        <InlineStack gap="200" blockAlign="center">
-                          <Spinner size="small" />
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            Analyzing your query...
-                          </Text>
-                        </InlineStack>
-                        {processingSteps.length > 0 && (
-                          <Box paddingInlineStart="300">
-                            <BlockStack gap="100">
-                              {processingSteps.map((step, index) => (
-                                <Text
-                                  key={`step-${index}`}
-                                  as="p"
-                                  variant="bodySm"
-                                  tone="subdued"
-                                >
-                                  • {step}
-                                </Text>
-                              ))}
-                            </BlockStack>
-                          </Box>
-                        )}
-                      </BlockStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Spinner size="small" />
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          Analyzing your query...
+                        </Text>
+                      </InlineStack>
+                      {processingSteps.length > 0 && (
+                        <Box paddingBlockStart="200">
+                          <BlockStack gap="050">
+                            {processingSteps.map((step, index) => (
+                              <Text
+                                key={`step-${index}`}
+                                as="p"
+                                variant="bodyXs"
+                                tone="subdued"
+                              >
+                                • {step}
+                              </Text>
+                            ))}
+                          </BlockStack>
+                        </Box>
+                      )}
                     </div>
                   </div>
                 )}
@@ -475,62 +378,80 @@ export function AISearchAnalyzer({ apiKey }: AISearchAnalyzerProps) {
               </BlockStack>
             </div>
 
-            {/* Input Area - Fixed at Bottom */}
+            {/* Input */}
             <div
               style={{
                 borderTop: "1px solid #e5e7eb",
+                padding: "10px 12px",
                 backgroundColor: "white",
-                padding: "16px 20px",
+                borderBottomLeftRadius: "12px",
+                borderBottomRightRadius: "12px",
               }}
             >
-              <Card>
-                <InlineStack gap="200" blockAlign="end">
-                  <Box minWidth="0" width="100%">
-                    <div onKeyDown={handleKeyPress}>
-                      <TextField
-                        label=""
-                        labelHidden
-                        value={query}
-                        onChange={setQuery}
-                        placeholder="Ask about your customers... (e.g., Which customers haven't ordered in the last 90 days?)"
-                        autoComplete="off"
-                        multiline={3}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </Box>
-                  <Button
-                    variant="primary"
-                    icon={SendIcon}
-                    onClick={handleSubmit}
-                    loading={isLoading}
-                    disabled={isLoading || !query.trim()}
-                    size="large"
-                  >
-                    Send
-                  </Button>
-                </InlineStack>
-              </Card>
+              <InlineStack gap="200" blockAlign="center">
+                <Box minWidth="0" width="100%">
+                  <div onKeyDown={handleKeyPress}>
+                    <TextField
+                      label=""
+                      labelHidden
+                      value={query}
+                      onChange={setQuery}
+                      placeholder="Ask about your customers..."
+                      autoComplete="off"
+                      multiline={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </Box>
+                <Button
+                  variant="primary"
+                  icon={SendIcon}
+                  onClick={handleSubmit}
+                  loading={isLoading}
+                  disabled={isLoading || !query.trim()}
+                >
+                  Send
+                </Button>
+              </InlineStack>
             </div>
-          </>
+          </Card>
+        </div>
+
+        {/* Results area below the chat box */}
+        {lastResultMessage && (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingSm">
+                  Results
+                </Text>
+                <Badge tone="success">
+                  {`${lastResultMessage.data?.results?.length ?? 0} found`}
+                </Badge>
+              </InlineStack>
+              <DataTable
+                columnContentTypes={["text", "text", "text", "text", "numeric"]}
+                headings={[
+                  "Name",
+                  "Email",
+                  "Last Purchase",
+                  "Total Spent",
+                  "Orders",
+                ]}
+                rows={lastResultMessage.data?.tableRows || []}
+              />
+            </BlockStack>
+          </Card>
         )}
 
-        {/* Prebuilt Queries Footer - Always at Bottom */}
-        <div
-          style={{
-            borderTop: "1px solid #e5e7eb",
-            backgroundColor: "#f6f6f7",
-            padding: "20px",
-            flexShrink: 0,
-            width: "100%",
-          }}
-        >
+        {/* Prebuilt queries below everything */}
+        <Card>
           <PrebuiltQueriesCard
             visible={true}
             setQuery={setQuery}
             onSubmit={handleSubmit}
           />
-        </div>
+        </Card>
       </div>
     </>
   );

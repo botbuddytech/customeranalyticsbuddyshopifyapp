@@ -411,63 +411,71 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
 
   return (
     <>
-      <Layout>
-        <Layout.Section>
-          <BlockStack gap="500">
-            {/* Header */}
-            <SavedListsHeader />
+      <div
+        style={{
+          maxWidth: "960px",
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
+        <Layout>
+          <Layout.Section>
+            <BlockStack gap="500">
+              {/* Header */}
+              <SavedListsHeader />
 
-            {/* Stats & Search Row */}
-            <Layout>
-              <Layout.Section variant="oneThird">
-                <QuickStatsCard
-                  listsCreated={recentActivity.listsCreated}
-                  customersExported={recentActivity.customersExported}
-                  campaignsSent={recentActivity.campaignsSent}
-                />
-              </Layout.Section>
-
-              <Layout.Section>
-                <SearchAndFilterCard
-                  searchQuery={searchQuery}
-                  onSearchChange={handleSearchChange}
-                  selectedTab={selectedTab}
-                  onTabChange={handleTabChange}
-                  tabs={tabs}
-                />
-              </Layout.Section>
-            </Layout>
-
-            {/* Lists Grid */}
-            {sortedLists.length === 0 ? (
-              <EmptyStateCard searchQuery={searchQuery} />
-            ) : (
-              <BlockStack gap="300">
-                {sortedLists.map((list) => (
-                  <SavedListCard
-                    key={list.id}
-                    list={list}
-                    actionPopoverOpen={actionPopoverOpen[list.id] || false}
-                    onTogglePopover={() => toggleActionPopover(list.id)}
-                    onView={handleView}
-                    onExport={handleExport}
-                    onExportPDF={handleExportPDF}
-                    onExportCSV={handleExportCSV}
-                    onExportExcel={handleExportExcel}
-                    onModify={handleModify}
-                    onArchive={handleArchive}
-                    onUnarchive={handleUnarchive}
-                    onDelete={handleDeleteClick}
-                    formatDate={formatDate}
-                    getSourceBadge={getSourceBadge}
-                    isExporting={exportingListId === list.id}
+              {/* Stats & Search Row */}
+              <Layout>
+                <Layout.Section variant="oneThird">
+                  <QuickStatsCard
+                    listsCreated={recentActivity.listsCreated}
+                    customersExported={recentActivity.customersExported}
+                    campaignsSent={recentActivity.campaignsSent}
                   />
-                ))}
-              </BlockStack>
-            )}
-          </BlockStack>
-        </Layout.Section>
-      </Layout>
+                </Layout.Section>
+
+                <Layout.Section>
+                  <SearchAndFilterCard
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    selectedTab={selectedTab}
+                    onTabChange={handleTabChange}
+                    tabs={tabs}
+                  />
+                </Layout.Section>
+              </Layout>
+
+              {/* Lists Grid */}
+              {sortedLists.length === 0 ? (
+                <EmptyStateCard searchQuery={searchQuery} />
+              ) : (
+                <BlockStack gap="300">
+                  {sortedLists.map((list) => (
+                    <SavedListCard
+                      key={list.id}
+                      list={list}
+                      actionPopoverOpen={actionPopoverOpen[list.id] || false}
+                      onTogglePopover={() => toggleActionPopover(list.id)}
+                      onView={handleView}
+                      onExport={handleExport}
+                      onExportPDF={handleExportPDF}
+                      onExportCSV={handleExportCSV}
+                      onExportExcel={handleExportExcel}
+                      onModify={handleModify}
+                      onArchive={handleArchive}
+                      onUnarchive={handleUnarchive}
+                      onDelete={handleDeleteClick}
+                      formatDate={formatDate}
+                      getSourceBadge={getSourceBadge}
+                      isExporting={exportingListId === list.id}
+                    />
+                  ))}
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Layout.Section>
+        </Layout>
+      </div>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

@@ -28,6 +28,7 @@ import { FeedbackRating } from "../components/home/FeedbackRating";
 import { ProgressMetrics } from "../components/home/ProgressMetrics";
 import { CustomerSupport } from "../components/home/CustomerSupport";
 import { QuickActions } from "../components/home/QuickActions";
+import { OnboardingApp } from "../components/home/onboarding";
 
 /**
  * Loader Function - Fetch onboarding progress from Prisma
@@ -314,6 +315,11 @@ export default function Index() {
               <VideoTutorial />
             </Layout.Section>
 
+            {/* Onboarding Steps Section */}
+            <Layout.Section>
+              <OnboardingApp />
+            </Layout.Section>
+
             {/* Quick Start Checklist Section */}
             <Layout.Section>
               <QuickStartChecklist
@@ -330,17 +336,17 @@ export default function Index() {
             </Layout.Section>
 
             {/* Progress Metrics Sidebar */}
-            <Layout.Section variant="oneThird">
+            <Layout.Section>
               <BlockStack gap="500">
-                <ProgressMetrics />
+                {/* <ProgressMetrics /> */}
                 <CustomerSupport />
               </BlockStack>
             </Layout.Section>
 
             {/* Quick Action Links Section */}
-            <Layout.Section>
+            {/* <Layout.Section>
               <QuickActions />
-            </Layout.Section>
+            </Layout.Section> */}
           </Layout>
         </BlockStack>
       </Page>

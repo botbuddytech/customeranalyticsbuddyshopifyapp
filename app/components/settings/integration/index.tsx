@@ -9,6 +9,8 @@ import {
 } from "@shopify/polaris";
 import { MailchimpIntegration } from "./mailchimp";
 import { KlaviyoIntegration } from "./klaviyo";
+import { SendGridIntegration } from "./sendgrid";
+import { ConstantContactIntegration } from "./constant-contact";
 
 export function IntegrationSettings() {
   const [toastActive, setToastActive] = useState(false);
@@ -43,8 +45,9 @@ export function IntegrationSettings() {
       </Card>
 
       <MailchimpIntegration onConnect={showComingSoonToast} />
-
       <KlaviyoIntegration onConnect={showComingSoonToast} />
+      <SendGridIntegration onConnect={showComingSoonToast} />
+      <ConstantContactIntegration onConnect={showComingSoonToast} />
     </BlockStack>
   );
 }

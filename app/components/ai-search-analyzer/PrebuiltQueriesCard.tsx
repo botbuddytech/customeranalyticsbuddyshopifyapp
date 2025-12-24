@@ -40,7 +40,7 @@ export function PrebuiltQueriesCard({
 
         <Grid>
           {/* Customer Segmentation Queries */}
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
             <Card background="bg-surface-secondary" padding="400">
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
@@ -114,7 +114,7 @@ export function PrebuiltQueriesCard({
           </Grid.Cell>
 
           {/* Behavior Analysis Queries */}
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
             <Card background="bg-surface-secondary" padding="400">
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
@@ -191,7 +191,7 @@ export function PrebuiltQueriesCard({
           </Grid.Cell>
 
           {/* Revenue and ROI Queries */}
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
             <Card background="bg-surface-secondary" padding="400">
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
@@ -269,7 +269,7 @@ export function PrebuiltQueriesCard({
           </Grid.Cell>
 
           {/* Predictive Queries */}
-          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
+          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
             <Card background="bg-surface-secondary" padding="400">
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">

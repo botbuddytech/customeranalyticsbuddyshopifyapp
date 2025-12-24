@@ -7,6 +7,7 @@ import { WeekendPurchases } from "./WeekendPurchases/WeekendPurchases";
 interface PurchaseTimingProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  onShowToast?: (message: string) => void;
 }
 
 /**
@@ -18,6 +19,7 @@ interface PurchaseTimingProps {
 export function PurchaseTiming({
   dateRange = "30days",
   onViewSegment,
+  onShowToast,
 }: PurchaseTimingProps) {
   return (
     <Layout.Section>
@@ -26,11 +28,23 @@ export function PurchaseTiming({
           Purchase Timing
         </Text>
         <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
-          <MorningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
+          <MorningPurchases 
+            dateRange={dateRange} 
+            onViewSegment={onViewSegment}
+            onShowToast={onShowToast}
+          />
 
-          <AfternoonPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
+          <AfternoonPurchases 
+            dateRange={dateRange} 
+            onViewSegment={onViewSegment}
+            onShowToast={onShowToast}
+          />
 
-          <EveningPurchases dateRange={dateRange} onViewSegment={onViewSegment} />
+          <EveningPurchases 
+            dateRange={dateRange} 
+            onViewSegment={onViewSegment}
+            onShowToast={onShowToast}
+          />
 
           {/* <WeekendPurchases dateRange={dateRange} onViewSegment={onViewSegment} /> */}
         </InlineGrid>

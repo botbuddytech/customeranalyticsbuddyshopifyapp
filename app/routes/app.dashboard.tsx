@@ -26,6 +26,8 @@ import {
   Text,
   Layout,
   Box,
+  Frame,
+  Toast,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
@@ -105,6 +107,13 @@ export default function Dashboard() {
   const [visibility, setVisibility] = useState<DashboardVisibility | null>(
     savedPreferences || DEFAULT_VISIBILITY,
   );
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  const handleShowToast = (message: string) => {
+    setToastMessage(message);
+    setToastActive(true);
+  };
 
   // Load saved preferences on mount
   useEffect(() => {
@@ -147,8 +156,16 @@ export default function Dashboard() {
                   : "30days";
 
   return (
-    <Page>
-      <TitleBar title="Customer Insights Dashboard" />
+    <Frame>
+      <Page>
+        <TitleBar title="Customer Insights Dashboard" />
+
+        {toastActive && (
+          <Toast
+            content={toastMessage}
+            onDismiss={() => setToastActive(false)}
+          />
+        )}
 
       {/* Segment View Modal */}
       {activeSegmentModal && (
@@ -201,6 +218,7 @@ export default function Dashboard() {
               <CustomersOverview
                 dateRange={apiDateRange}
                 onViewSegment={handleViewSegment}
+                onShowToast={handleShowToast}
                 visibility={visibility?.customersOverview.cards}
               />
             </Layout>
@@ -212,6 +230,7 @@ export default function Dashboard() {
               <PurchaseOrderBehavior
                 dateRange={apiDateRange}
                 onViewSegment={handleViewSegment}
+                onShowToast={handleShowToast}
                 visibility={visibility?.purchaseOrderBehavior.cards}
               />
             </Layout>
@@ -223,6 +242,7 @@ export default function Dashboard() {
               <EngagementPatterns
                 dateRange={apiDateRange}
                 onViewSegment={handleViewSegment}
+                onShowToast={handleShowToast}
                 visibility={visibility?.engagementPatterns.cards}
               />
             </Layout>
@@ -236,10 +256,12 @@ export default function Dashboard() {
             <PurchaseTiming
               dateRange={apiDateRange}
               onViewSegment={handleViewSegment}
+              onShowToast={handleShowToast}
             />
           </Layout>
         </BlockStack>
       </Box>
-    </Page>
+      </Page>
+    </Frame>
   );
 }

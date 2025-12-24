@@ -7,6 +7,7 @@ import { InactiveCustomers } from "./InactiveCustomers/InactiveCustomers";
 interface CustomersOverviewProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  onShowToast?: (message: string) => void;
   visibility?: {
     totalCustomers?: boolean;
     newCustomers?: boolean;
@@ -24,6 +25,7 @@ interface CustomersOverviewProps {
 export function CustomersOverview({
   dateRange = "30days",
   onViewSegment,
+  onShowToast,
   visibility,
 }: CustomersOverviewProps) {
   // Default to showing all if visibility is not provided
@@ -53,17 +55,23 @@ export function CustomersOverview({
             <TotalCustomers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
           {showNewCustomers && (
-            <NewCustomers dateRange={dateRange} onViewSegment={onViewSegment} />
+            <NewCustomers 
+              dateRange={dateRange} 
+              onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
+            />
           )}
 
           {showReturningCustomers && (
             <ReturningCustomers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
@@ -71,6 +79,7 @@ export function CustomersOverview({
             <InactiveCustomers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
         </InlineGrid>

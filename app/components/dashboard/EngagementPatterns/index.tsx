@@ -7,6 +7,7 @@ import { EmailSubscribers } from "./EmailSubscribers/EmailSubscribers";
 interface EngagementPatternsProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  onShowToast?: (message: string) => void;
   visibility?: {
     discountUsers?: boolean;
     wishlistUsers?: boolean;
@@ -24,6 +25,7 @@ interface EngagementPatternsProps {
 export function EngagementPatterns({
   dateRange = "30days",
   onViewSegment,
+  onShowToast,
   visibility,
 }: EngagementPatternsProps) {
   // Default to showing all if visibility is not provided
@@ -53,6 +55,7 @@ export function EngagementPatterns({
             <DiscountUsers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
@@ -60,17 +63,23 @@ export function EngagementPatterns({
             <WishlistUsers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
           {showReviewers && (
-            <Reviewers dateRange={dateRange} onViewSegment={onViewSegment} />
+            <Reviewers 
+              dateRange={dateRange} 
+              onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
+            />
           )}
 
           {showEmailSubscribers && (
             <EmailSubscribers
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
         </InlineGrid>

@@ -48,7 +48,7 @@ export function QuickStartChecklist({
     },
     {
       id: 2,
-      title: "Filter customers manually using 20+ audience traits",
+      title: "Filter customers manually using 2+ audience traits",
       description: "Create precise segments with advanced filtering options",
       icon: FilterIcon,
     },

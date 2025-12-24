@@ -7,6 +7,7 @@ import { AbandonedCarts } from "./AbandonedCarts/AbandonedCarts";
 interface PurchaseOrderBehaviorProps {
   dateRange?: string;
   onViewSegment?: (segmentName: string) => void;
+  onShowToast?: (message: string) => void;
   visibility?: {
     codOrders?: boolean;
     prepaidOrders?: boolean;
@@ -24,6 +25,7 @@ interface PurchaseOrderBehaviorProps {
 export function PurchaseOrderBehavior({
   dateRange = "30days",
   onViewSegment,
+  onShowToast,
   visibility,
 }: PurchaseOrderBehaviorProps) {
   // Default to showing all if visibility is not provided
@@ -50,13 +52,18 @@ export function PurchaseOrderBehavior({
         </Text>
         <InlineGrid columns={{ xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }} gap={{ xs: "400", sm: "400", md: "400", lg: "400", xl: "400" }}>
           {showCODOrders && (
-            <CODOrders dateRange={dateRange} onViewSegment={onViewSegment} />
+            <CODOrders 
+              dateRange={dateRange} 
+              onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
+            />
           )}
 
           {showPrepaidOrders && (
             <PrepaidOrders
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
@@ -64,6 +71,7 @@ export function PurchaseOrderBehavior({
             <CancelledOrders
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
 
@@ -71,6 +79,7 @@ export function PurchaseOrderBehavior({
             <AbandonedCarts
               dateRange={dateRange}
               onViewSegment={onViewSegment}
+              onShowToast={onShowToast}
             />
           )}
         </InlineGrid>
