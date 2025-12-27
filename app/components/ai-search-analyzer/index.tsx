@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import {
   BlockStack,
   Card,
@@ -8,6 +9,7 @@ import {
 } from "@shopify/polaris";
 import { InfoIcon } from "@shopify/polaris-icons";
 import { AISearchAnalyzer } from "./search";
+import { PrebuiltQueriesCard } from "./PrebuiltQueriesCard";
 
 interface AISearchAnalyzerPageProps {
   apiKey: string;
@@ -19,6 +21,9 @@ interface AISearchAnalyzerPageProps {
  * Main page component that provides a header and renders the search analyzer.
  */
 export function AISearchAnalyzerPage({ apiKey }: AISearchAnalyzerPageProps) {
+  const [query, setQuery] = useState("");
+  const onSubmitRef = useRef<(() => void) | null>(null);
+
   return (
     <div
       style={{
@@ -48,7 +53,20 @@ export function AISearchAnalyzerPage({ apiKey }: AISearchAnalyzerPageProps) {
           </BlockStack>
         </Card>
 
-        <AISearchAnalyzer apiKey={apiKey} />
+        <AISearchAnalyzer 
+          apiKey={apiKey} 
+          onSubmitRef={onSubmitRef}
+          externalQuery={query}
+        />
+
+        {/* Prebuilt queries */}
+        <Card>
+          <PrebuiltQueriesCard
+            visible={true}
+            setQuery={setQuery}
+            onSubmit={() => onSubmitRef.current?.()}
+          />
+        </Card>
       </BlockStack>
     </div>
   );
