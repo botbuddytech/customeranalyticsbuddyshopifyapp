@@ -30,33 +30,13 @@ export async function sendChatMessage(
   sessionId: string,
 ): Promise<ChatResponse> {
   // Try multiple possible environment variable names (case variations)
-  const webhookUrl =
-    process.env.N8N_prod_url ||
-    process.env.N8N_PROD_URL ||
-    process.env.N8N_PROD_WEBHOOK_URL ||
-    process.env.N8N_WEBHOOK_URL;
+  const webhookUrl =process.env.N8N_prod_url;
 
   if (!webhookUrl) {
-    // Log available env vars for debugging (only in development)
-    if (process.env.NODE_ENV !== "production") {
-      const envKeys = Object.keys(process.env).filter((key) =>
-        key.toUpperCase().includes("N8N"),
-      );
-      console.warn(
-        "[AI Search Service] N8N webhook URL not found. Available N8N-related env vars:",
-        envKeys.length > 0 ? envKeys : "none",
-      );
-    }
-
     return {
       success: false,
       error:
-        "N8N webhook URL is not configured. Please set one of the following in your .env file:\n" +
-        "- N8N_prod_url\n" +
-        "- N8N_PROD_URL\n" +
-        "- N8N_PROD_WEBHOOK_URL\n" +
-        "- N8N_WEBHOOK_URL\n\n" +
-        "After setting the variable, restart your development server.",
+        "N8N webhook URL is not configured. Please set one of the following in your .env file:\n"
     };
   }
 
