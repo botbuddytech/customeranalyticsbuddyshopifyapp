@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useFetcher } from "react-router";
 import {
   Card,
   BlockStack,
@@ -42,9 +43,11 @@ export function DashboardControls({
   const [visibility, setVisibility] = useState<DashboardVisibility>(
     initialVisibility || DEFAULT_VISIBILITY,
   );
-  const [isSaving, setIsSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [selectedStore, setSelectedStore] = useState("store1");
+  const fetcher = useFetcher();
+  
+  const isSaving = fetcher.state !== "idle";
 
   // Update visibility when initialVisibility changes (from Supabase on mount)
   useEffect(() => {
@@ -96,15 +99,31 @@ export function DashboardControls({
         response.ok,
       );
 
+      const responseText = await response.text();
+      console.log("[Dashboard Controls] Response status:", response.status);
+      console.log("[Dashboard Controls] Response text:", responseText);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: responseText || `HTTP ${response.status}` };
+        }
         console.error("[Dashboard Controls] Response not OK:", errorData);
         throw new Error(
           errorData.error || `Failed to save preferences: ${response.status}`,
         );
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("[Dashboard Controls] Failed to parse response:", parseError);
+        throw new Error("Invalid response from server");
+      }
+
       console.log("[Dashboard Controls] Response data:", data);
 
       // Check if the response indicates success

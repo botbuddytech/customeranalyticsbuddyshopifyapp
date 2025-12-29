@@ -14,10 +14,21 @@
 import jwt from "jsonwebtoken";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET!;
+// Environment variables - try multiple possible names (case variations)
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.SUPABASE_PROJECT_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANONYMOUS_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const SUPABASE_JWT_SECRET =
+  process.env.SUPABASE_JWT_SECRET ||
+  process.env.SUPABASE_JWT_SECRET_KEY ||
+  process.env.SUPABASE_SECRET;
 
 // Cache for Supabase clients per shop (avoids creating new clients on every request)
 const clientCache = new Map<
@@ -37,16 +48,45 @@ const CACHE_EXPIRY_MS = 55 * 60 * 1000;
 export function validateSupabaseEnv(): {
   valid: boolean;
   missing: string[];
+  suggestions: string[];
 } {
   const missing: string[] = [];
+  const suggestions: string[] = [];
 
-  if (!SUPABASE_URL) missing.push("SUPABASE_URL");
-  if (!SUPABASE_ANON_KEY) missing.push("SUPABASE_ANON_KEY");
-  if (!SUPABASE_JWT_SECRET) missing.push("SUPABASE_JWT_SECRET");
+  if (!SUPABASE_URL) {
+    missing.push("SUPABASE_URL");
+    suggestions.push(
+      "Try: SUPABASE_URL, SUPABASE_PROJECT_URL, or NEXT_PUBLIC_SUPABASE_URL",
+    );
+  }
+  if (!SUPABASE_ANON_KEY) {
+    missing.push("SUPABASE_ANON_KEY");
+    suggestions.push(
+      "Try: SUPABASE_ANON_KEY, SUPABASE_ANONYMOUS_KEY, or NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
+  if (!SUPABASE_JWT_SECRET) {
+    missing.push("SUPABASE_JWT_SECRET");
+    suggestions.push(
+      "Try: SUPABASE_JWT_SECRET, SUPABASE_JWT_SECRET_KEY, or SUPABASE_SECRET",
+    );
+  }
+
+  // Log available Supabase-related env vars for debugging (only in development)
+  if (process.env.NODE_ENV !== "production" && missing.length > 0) {
+    const envKeys = Object.keys(process.env).filter((key) =>
+      key.toUpperCase().includes("SUPABASE"),
+    );
+    console.warn(
+      "[Supabase JWT Service] Supabase environment variables not found. Available Supabase-related env vars:",
+      envKeys.length > 0 ? envKeys : "none",
+    );
+  }
 
   return {
     valid: missing.length === 0,
     missing,
+    suggestions,
   };
 }
 
@@ -56,7 +96,26 @@ export function validateSupabaseEnv(): {
  */
 export function generateShopJWT(shop: string): string {
   if (!SUPABASE_JWT_SECRET) {
-    throw new Error("SUPABASE_JWT_SECRET is not configured");
+    const errorMessage =
+      "SUPABASE_JWT_SECRET is not configured.\n\n" +
+      "Please set one of the following in your .env file:\n" +
+      "- SUPABASE_JWT_SECRET\n" +
+      "- SUPABASE_JWT_SECRET_KEY\n" +
+      "- SUPABASE_SECRET\n\n" +
+      "After setting the variable, restart your development server.";
+
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[Supabase JWT Service]", errorMessage);
+      const envKeys = Object.keys(process.env).filter((key) =>
+        key.toUpperCase().includes("SUPABASE"),
+      );
+      console.warn(
+        "[Supabase JWT Service] Available Supabase-related env vars:",
+        envKeys.length > 0 ? envKeys : "none",
+      );
+    }
+
+    throw new Error(errorMessage);
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -88,9 +147,17 @@ export function generateShopJWT(shop: string): string {
 export function getSupabaseForShop(shop: string): SupabaseClient {
   const envCheck = validateSupabaseEnv();
   if (!envCheck.valid) {
-    throw new Error(
-      `Supabase not configured. Missing: ${envCheck.missing.join(", ")}`,
-    );
+    const errorMessage =
+      `Supabase not configured. Missing: ${envCheck.missing.join(", ")}\n\n` +
+      `Please set one of the following in your .env file:\n` +
+      envCheck.suggestions.join("\n") +
+      `\n\nAfter setting the variables, restart your development server.`;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[Supabase JWT Service]", errorMessage);
+    }
+
+    throw new Error(errorMessage);
   }
 
   const now = Date.now();

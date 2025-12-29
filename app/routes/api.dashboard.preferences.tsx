@@ -49,17 +49,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const preferences = JSON.parse(preferencesJson);
     console.log(`[Dashboard Preferences API] Parsed preferences:`, preferences);
-    await saveDashboardPreferences(shop, preferences);
-    console.log(`[Dashboard Preferences API] Preferences saved successfully`);
-
-    return Response.json({ success: true }, { status: 200 });
+    
+    try {
+      await saveDashboardPreferences(shop, preferences);
+      console.log(`[Dashboard Preferences API] Preferences saved successfully`);
+      return Response.json({ success: true }, { status: 200 });
+    } catch (saveError: any) {
+      console.error(
+        `[Dashboard Preferences API] Error in saveDashboardPreferences:`,
+        saveError,
+      );
+      console.error(
+        `[Dashboard Preferences API] Error details:`,
+        saveError?.message || "Unknown error",
+        saveError?.stack || "",
+      );
+      return Response.json(
+        {
+          error: saveError?.message || "Failed to save preferences",
+          success: false,
+          details: process.env.NODE_ENV === "development" ? saveError?.stack : undefined,
+        },
+        { status: 500 },
+      );
+    }
   } catch (error: any) {
     console.error(
       `[Dashboard Preferences API] Error saving preferences:`,
       error,
     );
+    console.error(
+      `[Dashboard Preferences API] Error stack:`,
+      error?.stack || "No stack trace",
+    );
     return Response.json(
-      { error: "Failed to save preferences", success: false },
+      {
+        error: error?.message || "Failed to save preferences",
+        success: false,
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
       { status: 500 },
     );
   }

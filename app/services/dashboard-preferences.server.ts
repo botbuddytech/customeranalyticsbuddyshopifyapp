@@ -72,40 +72,78 @@ export async function saveDashboardPreferences(
   visibility: DashboardVisibility,
 ): Promise<void> {
   try {
+    console.log(`[Dashboard Preferences] Starting save for shop: ${shop}`);
     const supabase = getSupabaseForShop(shop);
     const now = new Date().toISOString();
 
     // First check if record exists
-    const { data: existing } = await supabase
+    console.log(`[Dashboard Preferences] Checking for existing record...`);
+    const { data: existing, error: selectError } = await supabase
       .from("dashboard_preferences")
       .select("id, createdAt")
       .single();
 
-    const { error } = await supabase.from("dashboard_preferences").upsert(
-      {
-        id: existing?.id || crypto.randomUUID(),
-        shop,
-        visibilityConfig: JSON.stringify(visibility),
-        createdAt: existing?.createdAt || now,
-        updatedAt: now,
-      },
-      {
-        onConflict: "shop",
-      },
+    if (selectError && selectError.code !== "PGRST116") {
+      // PGRST116 is "no rows returned" which is fine for new records
+      console.error(
+        `[Dashboard Preferences] Error checking existing record for shop ${shop}:`,
+        selectError,
+      );
+      // Continue anyway - we'll try to insert
+    }
+
+    console.log(
+      `[Dashboard Preferences] Existing record:`,
+      existing ? `Found (id: ${existing.id})` : "None (new record)",
     );
 
-    if (error) {
+    const recordToSave = {
+      id: existing?.id || crypto.randomUUID(),
+      shop,
+      visibilityConfig: JSON.stringify(visibility),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+
+    console.log(
+      `[Dashboard Preferences] Attempting upsert with data:`,
+      JSON.stringify(recordToSave, null, 2),
+    );
+
+    const { data: upsertData, error: upsertError } = await supabase
+      .from("dashboard_preferences")
+      .upsert(recordToSave, {
+        onConflict: "shop",
+      })
+      .select();
+
+    if (upsertError) {
       console.error(
-        `[Dashboard Preferences] Supabase error saving for shop ${shop}:`,
-        error,
+        `[Dashboard Preferences] Supabase upsert error for shop ${shop}:`,
+        upsertError,
       );
-      throw error;
+      console.error(
+        `[Dashboard Preferences] Error details:`,
+        JSON.stringify(upsertError, null, 2),
+      );
+      throw new Error(
+        `Failed to save preferences: ${upsertError.message || "Unknown error"}`,
+      );
     }
+
+    console.log(
+      `[Dashboard Preferences] Successfully saved preferences for shop ${shop}`,
+    );
+    console.log(`[Dashboard Preferences] Upsert result:`, upsertData);
   } catch (error) {
     console.error(
       `[Dashboard Preferences] Error saving preferences for shop ${shop}:`,
       error,
     );
+    if (error instanceof Error) {
+      console.error(`[Dashboard Preferences] Error message:`, error.message);
+      console.error(`[Dashboard Preferences] Error stack:`, error.stack);
+    }
     throw error;
   }
 }

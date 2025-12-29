@@ -20,21 +20,53 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-// Environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Environment variables - try multiple possible names (case variations)
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.SUPABASE_PROJECT_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_ADMIN_KEY;
 
 // Validate environment variables
 if (!SUPABASE_URL) {
-  console.warn(
-    "⚠️ SUPABASE_URL is not set. Supabase features will be disabled.",
+  const envKeys = Object.keys(process.env).filter((key) =>
+    key.toUpperCase().includes("SUPABASE"),
   );
+  console.warn(
+    "⚠️ SUPABASE_URL is not set. Supabase admin features will be disabled.",
+  );
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      "Available Supabase-related env vars:",
+      envKeys.length > 0 ? envKeys : "none",
+    );
+    console.warn(
+      "Try setting: SUPABASE_URL, SUPABASE_PROJECT_URL, or NEXT_PUBLIC_SUPABASE_URL",
+    );
+  }
 }
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
+  const envKeys = Object.keys(process.env).filter((key) =>
+    key.toUpperCase().includes("SUPABASE") &&
+    key.toUpperCase().includes("SERVICE"),
+  );
   console.warn(
     "⚠️ SUPABASE_SERVICE_ROLE_KEY is not set. Admin client will be disabled.",
   );
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      "Available Supabase service-related env vars:",
+      envKeys.length > 0 ? envKeys : "none",
+    );
+    console.warn(
+      "Try setting: SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SERVICE_KEY, or SUPABASE_ADMIN_KEY",
+    );
+  }
 }
 
 /**
