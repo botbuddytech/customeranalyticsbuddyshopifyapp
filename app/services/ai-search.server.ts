@@ -2,6 +2,9 @@
  * AI Search Service
  * 
  * Handles communication with N8N webhook for AI chatbot functionality
+ * 
+ * Note: Environment variables should be set in your .env file or deployment environment.
+ * For Shopify apps, you can also use: shopify app env pull
  */
 
 interface ChatRequest {
@@ -26,12 +29,34 @@ export async function sendChatMessage(
   message: string,
   sessionId: string,
 ): Promise<ChatResponse> {
-  const webhookUrl = process.env.N8N_prod_url;
+  // Try multiple possible environment variable names (case variations)
+  const webhookUrl =
+    process.env.N8N_prod_url ||
+    process.env.N8N_PROD_URL ||
+    process.env.N8N_PROD_WEBHOOK_URL ||
+    process.env.N8N_WEBHOOK_URL;
 
   if (!webhookUrl) {
+    // Log available env vars for debugging (only in development)
+    if (process.env.NODE_ENV !== "production") {
+      const envKeys = Object.keys(process.env).filter((key) =>
+        key.toUpperCase().includes("N8N"),
+      );
+      console.warn(
+        "[AI Search Service] N8N webhook URL not found. Available N8N-related env vars:",
+        envKeys.length > 0 ? envKeys : "none",
+      );
+    }
+
     return {
       success: false,
-      error: "N8N webhook URL is not configured. Please set N8N_prod_url in your .env file.",
+      error:
+        "N8N webhook URL is not configured. Please set one of the following in your .env file:\n" +
+        "- N8N_prod_url\n" +
+        "- N8N_PROD_URL\n" +
+        "- N8N_PROD_WEBHOOK_URL\n" +
+        "- N8N_WEBHOOK_URL\n\n" +
+        "After setting the variable, restart your development server.",
     };
   }
 
