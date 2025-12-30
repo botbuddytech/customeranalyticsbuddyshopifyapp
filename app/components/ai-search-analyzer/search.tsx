@@ -17,6 +17,11 @@ interface AISearchAnalyzerProps {
   apiKey: string;
   onSubmitRef?: React.MutableRefObject<(() => void) | null>;
   externalQuery?: string;
+  shopInfo: {
+    name: string;
+    email: string;
+    shop: string;
+  };
 }
 
 /**
@@ -29,6 +34,7 @@ export function AISearchAnalyzer({
   apiKey,
   onSubmitRef,
   externalQuery,
+  shopInfo,
 }: AISearchAnalyzerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState(
@@ -212,6 +218,8 @@ export function AISearchAnalyzer({
             history={history}
             onNewChat={handleNewChat}
             onHistoryClick={handleHistoryClick}
+            shopName={shopInfo.name}
+            shopEmail={shopInfo.email}
           />
 
           {/* Chat Window */}

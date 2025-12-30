@@ -13,12 +13,26 @@ interface SidebarProps {
   history: ChatHistory[];
   onNewChat: () => void;
   onHistoryClick: (historyItem: ChatHistory) => void;
+  shopName: string;
+  shopEmail: string;
 }
+
+// Helper function to get initials from shop name
+const getInitials = (name: string): string => {
+  if (!name) return "S";
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
 
 const Sidebar: React.FC<SidebarProps> = ({
   history,
   onNewChat,
   onHistoryClick,
+  shopName,
+  shopEmail,
 }) => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [hoveredProfile, setHoveredProfile] = useState(false);
@@ -228,7 +242,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               fontWeight: "bold",
             }}
           >
-            JD
+            {getInitials(shopName)}
           </div>
           <div
             style={{
@@ -245,7 +259,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 whiteSpace: "nowrap",
               }}
             >
-              Jane Doe Store
+              {shopName}
             </p>
             <p
               style={{
@@ -253,7 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 fontSize: "11px",
               }}
             >
-              jane@example.com
+              {shopEmail || "No email"}
             </p>
           </div>
         </div>

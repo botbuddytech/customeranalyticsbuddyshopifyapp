@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useFetcher } from "react-router";
 import { Message } from "../types";
 import { Spinner } from "./PolarisUI";
+import { categories } from "../data/categories";
 
 interface ChatWindowProps {
   apiKey: string;
@@ -32,10 +33,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const inputWrapperRef = useRef<HTMLTextAreaElement>(null);
   const processedResponseRef = useRef<string | null>(null);
   const isUserTypingRef = useRef(false);
-  const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(
-    null,
-  );
   const [inputFocused, setInputFocused] = useState(false);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   const isLoading = chatFetcher.state !== "idle";
 
@@ -239,30 +238,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     ));
   };
 
-  const suggestions = [
-    {
-      title: "Find high-value customers",
-      icon: "💰",
-      prompt: "Show me customers who spent more than $500 in the last 30 days",
-    },
-    {
-      title: "Recent customers",
-      icon: "✨",
-      prompt:
-        "Who are the customers who made their first purchase in the last week?",
-    },
-    {
-      title: "Inactive customers",
-      icon: "📊",
-      prompt: "Find customers who haven't purchased in the last 90 days",
-    },
-    {
-      title: "Email subscribers",
-      icon: "📧",
-      prompt: "Show me all customers who are subscribed to email marketing",
-    },
-  ];
-
   return (
     <>
       <style>
@@ -304,11 +279,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             flex: 1,
             overflowY: "auto",
             paddingTop: "40px",
-            paddingBottom: "160px",
+            paddingBottom: hoveredCategory ? "300px" : "160px",
             paddingLeft: "16px",
             paddingRight: "16px",
             marginRight: "0",
             scrollbarGutter: "stable",
+            transition: "padding-bottom 0.3s ease",
           }}
         >
           <div
@@ -330,7 +306,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div
                   style={{
                     width: "64px",
-                    height: "64px",
+                    height: hoveredCategory ? "0" : "64px",
+                    opacity: hoveredCategory ? 0 : 1,
                     backgroundColor: "#008060",
                     borderRadius: "16px",
                     display: "flex",
@@ -339,7 +316,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     color: "white",
                     boxShadow:
                       "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-                    marginBottom: "24px",
+                    marginBottom: hoveredCategory ? "0" : "24px",
+                    overflow: "hidden",
+                    transition: "all 0.3s ease",
                   }}
                 >
                   <svg
@@ -361,60 +340,140 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     fontSize: "28px",
                     fontWeight: "bold",
                     color: "#202223",
-                    marginBottom: "32px",
+                    marginBottom: hoveredCategory ? "0" : "32px",
                     textAlign: "center",
+                    height: hoveredCategory ? "0" : "auto",
+                    opacity: hoveredCategory ? 0 : 1,
+                    overflow: "hidden",
+                    transition: "all 0.3s ease",
                   }}
                 >
                   How can I help you today?
                 </h1>
 
+                {/* Prebuilt Query Categories - Hover Expandable Cards */}
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gridTemplateColumns: "repeat(2, 1fr)",
                     gap: "16px",
                     width: "100%",
-                    maxWidth: "512px",
+                    maxWidth: "800px",
+                    marginBottom: hoveredCategory ? "24px" : "0",
+                    transition: "margin-bottom 0.3s ease",
                   }}
                 >
-                  {suggestions.map((s) => (
-                    <button
-                      key={s.title}
-                      onClick={() => handleSend(s.prompt)}
-                      onMouseEnter={() => setHoveredSuggestion(s.title)}
-                      onMouseLeave={() => setHoveredSuggestion(null)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "16px",
-                        backgroundColor:
-                          hoveredSuggestion === s.title ? "#f9fafb" : "white",
-                        border: `1px solid ${
-                          hoveredSuggestion === s.title ? "#008060" : "#e1e3e5"
-                        }`,
-                        borderRadius: "12px",
-                        transition: "all 0.2s",
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span style={{ fontSize: "24px", marginRight: "16px" }}>
-                        {s.icon}
-                      </span>
-                      <span
+                  {categories.map((category) => {
+                    const isHovered = hoveredCategory === category.id;
+                    return (
+                      <div
+                        key={category.id}
+                        onMouseEnter={() => {
+                          // Only set this category as hovered, clearing any others
+                          setHoveredCategory(category.id);
+                        }}
+                        onMouseLeave={() => {
+                          // Only clear if this was the hovered category
+                          if (hoveredCategory === category.id) {
+                            setHoveredCategory(null);
+                          }
+                        }}
                         style={{
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          color:
-                            hoveredSuggestion === s.title
-                              ? "#008060"
-                              : "#202223",
+                          backgroundColor: "white",
+                          borderRadius: "12px",
+                          border: "1px solid #e1e3e5",
+                          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                          overflow: "hidden",
+                          transition: "all 0.3s ease",
+                          cursor: "pointer",
+                          position: "relative",
+                          zIndex: isHovered ? 10 : 1,
                         }}
                       >
-                        {s.title}
-                      </span>
-                    </button>
-                  ))}
+                        <div
+                          style={{
+                            padding: isHovered ? "20px" : "16px 20px",
+                            transition: "padding 0.3s ease",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              marginBottom: isHovered ? "12px" : "0",
+                              transition: "margin-bottom 0.3s ease",
+                            }}
+                          >
+                            <div
+                              style={{
+                                margin: 0,
+                                fontSize: "16px",
+                                fontWeight: "600",
+                                color: "#202223",
+                              }}
+                            >
+                              {category.title}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              maxHeight: isHovered ? "500px" : "0",
+                              opacity: isHovered ? 1 : 0,
+                              overflow: "hidden",
+                              transition:
+                                "max-height 0.3s ease, opacity 0.3s ease",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                                paddingTop: isHovered ? "8px" : "0",
+                              }}
+                            >
+                              {category.queries.map((query) => (
+                                <button
+                                  key={query.title}
+                                  onClick={() => handleSend(query.prompt)}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    padding: "12px 16px",
+                                    backgroundColor: "#f9fafb",
+                                    border: "1px solid #e1e3e5",
+                                    borderRadius: "8px",
+                                    transition: "all 0.2s",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    width: "100%",
+                                    fontSize: "13px",
+                                    fontWeight: "500",
+                                    color: "#202223",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#f0f1f2";
+                                    e.currentTarget.style.borderColor =
+                                      "#008060";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#f9fafb";
+                                    e.currentTarget.style.borderColor =
+                                      "#e1e3e5";
+                                  }}
+                                >
+                                  {query.title}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (

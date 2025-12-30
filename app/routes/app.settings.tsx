@@ -29,6 +29,7 @@ import {
   getUserPreferences,
   saveUserPreferences,
 } from "../services/user-preferences.server";
+import { getShopInfo } from "../services/shop-info.server";
 
 // ==========================================
 // Server-side Functions
@@ -47,6 +48,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     (session as any).locale?.toString().split(/[-_]/)[0] || "en";
 
   const userPreferences = await getUserPreferences(shop, defaultLanguage);
+
+  // Fetch shop information (name and contact email)
+  const shopInfo = await getShopInfo(admin, shop);
 
   // Try to fetch the merchant's current app subscription from Shopify.
   // If we can't, fall back to a neutral "managed via Shopify" label instead of a fake plan.
@@ -83,8 +87,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     settings: {
       whatsappNumber: "+1234567890",
-      emailId: "merchant@example.com",
+      emailId: shopInfo.email || "merchant@example.com",
       selectedPlan,
+      shopName: shopInfo.name,
       reportSchedule: {
         frequency: "weekly",
         day: "monday",

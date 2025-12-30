@@ -44,9 +44,8 @@ export function DashboardControls({
     initialVisibility || DEFAULT_VISIBILITY,
   );
   const [lastUpdated, setLastUpdated] = useState<string>("");
-  const [selectedStore, setSelectedStore] = useState("store1");
   const fetcher = useFetcher();
-  
+
   const isSaving = fetcher.state !== "idle";
 
   // Update visibility when initialVisibility changes (from Supabase on mount)
@@ -120,7 +119,10 @@ export function DashboardControls({
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error("[Dashboard Controls] Failed to parse response:", parseError);
+        console.error(
+          "[Dashboard Controls] Failed to parse response:",
+          parseError,
+        );
         throw new Error("Invalid response from server");
       }
 
@@ -143,7 +145,6 @@ export function DashboardControls({
   const handleSave = async () => {
     if (isSaving) return; // Prevent double submission
 
-    setIsSaving(true);
     try {
       console.log("[Dashboard Controls] Saving preferences:", visibility);
       const success = await savePreferences(visibility);
@@ -166,8 +167,6 @@ export function DashboardControls({
     } catch (error) {
       console.error("[Dashboard Controls] Error in handleSave:", error);
       // Keep modal open on error so user can retry
-    } finally {
-      setIsSaving(false);
     }
   };
 

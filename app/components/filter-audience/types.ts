@@ -5,6 +5,7 @@ export interface FilterData {
   device: string[];
   payment: string[];
   delivery: string[];
+  graphqlQuery?: string;
 }
 
 export interface FilterOption {

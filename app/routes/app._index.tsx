@@ -339,7 +339,7 @@ export default function Index() {
             <Layout.Section>
               <BlockStack gap="500">
                 {/* <ProgressMetrics /> */}
-                <CustomerSupport />
+                {/* <CustomerSupport /> */}
               </BlockStack>
             </Layout.Section>
 

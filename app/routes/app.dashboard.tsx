@@ -102,7 +102,7 @@ export default function Dashboard() {
   const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(
     null,
   );
-  const [dateRangeValue, setDateRangeValue] = useState("last30Days");
+  const [dateRangeValue, setDateRangeValue] = useState("last7Days");
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [visibility, setVisibility] = useState<DashboardVisibility | null>(
     savedPreferences || DEFAULT_VISIBILITY,

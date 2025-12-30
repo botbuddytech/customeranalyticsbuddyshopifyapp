@@ -1,8 +1,8 @@
 /**
- * SQL Query Service
+ * GraphQL Query Service
  * 
  * Executes GraphQL queries against Shopify Admin API
- * Note: Shopify doesn't support SQL directly, so we use GraphQL
+ * Note: This service only accepts GraphQL queries, not SQL
  */
 
 import type { AdminGraphQL } from "./dashboard.server";
@@ -35,11 +35,38 @@ export async function executeShopifyQuery(
 
     let formattedQuery = query.trim();
 
+    // Reject SQL queries - check if it starts with SELECT, INSERT, UPDATE, DELETE, etc.
+    const sqlKeywords = /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|EXEC|EXECUTE)\s+/i;
+    if (sqlKeywords.test(formattedQuery)) {
+      return {
+        success: false,
+        error: "SQL queries are not supported. Please use GraphQL queries instead. Example: { products(first: 10) { edges { node { title } } } }",
+      };
+    }
+
+    // Validate it's a GraphQL query (should contain { } or be a GraphQL operation)
+    const hasGraphQLStructure = /[\{\}]/.test(formattedQuery) || 
+                                 /^\s*(query|mutation|subscription)\s+/i.test(formattedQuery);
+    
+    if (!hasGraphQLStructure) {
+      return {
+        success: false,
+        error: "Invalid GraphQL query format. GraphQL queries should contain curly braces { } or start with 'query', 'mutation', or 'subscription'.",
+      };
+    }
+
     // Auto-wrap query if it doesn't have 'query {' wrapper
-    // Check if query starts with 'query' keyword
-    if (!formattedQuery.match(/^\s*query\s*\{/i)) {
-      // Wrap the query in 'query { }' block
-      formattedQuery = `query {\n  ${formattedQuery}\n}`;
+    // Check if query starts with 'query', 'mutation', or 'subscription' keyword
+    const hasOperationKeyword = /^\s*(query|mutation|subscription)\s+/i.test(formattedQuery);
+    
+    if (!hasOperationKeyword) {
+      // If query starts with '{', just prepend 'query' keyword
+      if (formattedQuery.trim().startsWith("{")) {
+        formattedQuery = `query ${formattedQuery}`;
+      } else {
+        // Otherwise, wrap the query in 'query { }' block
+        formattedQuery = `query {\n  ${formattedQuery}\n}`;
+      }
     }
 
     // Execute the GraphQL query

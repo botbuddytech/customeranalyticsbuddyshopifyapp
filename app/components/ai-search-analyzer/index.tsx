@@ -9,10 +9,14 @@ import {
 } from "@shopify/polaris";
 import { InfoIcon } from "@shopify/polaris-icons";
 import { AISearchAnalyzer } from "./search";
-import { PrebuiltQueriesCard } from "./PrebuiltQueriesCard";
 
 interface AISearchAnalyzerPageProps {
   apiKey: string;
+  shopInfo: {
+    name: string;
+    email: string;
+    shop: string;
+  };
 }
 
 /**
@@ -20,7 +24,7 @@ interface AISearchAnalyzerPageProps {
  *
  * Main page component that provides a header and renders the search analyzer.
  */
-export function AISearchAnalyzerPage({ apiKey }: AISearchAnalyzerPageProps) {
+export function AISearchAnalyzerPage({ apiKey, shopInfo }: AISearchAnalyzerPageProps) {
   const [query, setQuery] = useState("");
   const onSubmitRef = useRef<(() => void) | null>(null);
 
@@ -57,16 +61,8 @@ export function AISearchAnalyzerPage({ apiKey }: AISearchAnalyzerPageProps) {
           apiKey={apiKey} 
           onSubmitRef={onSubmitRef}
           externalQuery={query}
+          shopInfo={shopInfo}
         />
-
-        {/* Prebuilt queries */}
-        <Card>
-          <PrebuiltQueriesCard
-            visible={true}
-            setQuery={setQuery}
-            onSubmit={() => onSubmitRef.current?.()}
-          />
-        </Card>
       </BlockStack>
     </div>
   );

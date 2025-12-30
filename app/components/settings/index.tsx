@@ -275,7 +275,7 @@ export function Settings({
 
           {/* Section: Waitlist Settings */}
           <SettingsSection
-            title="Waitlist Settings"
+            title="Communication Settings"
             description="Customize your waitlist settings for out of stock products to ensure a seamless customer experience."
           >
             <CommunicationSettingsCard
