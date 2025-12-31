@@ -30,6 +30,15 @@ function generateDescription(queryData: FilterData): string {
     parts.push(`using ${queryData.device.join(", ")}`);
   }
 
+  if (queryData.device && queryData.device.length > 0) {
+    parts.push(`using ${queryData.device.join(", ")}`);
+  }
+
+  // Handle GraphQL query from AI Search
+  if (parts.length === 0 && queryData.graphqlQuery) {
+    return "AI-generated customer segment based on natural language search";
+  }
+
   if (parts.length === 0) {
     return "Custom customer segment";
   }
@@ -57,6 +66,10 @@ function generateTags(queryData: FilterData): string[] {
 
   if (queryData.device && queryData.device.length > 0) {
     tags.push(...queryData.device.map(dev => dev.toLowerCase()));
+  }
+
+  if (queryData.graphqlQuery) {
+    tags.push("ai-generated");
   }
 
   return tags.slice(0, 5); // Limit to 5 tags
@@ -90,6 +103,19 @@ function generateCriteria(queryData: FilterData): string {
 
   if (queryData.delivery && queryData.delivery.length > 0) {
     criteria.push(`Delivery: ${queryData.delivery.join(", ")}`);
+  }
+
+  if (queryData.delivery && queryData.delivery.length > 0) {
+    criteria.push(`Delivery: ${queryData.delivery.join(", ")}`);
+  }
+
+  // Handle GraphQL query from AI Search
+  if (criteria.length === 0 && queryData.graphqlQuery) {
+    // Truncate query if too long for display
+    const queryDisplay = queryData.graphqlQuery.length > 100
+      ? queryData.graphqlQuery.substring(0, 100) + "..."
+      : queryData.graphqlQuery;
+    return `GraphQL Query: ${queryDisplay}`;
   }
 
   return criteria.length > 0 ? criteria.join(" | ") : "Custom filters";

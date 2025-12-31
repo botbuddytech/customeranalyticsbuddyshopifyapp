@@ -22,6 +22,7 @@ interface AISearchAnalyzerProps {
     email: string;
     shop: string;
   };
+  initialHistory?: ChatHistory[];
 }
 
 /**
@@ -35,12 +36,23 @@ export function AISearchAnalyzer({
   onSubmitRef,
   externalQuery,
   shopInfo,
+  initialHistory = [],
 }: AISearchAnalyzerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState(
     () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
   );
-  const [history, setHistory] = useState<ChatHistory[]>([]);
+  
+  // Initialize history with date hydration for messages
+  const [history, setHistory] = useState<ChatHistory[]>(() => {
+    return initialHistory.map(h => ({
+      ...h,
+      messages: Array.isArray(h.messages) ? h.messages.map((m: any) => ({
+        ...m,
+        timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+      })) : []
+    }));
+  });
   const [extractedQuery, setExtractedQuery] = useState<string>("");
 
   // Get the first user message as title
@@ -249,6 +261,7 @@ export function AISearchAnalyzer({
                 messages={messages}
                 setMessages={setMessages}
                 sessionId={currentSessionId}
+                shopId={shopInfo.shop}
                 onQueryExtracted={setExtractedQuery}
               />
             </div>

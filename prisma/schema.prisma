@@ -1,6 +1,3 @@
-// Prisma schema - Reserved for Supabase (custom app data)
-// Shopify sessions are handled separately via SQLite
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,50 +8,46 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Config model - Stores onboarding progress and app configuration per shop
 model Config {
   id                 String   @id @default(uuid())
   shop               String   @unique
-  completedSteps     String[] @default([]) // All completed steps (both manual and auto)
-  autoCompletedSteps String[] @default([]) // Steps that were auto-completed (cannot be undone)
+  completedSteps     String[] @default([])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  autoCompletedSteps String[] @default([])
 
   @@map("onboardingtaskdata")
 }
 
-// DashboardPreferences model - Stores dashboard visibility preferences per shop
 model DashboardPreferences {
   id               String   @id @default(uuid())
   shop             String   @unique
-  visibilityConfig String   @db.Text // JSON string of DashboardVisibility
+  visibilityConfig String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@map("dashboard_preferences")
 }
 
-// SavedCustomerList model - Stores saved customer segment lists per merchant
 model SavedCustomerList {
   id          String   @id @default(uuid())
-  shop        String // Shop identifier (not unique - merchant can have multiple lists)
-  listName    String // Name of the saved list
-  queryData   String   @db.Text // JSON string of FilterData (complete query/filters)
-  customerIds String[] @default([]) // Array of customer IDs in this list (optional, for quick access)
-  source      String   @default("filter-audience") // Source: "ai-search", "filter-audience", or "manual"
-  status      String   @default("active") // Status: "active" or "archived"
+  shop        String
+  listName    String
+  queryData   String
+  customerIds String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  source      String   @default("filter-audience")
+  status      String   @default("active")
 
-  @@index([shop]) // Index for faster queries by shop
+  @@index([shop])
   @@map("saved_customer_lists")
 }
 
-// UserPreferences model - Stores per-shop UI/user preferences (e.g. language)
 model UserPreferences {
   id          String   @id @default(uuid())
   shop        String   @unique
-  preferences String   @db.Text // JSON string of UserPreferences (currently just language)
+  preferences String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -62,31 +55,49 @@ model UserPreferences {
 }
 
 model SubscriptionPlan {
-  id                String  @id @default(uuid())
-  code              String  @unique // e.g. "free", "paid"
-  name              String // e.g. "Free", "Growth"
-  price             String // e.g. "$0", "$79"
+  id                String                    @id @default(uuid())
+  code              String                    @unique
+  name              String
+  price             String
   priceNote         String
   description       String
-  badgeTone         String? // "success" | "attention" | "info"
+  badgeTone         String?
   badgeLabel        String?
   primaryCtaLabel   String
-  primaryCtaVariant String // "primary" | "secondary" | "plain"
-  isCurrentDefault  Boolean @default(false)
-
-  benefits SubscriptionPlanBenefit[]
+  primaryCtaVariant String
+  isCurrentDefault  Boolean                   @default(false)
+  benefits          SubscriptionPlanBenefit[]
 
   @@map("subscription_plans")
 }
 
 model SubscriptionPlanBenefit {
-  id        String @id @default(uuid())
+  id        String           @id @default(uuid())
   planId    String
   sortOrder Int
   label     String
-
-  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@index([planId, sortOrder])
   @@map("subscription_plan_benefits")
+}
+
+model ChatSession {
+  sessionId String   @id @map("session_id")
+  shopId    String   @map("shop_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  messages N8nChatHistory[]
+
+  @@map("chat_sessions")
+}
+
+model N8nChatHistory {
+  id        Int    @id @default(autoincrement())
+  sessionId String @map("session_id") @db.VarChar(255)
+  message   Json
+
+  session ChatSession @relation(fields: [sessionId], references: [sessionId])
+
+  @@map("n8n_chat_histories")
 }

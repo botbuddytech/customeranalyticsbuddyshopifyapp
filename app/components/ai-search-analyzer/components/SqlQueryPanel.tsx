@@ -153,12 +153,22 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   useEffect(() => {
     if (externalQuery && externalQuery.trim()) {
       // Log query for debugging
-      console.log("GraphQL Query Generated:", externalQuery);
+      console.log("GraphQL Query Generated (Raw):", externalQuery);
+
+      let finalQuery = externalQuery.trim();
+
+      // Ensure 'id' is requested for customers so we can save the list later
+      if (finalQuery.includes("customers") && finalQuery.includes("node {") && !finalQuery.includes("id")) {
+        // Simple injection: replace "node {" with "node { id "
+        // This is a heuristic but works for standard AI outputs
+        finalQuery = finalQuery.replace(/node\s*\{/, "node { id ");
+        console.log("GraphQL Query Adjusted (Added ID):", finalQuery);
+      }
 
       // Auto-execute the query after a short delay to ensure state is updated
       setTimeout(() => {
         const formData = new FormData();
-        formData.append("query", externalQuery.trim());
+        formData.append("query", finalQuery);
         queryFetcher.submit(formData, {
           method: "POST",
           action: "/api/ai-search/execute-query",
@@ -340,6 +350,39 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
     setShowSaveListModal(true);
   }, [resultData]);
 
+  // Extract customer ids from GraphQL result
+  const extractCustomerIds = (data: any): string[] => {
+    const ids: Set<string> = new Set();
+    
+    const traverse = (obj: any) => {
+      if (!obj) return;
+      
+      if (typeof obj === "object") {
+        // Check if object looks like a customer node or has an ID
+        // Typical structure: { id: "gid://shopify/Customer/..." }
+        if (obj.id && typeof obj.id === "string" && obj.id.includes("Customer")) {
+          ids.add(obj.id);
+        }
+        
+        // Also checks specifically for customer query structure
+        if (obj.customer && obj.customer.id) {
+            ids.add(obj.customer.id);
+        }
+
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            traverse(obj[key]);
+          }
+        }
+      } else if (Array.isArray(obj)) {
+        obj.forEach(traverse);
+      }
+    };
+    
+    traverse(data);
+    return Array.from(ids);
+  };
+
   const handleSaveListSubmit = async (listName: string) => {
     setIsSavingList(true);
     setSaveListError(null);
@@ -361,8 +404,14 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
       formData.append("filters", JSON.stringify(filters));
       formData.append("source", "ai-search");
 
-      // Optionally include customer IDs if they can be extracted from results
-      // For now, we'll skip specific customer IDs as the query might be aggregate
+      // Extract customer IDs from the current result
+      if (result && result.data) {
+        const customerIds = extractCustomerIds(result.data);
+        console.log("Extracted Customer IDs:", customerIds);
+        if (customerIds.length > 0) {
+           formData.append("customerIds", JSON.stringify(customerIds));
+        }
+      }
       
       const response = await fetch("/api/filter-audience/save-list", {
         method: "POST",

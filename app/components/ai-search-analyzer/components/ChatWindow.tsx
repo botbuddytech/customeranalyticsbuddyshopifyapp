@@ -11,6 +11,7 @@ interface ChatWindowProps {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   sessionId: string;
+  shopId: string;
   onQueryExtracted?: (query: string) => void;
 }
 
@@ -21,6 +22,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   setMessages,
   sessionId,
+  shopId,
   onQueryExtracted,
 }) => {
   const [input, setInput] = useState("");
@@ -192,13 +194,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const formData = new FormData();
       formData.append("message", currentQuery);
       formData.append("sessionId", sessionId);
+      formData.append("shopId", shopId);
 
       chatFetcher.submit(formData, {
         method: "POST",
         action: "/api/ai-search/chat",
       });
     },
-    [input, isLoading, sessionId, chatFetcher],
+    [input, isLoading, sessionId, shopId, chatFetcher],
   );
 
   // Expose handleSubmit via ref if provided
@@ -209,7 +212,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [handleSend, onSubmitRef]);
 
   const renderContent = (content: string) => {
-    return content.split("\n").map((line, i, arr) => (
+    let textToRender = content;
+
+    // Fail-safe: Try to parse JSON if it looks like the raw N8N response
+    // This handles cases where the history loader's parsing might have failed or state is stale
+    if (typeof content === 'string' && content.trim().startsWith('{') && content.includes('reply')) {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed.reply) {
+          textToRender = parsed.reply;
+        }
+      } catch (e) {
+        // Ignore parsing errors, print as is
+      }
+    }
+
+    return textToRender.split("\n").map((line, i, arr) => (
       <p
         key={i}
         style={{

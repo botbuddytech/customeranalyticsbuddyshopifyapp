@@ -17,6 +17,7 @@ interface AISearchAnalyzerPageProps {
     email: string;
     shop: string;
   };
+  history: any[];
 }
 
 /**
@@ -24,7 +25,7 @@ interface AISearchAnalyzerPageProps {
  *
  * Main page component that provides a header and renders the search analyzer.
  */
-export function AISearchAnalyzerPage({ apiKey, shopInfo }: AISearchAnalyzerPageProps) {
+export function AISearchAnalyzerPage({ apiKey, shopInfo, history }: AISearchAnalyzerPageProps) {
   const [query, setQuery] = useState("");
   const onSubmitRef = useRef<(() => void) | null>(null);
 
@@ -62,6 +63,7 @@ export function AISearchAnalyzerPage({ apiKey, shopInfo }: AISearchAnalyzerPageP
           onSubmitRef={onSubmitRef}
           externalQuery={query}
           shopInfo={shopInfo}
+          initialHistory={history}
         />
       </BlockStack>
     </div>

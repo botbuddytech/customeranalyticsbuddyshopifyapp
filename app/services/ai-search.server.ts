@@ -10,6 +10,7 @@
 interface ChatRequest {
   message: string;
   sessionId: string;
+  shopId: string;
 }
 
 interface ChatResponse {
@@ -23,14 +24,16 @@ interface ChatResponse {
  * 
  * @param message - The user's message/query
  * @param sessionId - Unique session identifier for the conversation
+ * @param shopId - The shopify shop ID
  * @returns Promise with the AI response text or error
  */
 export async function sendChatMessage(
   message: string,
   sessionId: string,
+  shopId: string,
 ): Promise<ChatResponse> {
   // Try multiple possible environment variable names (case variations)
-  const webhookUrl =process.env.N8N_prod_url;
+  const webhookUrl = process.env.N8N_prod_url;
 
   if (!webhookUrl) {
     return {
@@ -49,6 +52,7 @@ export async function sendChatMessage(
       body: JSON.stringify({
         message: message.trim(),
         sessionId: sessionId,
+        shopId: shopId,
       } as ChatRequest),
     });
 

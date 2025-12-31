@@ -10,12 +10,14 @@ import { sendChatMessage } from "../services/ai-search.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   // Authenticate the request
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   try {
     const formData = await request.formData();
     const message = formData.get("message");
     const sessionId = formData.get("sessionId");
+    // specific shopId from request or fallback to authenticated shop
+    const shopId = formData.get("shopId")?.toString() || session.shop;
 
     if (!message || typeof message !== "string") {
       return Response.json(
@@ -32,7 +34,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Call the N8N webhook service
-    const result = await sendChatMessage(message, sessionId);
+    const result = await sendChatMessage(message, sessionId, shopId);
 
     if (!result.success) {
       return Response.json(
