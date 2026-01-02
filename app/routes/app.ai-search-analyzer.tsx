@@ -35,14 +35,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const sortedMessages = [...session.messages].sort((a: any, b: any) => Number(a.id) - Number(b.id));
 
     const messages = sortedMessages.map((m: any) => {
-      let msgData;
-      
+      let msgData: any; // Re-added variable declaration
+
+      // Helper to strip markdown code blocks
+      const cleanJsonString = (str: string): string => {
+          let cleaned = str.trim();
+          if (cleaned.startsWith('```')) {
+              cleaned = cleaned.replace(/^```(json)?\s*/, '').replace(/\s*```$/, '');
+          }
+          return cleaned;
+      };
+
       try {
          if (typeof m.message === 'string') {
-            msgData = JSON.parse(m.message);
+            let potentialJson = cleanJsonString(m.message);
+            msgData = JSON.parse(potentialJson);
+
             // Handle double-stringified JSON (common in some DB setups)
-            if (typeof msgData === 'string' && (msgData.trim().startsWith('{') || msgData.trim().startsWith('['))) {
-               try { msgData = JSON.parse(msgData); } catch(e) {}
+            if (typeof msgData === 'string') {
+               try { 
+                   let innerJson = cleanJsonString(msgData);
+                   // Only try parsing again if it looks like an object/array
+                   if (innerJson.startsWith('{') || innerJson.startsWith('[')) {
+                       msgData = JSON.parse(innerJson); 
+                   }
+               } catch(e) {}
             }
          } else {
             msgData = m.message;
@@ -97,15 +114,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
 
       // Final cleanup: if content is still a JSON string that looks like it has a reply, try one last time
-      // This catches edge cases where the content extraction picked up a stringified JSON
-      if (typeof content === 'string' && content.trim().startsWith('{') && content.includes('"reply"')) {
-          try {
-              const parsed = JSON.parse(content);
-              if (parsed.reply) {
-                  role = "assistant";
-                  content = parsed.reply;
-              }
-          } catch(e) {}
+      // This catches edge cases where the content extraction picked up a stringified JSON (wrapped in markdown or not)
+      if (typeof content === 'string') {
+          let potentialCleanup = cleanJsonString(content);
+          if (potentialCleanup.startsWith('{') && potentialCleanup.includes('"reply"')) {
+              try {
+                  const parsed = JSON.parse(potentialCleanup);
+                  if (parsed.reply) {
+                      role = "assistant";
+                      content = parsed.reply;
+                  }
+              } catch(e) {}
+          }
       }
 
       // DEBUG LOGGING

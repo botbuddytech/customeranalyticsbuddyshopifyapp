@@ -216,9 +216,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     // Fail-safe: Try to parse JSON if it looks like the raw N8N response
     // This handles cases where the history loader's parsing might have failed or state is stale
-    if (typeof content === 'string' && content.trim().startsWith('{') && content.includes('reply')) {
+    // Also handles markdown wrapped JSON which is common from LLMs
+    let potentialJson = content.trim();
+    
+    // Strip markdown code blocks if present
+    if (potentialJson.startsWith('```')) {
+      potentialJson = potentialJson.replace(/^```(json)?\s*/, '').replace(/\s*```$/, '');
+    }
+
+    if (potentialJson.startsWith('{') && potentialJson.includes('reply')) {
       try {
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(potentialJson);
         if (parsed.reply) {
           textToRender = parsed.reply;
         }
