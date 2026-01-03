@@ -9,9 +9,12 @@ import {
   Banner,
   Box,
   Spinner,
+  Button,
+  Popover,
+  ActionList,
 } from "@shopify/polaris";
 import { ExportIcon } from "@shopify/polaris-icons";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { SavedList } from "./types";
 
 interface ViewListModalProps {
@@ -33,7 +36,7 @@ interface Customer {
 
 /**
  * View List Modal Component
- * 
+ *
  * Displays saved list details including filters, criteria, and customer data
  */
 export function ViewListModal({
@@ -45,6 +48,9 @@ export function ViewListModal({
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch customers function
   const fetchCustomers = useCallback(async () => {
@@ -70,7 +76,7 @@ export function ViewListModal({
       }
 
       const data = await response.json();
-      
+
       console.log("[ViewListModal] API Response:", data);
 
       if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
@@ -78,8 +84,12 @@ export function ViewListModal({
         setCustomers([]);
       } else if (data.success) {
         // Ensure we have an array of customers
-        const fetchedCustomers = Array.isArray(data.customers) ? data.customers : [];
-        console.log(`[ViewListModal] Setting ${fetchedCustomers.length} customers`);
+        const fetchedCustomers = Array.isArray(data.customers)
+          ? data.customers
+          : [];
+        console.log(
+          `[ViewListModal] Setting ${fetchedCustomers.length} customers`,
+        );
         setCustomers(fetchedCustomers);
         setError(null);
       } else {
@@ -109,6 +119,202 @@ export function ViewListModal({
     }
   }, [open, list, fetchCustomers]);
 
+  // Position popover activator relative to secondaryActions Export button
+  useEffect(() => {
+    if (!open || !exportPopoverOpen) {
+      if (exportButtonRef.current) {
+        exportButtonRef.current.style.visibility = "hidden";
+      }
+      return;
+    }
+
+    // Small delay to ensure modal is fully rendered
+    const timer = setTimeout(() => {
+      const modalElement = document.querySelector('[role="dialog"]');
+      if (modalElement && exportButtonRef.current) {
+        // Find the Export button in secondaryActions
+        const buttons = modalElement.querySelectorAll("button");
+        let exportButton: Element | null = null;
+
+        buttons.forEach((btn) => {
+          const text = btn.textContent?.trim();
+          if (text === "Export" || text?.includes("Export")) {
+            exportButton = btn;
+          }
+        });
+
+        if (exportButton) {
+          const rect = (exportButton as HTMLElement).getBoundingClientRect();
+          if (exportButtonRef.current) {
+            exportButtonRef.current.style.position = "fixed";
+            exportButtonRef.current.style.top = `${rect.top}px`;
+            exportButtonRef.current.style.left = `${rect.left}px`;
+            exportButtonRef.current.style.width = `${rect.width}px`;
+            exportButtonRef.current.style.height = `${rect.height}px`;
+            exportButtonRef.current.style.visibility = "visible";
+            exportButtonRef.current.style.zIndex = "1000";
+          }
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [exportPopoverOpen, open]);
+
+  const toggleExportPopover = useCallback(() => {
+    setExportPopoverOpen((prev) => !prev);
+  }, []);
+
+  const handleExportFormat = useCallback(
+    async (format: "csv" | "pdf" | "excel") => {
+      if (!customers || customers.length === 0 || !list) {
+        return;
+      }
+
+      setIsExporting(true);
+      setExportPopoverOpen(false);
+
+      try {
+        const headers = [
+          "Name",
+          "Email",
+          "Country",
+          "Created Date",
+          "Orders",
+          "Total Spent",
+        ];
+
+        const listName = list.name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+        const dateStr = new Date().toISOString().split("T")[0];
+
+        if (format === "csv") {
+          const csvRows = [
+            headers.join(","),
+            ...customers.map((customer) =>
+              [
+                `"${customer.name.replace(/"/g, '""')}"`,
+                `"${customer.email.replace(/"/g, '""')}"`,
+                `"${customer.country.replace(/"/g, '""')}"`,
+                `"${customer.createdAt}"`,
+                customer.numberOfOrders.toString(),
+                `"${customer.totalSpent}"`,
+              ].join(","),
+            ),
+          ];
+
+          const csvContent = csvRows.join("\n");
+          const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `${listName}-${dateStr}.csv`);
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          if (onExportCSV) {
+            onExportCSV();
+          }
+        } else if (format === "pdf") {
+          // Create PDF (HTML format)
+          let htmlContent = `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Customer List Export</title>
+                <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  h1 { color: #333; }
+                  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                  th { background-color: #f2f2f2; font-weight: bold; }
+                  tr:nth-child(even) { background-color: #f9f9f9; }
+                </style>
+              </head>
+              <body>
+                <h1>${list.name}</h1>
+                <p>Generated: ${new Date().toLocaleString()}</p>
+                <p>Total Customers: ${customers.length}</p>
+                <table>
+                  <thead>
+                    <tr>
+                      ${headers.map((h) => `<th>${h}</th>`).join("")}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${customers
+                      .map(
+                        (customer) => `
+                      <tr>
+                        <td>${customer.name}</td>
+                        <td>${customer.email}</td>
+                        <td>${customer.country}</td>
+                        <td>${customer.createdAt}</td>
+                        <td>${customer.numberOfOrders}</td>
+                        <td>${customer.totalSpent}</td>
+                      </tr>
+                    `,
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </body>
+            </html>
+          `;
+
+          const blob = new Blob([htmlContent], { type: "text/html" });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `${listName}-${dateStr}.html`);
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 100);
+        } else if (format === "excel") {
+          // Create CSV format (Excel can open CSV files)
+          const csvRows = [
+            headers.join(","),
+            ...customers.map((customer) =>
+              [
+                `"${customer.name.replace(/"/g, '""')}"`,
+                `"${customer.email.replace(/"/g, '""')}"`,
+                `"${customer.country.replace(/"/g, '""')}"`,
+                `"${customer.createdAt}"`,
+                customer.numberOfOrders.toString(),
+                `"${customer.totalSpent}"`,
+              ].join(","),
+            ),
+          ];
+
+          const csvContent = csvRows.join("\n");
+          const blob = new Blob([csvContent], {
+            type: "application/vnd.ms-excel;charset=utf-8;",
+          });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `${listName}-${dateStr}.xls`);
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [customers, list, onExportCSV],
+  );
+
   if (!list) {
     return null;
   }
@@ -130,16 +336,17 @@ export function ViewListModal({
   const sourceBadge = getSourceBadge(list.source);
 
   // Prepare table data if customers are available
-  const tableRows = customers.length > 0
-    ? customers.map((customer) => [
-        customer.name || "N/A",
-        customer.email || "N/A",
-        customer.country || "Unknown",
-        customer.createdAt || "N/A",
-        (customer.numberOfOrders || 0).toString(),
-        customer.totalSpent || "0.00",
-      ])
-    : [];
+  const tableRows =
+    customers.length > 0
+      ? customers.map((customer) => [
+          customer.name || "N/A",
+          customer.email || "N/A",
+          customer.country || "Unknown",
+          customer.createdAt || "N/A",
+          (customer.numberOfOrders || 0).toString(),
+          customer.totalSpent || "0.00",
+        ])
+      : [];
 
   const tableHeadings = [
     "Name",
@@ -149,53 +356,6 @@ export function ViewListModal({
     "Orders",
     "Total Spent",
   ];
-
-  // Handle export to CSV
-  const handleExportCSVInternal = () => {
-    if (!customers || customers.length === 0) {
-      return;
-    }
-
-    const headers = [
-      "Name",
-      "Email",
-      "Country",
-      "Created Date",
-      "Orders",
-      "Total Spent",
-    ];
-    const csvRows = [
-      headers.join(","),
-      ...customers.map((customer) =>
-        [
-          `"${customer.name.replace(/"/g, '""')}"`,
-          `"${customer.email.replace(/"/g, '""')}"`,
-          `"${customer.country.replace(/"/g, '""')}"`,
-          `"${customer.createdAt}"`,
-          customer.numberOfOrders.toString(),
-          `"${customer.totalSpent}"`,
-        ].join(",")
-      ),
-    ];
-
-    const csvContent = csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `${list.name.replace(/[^a-z0-9]/gi, "_")}-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (onExportCSV) {
-      onExportCSV();
-    }
-  };
 
   return (
     <Modal
@@ -208,10 +368,10 @@ export function ViewListModal({
       }}
       secondaryActions={[
         {
-          content: "Export CSV",
+          content: "Export",
           icon: ExportIcon,
-          onAction: handleExportCSVInternal,
-          disabled: !customers || customers.length === 0,
+          onAction: toggleExportPopover,
+          disabled: isExporting || !customers || customers.length === 0,
         },
       ]}
       size="large"
@@ -330,19 +490,54 @@ export function ViewListModal({
           )}
 
           {/* No Customers Message */}
-          {!isLoading &&
-            !error &&
-            (!customers || customers.length === 0) && (
-              <Banner tone="info">
-                <p>
-                  No customers found matching the saved filter criteria. The
-                  customer data may have changed since this list was created.
-                </p>
-              </Banner>
-            )}
+          {!isLoading && !error && (!customers || customers.length === 0) && (
+            <Banner tone="info">
+              <p>
+                No customers found matching the saved filter criteria. The
+                customer data may have changed since this list was created.
+              </p>
+            </Banner>
+          )}
         </BlockStack>
       </Modal.Section>
+      <Popover
+        active={exportPopoverOpen}
+        activator={
+          <button
+            ref={exportButtonRef}
+            style={{
+              position: "fixed",
+              top: "-1000px",
+              left: "-1000px",
+              visibility: "hidden",
+              pointerEvents: exportPopoverOpen ? "auto" : "none",
+            }}
+            onClick={toggleExportPopover}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        }
+        onClose={toggleExportPopover}
+        preferredPosition="below"
+        preferredAlignment="right"
+      >
+        <ActionList
+          items={[
+            {
+              content: "Export as PDF",
+              onAction: () => handleExportFormat("pdf"),
+            },
+            {
+              content: "Export as CSV",
+              onAction: () => handleExportFormat("csv"),
+            },
+            {
+              content: "Export as Excel",
+              onAction: () => handleExportFormat("excel"),
+            },
+          ]}
+        />
+      </Popover>
     </Modal>
   );
 }
-

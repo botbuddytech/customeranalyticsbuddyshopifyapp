@@ -1,14 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LinkIcon, CheckIcon, CircleCheckIcon, ShopifyIcon, ShieldIcon, LockIcon, ServerIcon } from './icons';
 
-const Step1: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+const Step1: React.FC<{
+  onComplete: () => void;
+  onTaskComplete?: () => void;
+  isCompleted?: boolean;
+}> = ({ onComplete, onTaskComplete, isCompleted = false }) => {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>(
+    isCompleted ? 'success' : 'idle'
+  );
+  const hasInitiated = useRef(false);
+
+  // If step is already completed, show success and auto-advance
+  useEffect(() => {
+    if (isCompleted) {
+      setStatus('success');
+      // Auto-advance after showing success briefly
+      const timer = setTimeout(() => {
+        onComplete();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isCompleted, onComplete]);
 
   const handleConnect = () => {
+    // Prevent multiple clicks or if already initiated
+    if (status !== 'idle' || hasInitiated.current) return;
+    
+    hasInitiated.current = true;
     setStatus('loading');
     setTimeout(() => {
       setStatus('success');
-      setTimeout(onComplete, 1200);
+      // Save progress when task is completed
+      if (onTaskComplete) {
+        onTaskComplete();
+      }
+      // Move to next step after showing success
+      setTimeout(() => {
+        onComplete();
+      }, 1200);
     }, 2500);
   };
 

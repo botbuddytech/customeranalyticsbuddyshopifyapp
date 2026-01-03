@@ -263,6 +263,7 @@ export function AISearchAnalyzer({
                 sessionId={currentSessionId}
                 shopId={shopInfo.shop}
                 onQueryExtracted={setExtractedQuery}
+                onLoadQuery={setExtractedQuery}
               />
             </div>
           </div>

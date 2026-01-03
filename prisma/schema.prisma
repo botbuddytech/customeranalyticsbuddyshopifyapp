@@ -101,3 +101,25 @@ model N8nChatHistory {
 
   @@map("n8n_chat_histories")
 }
+
+model MailchimpConnection {
+  shopId       String   @id @map("shop_id")
+  accessToken  String   @map("access_token")
+  serverPrefix String   @map("server_prefix")
+  connectedAt  DateTime @default(now()) @map("connected_at")
+
+  @@map("mailchimp_connections")
+}
+
+model OnboardingProgress {
+  id             String   @id @default(uuid())
+  shop           String   @unique
+  email          String?
+  contact        String?
+  completedSteps Int[]    @default([])
+  isCompleted    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("onboarding_progress")
+}

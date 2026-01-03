@@ -11,14 +11,19 @@
 import { useState, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useFetcher } from "react-router";
-import { Page, Layout, BlockStack, Frame } from "@shopify/polaris";
+import { Page, Layout, BlockStack, Frame, Toast } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { getSupabaseForShop } from "../services/supabase-jwt.server";
+import { getCurrentPlanName } from "../services/subscription.server";
 import { checkAndUpdateAutomation } from "../services/onboarding/automation";
 import { sendRawEmail } from "../utils/email/sendEmail.server";
 import { buildOwnerFeedbackEmail } from "../utils/email/templates/feedback/ownerFeedbackEmail.server";
 import { buildUserFeedbackEmail } from "../utils/email/templates/feedback/userFeedbackEmail.server";
+import {
+  getOnboardingProgress,
+  saveOnboardingProgress,
+} from "../services/onboarding-progress.server";
 
 // Import home page components
 import { WelcomeHeader } from "../components/home/WelcomeHeader";
@@ -29,6 +34,7 @@ import { ProgressMetrics } from "../components/home/ProgressMetrics";
 import { CustomerSupport } from "../components/home/CustomerSupport";
 import { QuickActions } from "../components/home/QuickActions";
 import { OnboardingApp } from "../components/home/onboarding";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 /**
  * Loader Function - Fetch onboarding progress from Prisma
@@ -61,23 +67,119 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.error("Error fetching onboarding progress:", error);
     }
 
+    // Fetch onboarding progress from new table
+    const onboardingProgress = await getOnboardingProgress(shop);
+
+    // Fetch subscription plans for Step2
+    const supabaseForPlans = getSupabaseForShop(shop);
+    const { data: plansData, error: plansError } = await supabaseForPlans
+      .from("subscription_plans")
+      .select(
+        `
+        *,
+        subscription_plan_benefits (
+          id,
+          planId,
+          sortOrder,
+          label
+        )
+      `,
+      )
+      .order("isCurrentDefault", { ascending: false });
+
+    let plans: any[] = [];
+    if (!plansError && plansData) {
+      plans = plansData.map((plan: any) => {
+        // Handle different possible keys for the relationship
+        // Supabase might return it as subscription_plan_benefits or subscriptionPlanBenefits
+        const benefitsData =
+          plan.subscription_plan_benefits ||
+          plan.subscriptionPlanBenefits ||
+          [];
+
+        return {
+          id: plan.id,
+          code: plan.code,
+          name: plan.name,
+          price: plan.price,
+          priceNote: plan.priceNote,
+          description: plan.description,
+          badgeTone: plan.badgeTone,
+          badgeLabel: plan.badgeLabel,
+          primaryCtaLabel: plan.primaryCtaLabel,
+          primaryCtaVariant: plan.primaryCtaVariant,
+          isCurrentDefault: plan.isCurrentDefault,
+          benefits: (Array.isArray(benefitsData) ? benefitsData : []).sort(
+            (a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0),
+          ),
+        };
+      });
+    }
+
+    // Fetch current Shopify subscription
+    const currentPlan = await getCurrentPlanName(admin);
+
+    // Calculate the next incomplete step
+    const calculateNextStep = (completedSteps: number[]): number => {
+      const totalSteps = 4;
+      // Find the first incomplete step (1-4)
+      for (let step = 1; step <= totalSteps; step++) {
+        if (!completedSteps.includes(step)) {
+          return step;
+        }
+      }
+      // All steps completed, show completion step
+      return 5;
+    };
+
     // If no record exists yet, return empty arrays
     if (!configData) {
+      const nextStep = onboardingProgress
+        ? calculateNextStep(onboardingProgress.completedSteps)
+        : 1;
       return {
         completedSteps: [],
         autoCompletedSteps: [],
+        shop,
+        plans,
+        currentPlan,
+        onboardingProgress: onboardingProgress
+          ? {
+              completedSteps: onboardingProgress.completedSteps,
+              isCompleted: onboardingProgress.isCompleted,
+              nextStep,
+            }
+          : null,
       };
     }
+
+    const nextStep = onboardingProgress
+      ? calculateNextStep(onboardingProgress.completedSteps)
+      : 1;
 
     return {
       completedSteps: configData.completedSteps || [],
       autoCompletedSteps: configData.autoCompletedSteps || [],
+      shop,
+      plans,
+      currentPlan,
+      onboardingProgress: onboardingProgress
+        ? {
+            completedSteps: onboardingProgress.completedSteps,
+            isCompleted: onboardingProgress.isCompleted,
+            nextStep,
+          }
+        : null,
     };
   } catch (error) {
     console.error("Error fetching onboarding progress:", error);
     return {
       completedSteps: [],
       autoCompletedSteps: [],
+      shop,
+      plans: [],
+      currentPlan: null,
+      onboardingProgress: null,
     };
   }
 };
@@ -89,7 +191,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
  * Uses Supabase with RLS for automatic shop filtering
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
@@ -147,6 +249,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       return { success: true };
+    }
+
+    // Handle onboarding progress save - check this BEFORE the old onboarding task data logic
+    if (intent === "saveOnboardingProgress") {
+      const { step, completedSteps } = body as {
+        step?: string;
+        completedSteps?: string;
+      };
+
+      if (!step || !completedSteps) {
+        return { success: false, error: "Missing onboarding progress data" };
+      }
+
+      try {
+        const stepsArray = JSON.parse(completedSteps) as number[];
+        const result = await saveOnboardingProgress(shop, stepsArray, admin);
+
+        if (result.success) {
+          return { success: true };
+        } else {
+          return {
+            success: false,
+            error: result.error || "Failed to save progress",
+          };
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          success: false,
+          error: `Failed to save progress: ${errorMessage}`,
+        };
+      }
     }
 
     const { completedSteps } = body;
@@ -223,6 +358,8 @@ export default function Index() {
   // Track which onboarding steps the user has completed
   const loaderData = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const [completedSteps, setCompletedSteps] = useState<number[]>(
     (loaderData?.completedSteps || []).map((step: string) =>
@@ -300,9 +437,15 @@ export default function Index() {
 
   return (
     <Frame>
+      {/* <UpgradeBanner /> */}
       <Page>
         <TitleBar title="AI Audience Insight" />
-
+        {toastActive && (
+          <Toast
+            content={toastMessage}
+            onDismiss={() => setToastActive(false)}
+          />
+        )}
         <BlockStack gap="500">
           <Layout>
             {/* Welcome Header Section */}
@@ -317,7 +460,24 @@ export default function Index() {
 
             {/* Onboarding Steps Section */}
             <Layout.Section>
-              <OnboardingApp />
+              <OnboardingApp
+                nextStep={loaderData.onboardingProgress?.nextStep || 1}
+                completedSteps={
+                  loaderData.onboardingProgress?.completedSteps || []
+                }
+                isCompleted={
+                  loaderData.onboardingProgress?.isCompleted || false
+                }
+                shop={loaderData.shop}
+                plans={loaderData.plans || []}
+                currentPlan={loaderData.currentPlan || null}
+                onComplete={() => {
+                  if (!toastActive) {
+                    setToastMessage("🎉 Onboarding completed successfully!");
+                    setToastActive(true);
+                  }
+                }}
+              />
             </Layout.Section>
 
             {/* Quick Start Checklist Section */}

@@ -1,6 +1,6 @@
 /**
  * My Saved Lists Main Component
- * 
+ *
  * Orchestrates all saved lists components and handles state management
  */
 
@@ -91,14 +91,11 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
     }));
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (listId: string) => {
-      setSelectedListId(listId);
-      setDeleteModalOpen(true);
-      setActionPopoverOpen({});
-    },
-    []
-  );
+  const handleDeleteClick = useCallback((listId: string) => {
+    setSelectedListId(listId);
+    setDeleteModalOpen(true);
+    setActionPopoverOpen({});
+  }, []);
 
   const handleDeleteConfirm = useCallback(() => {
     if (selectedListId) {
@@ -122,43 +119,44 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
       submit(formData, { method: "post" });
       setActionPopoverOpen({});
     },
-    [submit]
+    [submit],
   );
 
   // Export handlers for PDF, CSV, Excel
-  const handleExportPDF = useCallback(async (listId: string) => {
-    setExportingListId(listId);
-    try {
-      // Fetch customer data
-      const formData = new FormData();
-      formData.append("listId", listId);
-      const response = await fetch("/api/my-saved-lists/get-customers", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
+  const handleExportPDF = useCallback(
+    async (listId: string) => {
+      setExportingListId(listId);
+      try {
+        // Fetch customer data
+        const formData = new FormData();
+        formData.append("listId", listId);
+        const response = await fetch("/api/my-saved-lists/get-customers", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
 
-      if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
-        console.error("Protected customer data access denied");
-        return;
-      }
+        if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+          console.error("Protected customer data access denied");
+          return;
+        }
 
-      if (!data.customers || data.customers.length === 0) {
-        console.error("No customers to export");
-        return;
-      }
+        if (!data.customers || data.customers.length === 0) {
+          console.error("No customers to export");
+          return;
+        }
 
-      // Create PDF (HTML format)
-      const headers = [
-        "Name",
-        "Email",
-        "Country",
-        "Created Date",
-        "Orders",
-        "Total Spent",
-      ];
+        // Create PDF (HTML format)
+        const headers = [
+          "Name",
+          "Email",
+          "Country",
+          "Created Date",
+          "Orders",
+          "Total Spent",
+        ];
 
-      let htmlContent = `
+        let htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -203,160 +201,176 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
         </html>
       `;
 
-      const blob = new Blob([htmlContent], { type: "text/html" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      const list = savedLists.find((l) => l.id === listId);
-      const listName = list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() || "customer-list";
-      link.setAttribute(
-        "download",
-        `${listName}-${new Date().toISOString().split("T")[0]}.html`,
-      );
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => {
+        const blob = new Blob([htmlContent], { type: "text/html" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        const list = savedLists.find((l) => l.id === listId);
+        const listName =
+          list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() ||
+          "customer-list";
+        link.setAttribute(
+          "download",
+          `${listName}-${new Date().toISOString().split("T")[0]}.html`,
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 100);
+      } finally {
+        setExportingListId(null);
+      }
+    },
+    [savedLists],
+  );
+
+  const handleExportCSV = useCallback(
+    async (listId: string) => {
+      setExportingListId(listId);
+      try {
+        // Fetch customer data
+        const formData = new FormData();
+        formData.append("listId", listId);
+        const response = await fetch("/api/my-saved-lists/get-customers", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+          console.error("Protected customer data access denied");
+          return;
+        }
+
+        if (!data.customers || data.customers.length === 0) {
+          console.error("No customers to export");
+          return;
+        }
+
+        const headers = [
+          "Name",
+          "Email",
+          "Country",
+          "Created Date",
+          "Orders",
+          "Total Spent",
+        ];
+        const csvRows = [
+          headers.join(","),
+          ...data.customers.map((customer: any) =>
+            [
+              `"${customer.name.replace(/"/g, '""')}"`,
+              `"${customer.email.replace(/"/g, '""')}"`,
+              `"${customer.country.replace(/"/g, '""')}"`,
+              `"${customer.createdAt}"`,
+              customer.numberOfOrders.toString(),
+              `"${customer.totalSpent}"`,
+            ].join(","),
+          ),
+        ];
+
+        const csvContent = csvRows.join("\n");
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        const list = savedLists.find((l) => l.id === listId);
+        const listName =
+          list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() ||
+          "customer-list";
+        link.setAttribute(
+          "download",
+          `${listName}-${new Date().toISOString().split("T")[0]}.csv`,
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
-      }, 100);
-    } finally {
-      setExportingListId(null);
-    }
-  }, [savedLists]);
-
-  const handleExportCSV = useCallback(async (listId: string) => {
-    setExportingListId(listId);
-    try {
-      // Fetch customer data
-      const formData = new FormData();
-      formData.append("listId", listId);
-      const response = await fetch("/api/my-saved-lists/get-customers", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
-        console.error("Protected customer data access denied");
-        return;
+      } finally {
+        setExportingListId(null);
       }
+    },
+    [savedLists],
+  );
 
-      if (!data.customers || data.customers.length === 0) {
-        console.error("No customers to export");
-        return;
+  const handleExportExcel = useCallback(
+    async (listId: string) => {
+      setExportingListId(listId);
+      try {
+        // Fetch customer data
+        const formData = new FormData();
+        formData.append("listId", listId);
+        const response = await fetch("/api/my-saved-lists/get-customers", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
+          console.error("Protected customer data access denied");
+          return;
+        }
+
+        if (!data.customers || data.customers.length === 0) {
+          console.error("No customers to export");
+          return;
+        }
+
+        // Create CSV format (Excel can open CSV files)
+        const headers = [
+          "Name",
+          "Email",
+          "Country",
+          "Created Date",
+          "Orders",
+          "Total Spent",
+        ];
+        const csvRows = [
+          headers.join(","),
+          ...data.customers.map((customer: any) =>
+            [
+              `"${customer.name.replace(/"/g, '""')}"`,
+              `"${customer.email.replace(/"/g, '""')}"`,
+              `"${customer.country.replace(/"/g, '""')}"`,
+              `"${customer.createdAt}"`,
+              customer.numberOfOrders.toString(),
+              `"${customer.totalSpent}"`,
+            ].join(","),
+          ),
+        ];
+
+        const csvContent = csvRows.join("\n");
+        const blob = new Blob([csvContent], {
+          type: "application/vnd.ms-excel;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        const list = savedLists.find((l) => l.id === listId);
+        const listName =
+          list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() ||
+          "customer-list";
+        link.setAttribute(
+          "download",
+          `${listName}-${new Date().toISOString().split("T")[0]}.xls`,
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } finally {
+        setExportingListId(null);
       }
-
-      const headers = [
-        "Name",
-        "Email",
-        "Country",
-        "Created Date",
-        "Orders",
-        "Total Spent",
-      ];
-      const csvRows = [
-        headers.join(","),
-        ...data.customers.map((customer: any) =>
-          [
-            `"${customer.name.replace(/"/g, '""')}"`,
-            `"${customer.email.replace(/"/g, '""')}"`,
-            `"${customer.country.replace(/"/g, '""')}"`,
-            `"${customer.createdAt}"`,
-            customer.numberOfOrders.toString(),
-            `"${customer.totalSpent}"`,
-          ].join(","),
-        ),
-      ];
-
-      const csvContent = csvRows.join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      const list = savedLists.find((l) => l.id === listId);
-      const listName = list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() || "customer-list";
-      link.setAttribute(
-        "download",
-        `${listName}-${new Date().toISOString().split("T")[0]}.csv`,
-      );
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } finally {
-      setExportingListId(null);
-    }
-  }, [savedLists]);
-
-  const handleExportExcel = useCallback(async (listId: string) => {
-    setExportingListId(listId);
-    try {
-      // Fetch customer data
-      const formData = new FormData();
-      formData.append("listId", listId);
-      const response = await fetch("/api/my-saved-lists/get-customers", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (data.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
-        console.error("Protected customer data access denied");
-        return;
-      }
-
-      if (!data.customers || data.customers.length === 0) {
-        console.error("No customers to export");
-        return;
-      }
-
-      // Create CSV format (Excel can open CSV files)
-      const headers = [
-        "Name",
-        "Email",
-        "Country",
-        "Created Date",
-        "Orders",
-        "Total Spent",
-      ];
-      const csvRows = [
-        headers.join(","),
-        ...data.customers.map((customer: any) =>
-          [
-            `"${customer.name.replace(/"/g, '""')}"`,
-            `"${customer.email.replace(/"/g, '""')}"`,
-            `"${customer.country.replace(/"/g, '""')}"`,
-            `"${customer.createdAt}"`,
-            customer.numberOfOrders.toString(),
-            `"${customer.totalSpent}"`,
-          ].join(","),
-        ),
-      ];
-
-      const csvContent = csvRows.join("\n");
-      const blob = new Blob([csvContent], {
-        type: "application/vnd.ms-excel;charset=utf-8;",
-      });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      const list = savedLists.find((l) => l.id === listId);
-      const listName = list?.name.replace(/[^a-z0-9]/gi, "-").toLowerCase() || "customer-list";
-      link.setAttribute(
-        "download",
-        `${listName}-${new Date().toISOString().split("T")[0]}.xls`,
-      );
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } finally {
-      setExportingListId(null);
-    }
-  }, [savedLists]);
+    },
+    [savedLists],
+  );
 
   const handleArchive = useCallback(
     (listId: string) => {
@@ -367,7 +381,7 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
       submit(formData, { method: "post" });
       setActionPopoverOpen({});
     },
-    [submit]
+    [submit],
   );
 
   const handleUnarchive = useCallback(
@@ -379,18 +393,18 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
       submit(formData, { method: "post" });
       setActionPopoverOpen({});
     },
-    [submit]
+    [submit],
   );
 
   const navigate = useNavigate();
-  
+
   const handleModify = useCallback(
     (listId: string) => {
       // Navigate to filter-audience page with listId as URL parameter
       navigate(`/app/filter-audience?modify=${listId}`);
       setActionPopoverOpen({});
     },
-    [navigate]
+    [navigate],
   );
 
   const handleView = useCallback(
@@ -401,11 +415,15 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
         setViewModalOpen(true);
       }
     },
-    [savedLists]
+    [savedLists],
   );
 
   // Data Processing
-  const filteredLists = filterLists(savedLists, debouncedSearchQuery, selectedTab);
+  const filteredLists = filterLists(
+    savedLists,
+    debouncedSearchQuery,
+    selectedTab,
+  );
   const sortedLists = sortLists(filteredLists, sortValue);
   const tabs = getTabs(savedLists);
 
@@ -441,6 +459,8 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
                     selectedTab={selectedTab}
                     onTabChange={handleTabChange}
                     tabs={tabs}
+                    sortValue={sortValue}
+                    onSortChange={setSortValue}
                   />
                 </Layout.Section>
               </Layout>
@@ -497,4 +517,3 @@ export function MySavedLists({ loaderData }: MySavedListsProps) {
     </>
   );
 }
-

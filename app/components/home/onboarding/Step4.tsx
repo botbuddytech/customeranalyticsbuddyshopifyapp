@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { KlaviyoIntegrationCard } from "./integration/KlaviyoIntegrationCard";
 import { MailchimpIntegrationCard } from "./integration/MailchimpIntegrationCard";
 import { SendGridIntegrationCard } from "./integration/SendGridIntegrationCard";
-import { ConstantContactIntegrationCard } from "./integration/ConstantContactIntegrationCard";
 
 interface Step4Props {
   onComplete: () => void;
+  onTaskComplete?: () => void;
 }
 
-const Step4: React.FC<Step4Props> = ({ onComplete }) => {
+const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
   const [selected, setSelected] = useState("");
 
   return (
@@ -40,10 +40,6 @@ const Step4: React.FC<Step4Props> = ({ onComplete }) => {
           onSelect={setSelected}
         />
         <SendGridIntegrationCard
-          selected={selected}
-          onSelect={setSelected}
-        />
-        <ConstantContactIntegrationCard
           selected={selected}
           onSelect={setSelected}
         />
@@ -87,13 +83,18 @@ const Step4: React.FC<Step4Props> = ({ onComplete }) => {
             <option value="klaviyo">Klaviyo</option>
             <option value="mailchimp">Mailchimp</option>
             <option value="sendgrid">SendGrid</option>
-            <option value="constant">Constant Contact</option>
           </select>
         </div>
 
         <button 
           disabled={!selected}
-          onClick={onComplete}
+          onClick={() => {
+            // Save progress when email service is connected
+            if (onTaskComplete && selected) {
+              onTaskComplete();
+            }
+            onComplete();
+          }}
           style={{
             width: "100%",
             fontWeight: "700",

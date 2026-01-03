@@ -1,4 +1,12 @@
-import { Card, BlockStack, Text, InlineStack, FormLayout, Button, Divider } from "@shopify/polaris";
+import {
+  Card,
+  BlockStack,
+  Text,
+  InlineStack,
+  FormLayout,
+  Button,
+  Divider,
+} from "@shopify/polaris";
 
 interface CommunicationSettingsCardProps {
   whatsappNumber: string;
@@ -9,13 +17,13 @@ interface CommunicationSettingsCardProps {
 
 /**
  * Communication Settings Card Component
- * 
+ *
  * Displays WhatsApp and Email configuration options
  */
 export function CommunicationSettingsCard({
-  whatsappNumber,
+  // whatsappNumber,
   emailId,
-  onConfigureWhatsApp,
+  // onConfigureWhatsApp,
   onConfigureEmail,
 }: CommunicationSettingsCardProps) {
   return (
@@ -27,7 +35,7 @@ export function CommunicationSettingsCard({
 
         <FormLayout>
           {/* WhatsApp Setting */}
-          <InlineStack align="space-between" blockAlign="center">
+          {/* <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="050">
               <Text as="p" variant="bodyMd" fontWeight="medium">
                 WhatsApp Number
@@ -39,9 +47,9 @@ export function CommunicationSettingsCard({
             <Button size="slim" onClick={onConfigureWhatsApp}>
               Configure
             </Button>
-          </InlineStack>
+          </InlineStack> */}
 
-          <Divider />
+          {/* <Divider /> */}
 
           {/* Email Setting */}
           <InlineStack align="space-between" blockAlign="center">
@@ -62,4 +70,3 @@ export function CommunicationSettingsCard({
     </Card>
   );
 }
-

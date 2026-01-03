@@ -6,6 +6,7 @@ import {
   Text,
   Button,
   Divider,
+  Modal,
 } from "@shopify/polaris";
 import { InfoIcon } from "@shopify/polaris-icons";
 import { AISearchAnalyzer } from "./search";
@@ -25,8 +26,13 @@ interface AISearchAnalyzerPageProps {
  *
  * Main page component that provides a header and renders the search analyzer.
  */
-export function AISearchAnalyzerPage({ apiKey, shopInfo, history }: AISearchAnalyzerPageProps) {
+export function AISearchAnalyzerPage({
+  apiKey,
+  shopInfo,
+  history,
+}: AISearchAnalyzerPageProps) {
   const [query, setQuery] = useState("");
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   const onSubmitRef = useRef<(() => void) | null>(null);
 
   return (
@@ -50,7 +56,11 @@ export function AISearchAnalyzerPage({ apiKey, shopInfo, history }: AISearchAnal
                   customers. No complex filters needed.
                 </Text>
               </BlockStack>
-              <Button icon={InfoIcon} variant="plain">
+              <Button
+                icon={InfoIcon}
+                variant="plain"
+                onClick={() => setShowHowItWorksModal(true)}
+              >
                 How it works
               </Button>
             </InlineStack>
@@ -58,14 +68,39 @@ export function AISearchAnalyzerPage({ apiKey, shopInfo, history }: AISearchAnal
           </BlockStack>
         </Card>
 
-        <AISearchAnalyzer 
-          apiKey={apiKey} 
+        <AISearchAnalyzer
+          apiKey={apiKey}
           onSubmitRef={onSubmitRef}
           externalQuery={query}
           shopInfo={shopInfo}
           initialHistory={history}
         />
       </BlockStack>
+
+      {/* How it works Modal */}
+      <Modal
+        open={showHowItWorksModal}
+        onClose={() => setShowHowItWorksModal(false)}
+        title="How it works"
+        primaryAction={{
+          content: "Got it",
+          onAction: () => setShowHowItWorksModal(false),
+        }}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text variant="bodyMd" as="p">
+              This is a placeholder for the "How it works" content. The actual
+              content will be decided later.
+            </Text>
+            <Text variant="bodyMd" as="p" tone="subdued">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+              enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+            </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </div>
   );
 }

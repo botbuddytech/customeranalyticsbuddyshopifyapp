@@ -7,9 +7,11 @@ import {
   Button,
   Tabs,
   Icon,
+  Popover,
+  ActionList,
 } from "@shopify/polaris";
-import { SearchIcon, FilterIcon } from "@shopify/polaris-icons";
-import { useCallback } from "react";
+import { SearchIcon, SortIcon } from "@shopify/polaris-icons";
+import { useCallback, useState } from "react";
 
 interface SearchAndFilterCardProps {
   searchQuery: string;
@@ -17,13 +19,14 @@ interface SearchAndFilterCardProps {
   selectedTab: number;
   onTabChange: (selectedTabIndex: number) => void;
   tabs: Array<{ id: string; content: string }>;
-  onFilterClick?: () => void;
+  sortValue: string;
+  onSortChange: (value: string) => void;
 }
 
 /**
  * Search and Filter Card Component
  *
- * Handles search input, tab navigation, and filter actions
+ * Handles search input, tab navigation, and sort actions
  */
 export function SearchAndFilterCard({
   searchQuery,
@@ -31,11 +34,38 @@ export function SearchAndFilterCard({
   selectedTab,
   onTabChange,
   tabs,
-  onFilterClick,
+  sortValue,
+  onSortChange,
 }: SearchAndFilterCardProps) {
+  const [sortPopoverActive, setSortPopoverActive] = useState(false);
+
   const handleClearSearch = useCallback(() => {
     onSearchChange("");
   }, [onSearchChange]);
+
+  const sortOptions = [
+    { content: "A-Z", value: "name-asc" },
+    { content: "Z-A", value: "name-desc" },
+    { content: "Newest first", value: "date-desc" },
+    { content: "Oldest first", value: "date-asc" },
+  ];
+
+  const handleSortAction = useCallback(
+    (value: string) => {
+      onSortChange(value);
+      setSortPopoverActive(false);
+    },
+    [onSortChange],
+  );
+
+  const toggleSortPopover = useCallback(() => {
+    setSortPopoverActive((prev) => !prev);
+  }, []);
+
+  const getSortLabel = () => {
+    const option = sortOptions.find((opt) => opt.value === sortValue);
+    return option ? option.content : "Sort";
+  };
 
   return (
     <Card>
@@ -44,13 +74,24 @@ export function SearchAndFilterCard({
           <Text as="h3" variant="headingMd">
             🔍 Search & Filter
           </Text>
-          <Button
-            size="slim"
-            icon={FilterIcon}
-            onClick={onFilterClick || (() => {})}
+          <Popover
+            active={sortPopoverActive}
+            activator={
+              <Button size="slim" icon={SortIcon} onClick={toggleSortPopover}>
+                {getSortLabel()}
+              </Button>
+            }
+            onClose={toggleSortPopover}
+            autofocusTarget="first-node"
           >
-            Filters
-          </Button>
+            <ActionList
+              items={sortOptions.map((option) => ({
+                content: option.content,
+                onAction: () => handleSortAction(option.value),
+                active: sortValue === option.value,
+              }))}
+            />
+          </Popover>
         </InlineStack>
 
         <InlineStack gap="300" align="space-between">

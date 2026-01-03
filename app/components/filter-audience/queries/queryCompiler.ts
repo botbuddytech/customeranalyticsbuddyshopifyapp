@@ -39,6 +39,16 @@ import {
   filterByDelivery,
   type DeliveryFilter,
 } from "./delivery";
+import {
+  buildAmountSpentQueryFragment,
+  filterByAmountSpent,
+  type AmountSpentFilter,
+} from "./amountSpent";
+import {
+  buildCustomerCreatedFromQueryFragment,
+  filterByCustomerCreatedFrom,
+  type CustomerCreatedFromFilter,
+} from "./customerCreatedFrom";
 import type { AdminGraphQL } from "../../../services/dashboard.server";
 
 /**
@@ -240,6 +250,23 @@ export async function applyAllFilters(
       deliveryMethods: filters.delivery,
     };
     filteredCustomers = filterByDelivery(filteredCustomers, deliveryFilter);
+  }
+
+  // Apply amount spent filter
+  if (filters.amountSpent && filters.amountSpent.amount != null && filters.amountSpent.operator) {
+    const amountSpentFilter: AmountSpentFilter = {
+      amount: filters.amountSpent.amount,
+      operator: filters.amountSpent.operator,
+    };
+    filteredCustomers = filterByAmountSpent(filteredCustomers, amountSpentFilter);
+  }
+
+  // Apply customer created from filter
+  if (filters.customerCreatedFrom && filters.customerCreatedFrom.trim() !== "") {
+    const customerCreatedFromFilter: CustomerCreatedFromFilter = {
+      date: filters.customerCreatedFrom,
+    };
+    filteredCustomers = filterByCustomerCreatedFrom(filteredCustomers, customerCreatedFromFilter);
   }
 
   // Apply other filters here as they are implemented:

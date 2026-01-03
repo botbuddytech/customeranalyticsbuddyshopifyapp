@@ -30,6 +30,9 @@ import {
   saveUserPreferences,
 } from "../services/user-preferences.server";
 import { getShopInfo } from "../services/shop-info.server";
+import { getCurrentPlanName } from "../services/subscription.server";
+import { getMailchimpConfig } from "../services/mailchimp.server";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // ==========================================
 // Server-side Functions
@@ -52,36 +55,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Fetch shop information (name and contact email)
   const shopInfo = await getShopInfo(admin, shop);
 
-  // Try to fetch the merchant's current app subscription from Shopify.
-  // If we can't, fall back to a neutral "managed via Shopify" label instead of a fake plan.
-  let selectedPlan: string = "Managed via Shopify billing";
+  // Fetch Mailchimp connection status
+  const mailchimpConnection = await getMailchimpConfig(shop);
 
-  try {
-    const response = await admin.graphql(`
-      query AppCurrentSubscription {
-        appInstallation {
-          activeSubscriptions {
-            name
-            status
-          }
-        }
-      }
-    `);
-
-    const json = await response.json();
-    const activeSub =
-      json.data?.appInstallation?.activeSubscriptions?.[0] || null;
-
-    if (activeSub?.name) {
-      // Use the subscription name directly (e.g. "Growth Plan")
-      selectedPlan = activeSub.name as string;
-    }
-  } catch (error) {
-    console.error(
-      "[Settings loader] Error fetching current subscription:",
-      error,
-    );
-    // Fall back to default "basic" if the query fails
+  // Fetch the merchant's current app subscription from Shopify
+  const currentPlanName = await getCurrentPlanName(admin);
+  const selectedPlan = currentPlanName || "Managed via Shopify billing";
+  
+  // Check if dev mode is enabled
+  const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+  let isDevMode = false;
+  if (enableAllFeatures === "true") {
+    isDevMode = true;
+  } else if (enableAllFeatures === "false") {
+    isDevMode = false;
+  } else if (process.env.NODE_ENV === "development") {
+    isDevMode = true;
   }
 
   return {
@@ -99,6 +88,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       aiAudienceAnalysis: true,
     },
     userPreferences,
+    mailchimpConnection: mailchimpConnection
+      ? {
+          isConnected: true,
+          connectedAt: mailchimpConnection.connectedAt.toISOString(),
+        }
+      : undefined,
+    currentPlan: currentPlanName,
+    isDevMode,
   };
 };
 
@@ -225,6 +222,7 @@ export default function SettingsPage() {
 
   return (
     <Frame>
+      <UpgradeBanner />
       <Page>
         <TitleBar title="Settings" />
 
@@ -240,6 +238,7 @@ export default function SettingsPage() {
         <Settings
           settings={loaderData.settings}
           initialLanguage={loaderData.userPreferences.language}
+          mailchimpConnection={loaderData.mailchimpConnection}
           actionData={actionData}
           onSubmit={handleSubmit}
           isLoading={isLoading}

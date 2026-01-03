@@ -4,6 +4,7 @@ import { Page, Frame } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { getSupabaseForShop } from "../services/supabase-jwt.server";
+import { getCurrentPlanName } from "../services/subscription.server";
 import { SubscriptionPageContent } from "../components/subscription";
 
 type PlanWithBenefits = {
@@ -76,32 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     })) || [];
 
   // Fetch current Shopify subscription
-  let currentPlan: string | null = null;
-  try {
-    const response = await admin.graphql(`
-      query AppCurrentSubscription {
-        appInstallation {
-          activeSubscriptions {
-            name
-            status
-          }
-        }
-      }
-    `);
-
-    const json = await response.json();
-    const activeSub =
-      json.data?.appInstallation?.activeSubscriptions?.[0] || null;
-
-    if (activeSub?.name) {
-      currentPlan = activeSub.name as string;
-    }
-  } catch (error) {
-    console.error(
-      "[Subscription loader] Error fetching current subscription:",
-      error,
-    );
-  }
+  const currentPlan = await getCurrentPlanName(admin);
 
   return { plans, currentPlan };
 };

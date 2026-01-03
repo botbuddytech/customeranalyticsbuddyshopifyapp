@@ -56,6 +56,8 @@ import { PurchaseTiming } from "../components/dashboard/PurchaseTiming/index";
 import { VisualAnalytics } from "../components/dashboard/VisualAnalytics/index";
 import { getDashboardPreferences } from "../services/dashboard-preferences.server";
 import { authenticate } from "../shopify.server";
+import { getCurrentPlanName } from "../services/subscription.server";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // Register Chart.js components
 ChartJS.register(
@@ -74,20 +76,40 @@ ChartJS.register(
  * Loader function - Load dashboard preferences from Supabase
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
     const preferences = await getDashboardPreferences(shop);
-    console.log(`[Dashboard Loader] Preferences from service:`, preferences ? "Found" : "Null (using defaults)");
-    return { preferences };
+    const currentPlan = await getCurrentPlanName(admin);
+    // Check if dev mode is enabled (allows all features regardless of plan)
+    // Priority: 1. ENABLE_ALL_FEATURES=true → enable, 2. ENABLE_ALL_FEATURES=false → disable, 3. NODE_ENV=development → enable
+    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+    let isDevMode = false;
+    if (enableAllFeatures === "true") {
+      isDevMode = true;
+    } else if (enableAllFeatures === "false") {
+      isDevMode = false;
+    } else if (process.env.NODE_ENV === "development") {
+      isDevMode = true;
+    }
+    return { preferences, currentPlan, isDevMode };
   } catch (error) {
     console.error(
       `[Dashboard] Error loading preferences for shop ${shop}:`,
       error,
     );
     // Return default preferences on error
-    return { preferences: null };
+    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+    let isDevMode = false;
+    if (enableAllFeatures === "true") {
+      isDevMode = true;
+    } else if (enableAllFeatures === "false") {
+      isDevMode = false;
+    } else if (process.env.NODE_ENV === "development") {
+      isDevMode = true;
+    }
+    return { preferences: null, currentPlan: null, isDevMode };
   }
 };
 
@@ -98,7 +120,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
  * No prop passing - clean and modular!
  */
 export default function Dashboard() {
-  const { preferences: savedPreferences } = useLoaderData<typeof loader>();
+  const { preferences: savedPreferences, currentPlan, isDevMode } = useLoaderData<typeof loader>();
   const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(
     null,
   );
@@ -157,6 +179,7 @@ export default function Dashboard() {
 
   return (
     <Frame>
+      <UpgradeBanner currentPlan={currentPlan} isDevMode={isDevMode} />
       <Page>
         <TitleBar title="Customer Insights Dashboard" />
 
@@ -167,100 +190,102 @@ export default function Dashboard() {
           />
         )}
 
-      {/* Segment View Modal */}
-      {activeSegmentModal && (
-        <Modal
-          open={!!activeSegmentModal}
-          onClose={() => setActiveSegmentModal(null)}
-          title={`${activeSegmentModal} Segment`}
-          primaryAction={{
-            content: "Export Data",
-            onAction: () => setActiveSegmentModal(null),
-          }}
-          secondaryActions={[
-            {
-              content: "Close",
+        {/* Segment View Modal */}
+        {activeSegmentModal && (
+          <Modal
+            open={!!activeSegmentModal}
+            onClose={() => setActiveSegmentModal(null)}
+            title={`${activeSegmentModal} Segment`}
+            primaryAction={{
+              content: "Export Data",
               onAction: () => setActiveSegmentModal(null),
-            },
-          ]}
-        >
-          <Modal.Section>
-            <EmptyState
-              heading={`${activeSegmentModal} Details`}
-              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-            >
-              <p>
-                This is where you would see detailed information about the{" "}
-                {activeSegmentModal.toLowerCase()} segment. In a real
-                application, this would include a table of data, filters, and
-                additional metrics.
-              </p>
-            </EmptyState>
-          </Modal.Section>
-        </Modal>
-      )}
+            }}
+            secondaryActions={[
+              {
+                content: "Close",
+                onAction: () => setActiveSegmentModal(null),
+              },
+            ]}
+          >
+            <Modal.Section>
+              <EmptyState
+                heading={`${activeSegmentModal} Details`}
+                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              >
+                <p>
+                  This is where you would see detailed information about the{" "}
+                  {activeSegmentModal.toLowerCase()} segment. In a real
+                  application, this would include a table of data, filters, and
+                  additional metrics.
+                </p>
+              </EmptyState>
+            </Modal.Section>
+          </Modal>
+        )}
 
-      <Box paddingInlineStart="400" paddingInlineEnd="400">
-        <BlockStack gap="600">
-          {/* Dashboard Controls */}
-          <DashboardControls
-            dateRangeValue={dateRangeValue}
-            onDateRangeChange={setDateRangeValue}
-            onCustomize={handleCustomizeDashboard}
-            onVisibilityChange={handleVisibilityChange}
-            initialVisibility={savedPreferences}
-            currentVisibility={visibility}
-          />
-
-          {/* Customers Overview Section - Fetches its own data */}
-          {visibility?.customersOverview.enabled !== false && (
-            <Layout>
-              <CustomersOverview
-                dateRange={apiDateRange}
-                onViewSegment={handleViewSegment}
-                onShowToast={handleShowToast}
-                visibility={visibility?.customersOverview.cards}
-              />
-            </Layout>
-          )}
-
-          {/* Purchase & Order Behavior Section - Fetches its own data */}
-          {visibility?.purchaseOrderBehavior.enabled !== false && (
-            <Layout>
-              <PurchaseOrderBehavior
-                dateRange={apiDateRange}
-                onViewSegment={handleViewSegment}
-                onShowToast={handleShowToast}
-                visibility={visibility?.purchaseOrderBehavior.cards}
-              />
-            </Layout>
-          )}
-
-          {/* Engagement Patterns Section - Fetches its own data */}
-          {visibility?.engagementPatterns.enabled !== false && (
-            <Layout>
-              <EngagementPatterns
-                dateRange={apiDateRange}
-                onViewSegment={handleViewSegment}
-                onShowToast={handleShowToast}
-                visibility={visibility?.engagementPatterns.cards}
-              />
-            </Layout>
-          )}
-
-          {/* Visual Analytics Section - Fetches its own data */}
-          <VisualAnalytics dateRange={apiDateRange} />
-
-          {/* Purchase Timing Section - Fetches its own data */}
-          <Layout>
-            <PurchaseTiming
-              dateRange={apiDateRange}
-              onViewSegment={handleViewSegment}
-              onShowToast={handleShowToast}
+        <Box paddingInlineStart="400" paddingInlineEnd="400">
+          <BlockStack gap="600">
+            {/* Dashboard Controls */}
+            <DashboardControls
+              dateRangeValue={dateRangeValue}
+              onDateRangeChange={setDateRangeValue}
+              onCustomize={handleCustomizeDashboard}
+              onVisibilityChange={handleVisibilityChange}
+              initialVisibility={savedPreferences}
+              currentVisibility={visibility}
+              currentPlan={currentPlan}
+              isDevMode={isDevMode}
             />
-          </Layout>
-        </BlockStack>
-      </Box>
+
+            {/* Customers Overview Section - Fetches its own data */}
+            {visibility?.customersOverview.enabled !== false && (
+              <Layout>
+                <CustomersOverview
+                  dateRange={apiDateRange}
+                  onViewSegment={handleViewSegment}
+                  onShowToast={handleShowToast}
+                  visibility={visibility?.customersOverview.cards}
+                />
+              </Layout>
+            )}
+
+            {/* Purchase & Order Behavior Section - Fetches its own data */}
+            {visibility?.purchaseOrderBehavior.enabled !== false && (
+              <Layout>
+                <PurchaseOrderBehavior
+                  dateRange={apiDateRange}
+                  onViewSegment={handleViewSegment}
+                  onShowToast={handleShowToast}
+                  visibility={visibility?.purchaseOrderBehavior.cards}
+                />
+              </Layout>
+            )}
+
+            {/* Engagement Patterns Section - Fetches its own data */}
+            {visibility?.engagementPatterns.enabled !== false && (
+              <Layout>
+                <EngagementPatterns
+                  dateRange={apiDateRange}
+                  onViewSegment={handleViewSegment}
+                  onShowToast={handleShowToast}
+                  visibility={visibility?.engagementPatterns.cards}
+                />
+              </Layout>
+            )}
+
+            {/* Visual Analytics Section - Fetches its own data */}
+            <VisualAnalytics dateRange={apiDateRange} />
+
+            {/* Purchase Timing Section - Fetches its own data */}
+            <Layout>
+              <PurchaseTiming
+                dateRange={apiDateRange}
+                onViewSegment={handleViewSegment}
+                onShowToast={handleShowToast}
+              />
+            </Layout>
+          </BlockStack>
+        </Box>
       </Page>
     </Frame>
   );

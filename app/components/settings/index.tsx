@@ -20,6 +20,10 @@ interface SettingsProps {
   isTestingWhatsApp: boolean;
   isTestingEmail: boolean;
   initialLanguage: string;
+  mailchimpConnection?: {
+    isConnected: boolean;
+    connectedAt?: string;
+  };
 }
 
 interface SettingsSectionProps {
@@ -91,6 +95,7 @@ export function Settings({
   isTestingWhatsApp,
   isTestingEmail,
   initialLanguage,
+  mailchimpConnection,
 }: SettingsProps) {
   // Language / localization state (for future Weglot / i18n integration)
   const [selectedLanguage, setSelectedLanguage] = useState<string>(
@@ -308,7 +313,7 @@ export function Settings({
             title="Integrations"
             description="Connect your existing email tools like Mailchimp and Klaviyo (coming soon) with your audience insights."
           >
-            <IntegrationSettings />
+            <IntegrationSettings mailchimpConnection={mailchimpConnection} />
           </SettingsSection>
 
           {/* Section: Plan & Billing */}

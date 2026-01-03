@@ -12,13 +12,40 @@ import { KlaviyoIntegration } from "./klaviyo";
 import { SendGridIntegration } from "./sendgrid";
 import { ConstantContactIntegration } from "./constant-contact";
 
-export function IntegrationSettings() {
+interface IntegrationSettingsProps {
+  mailchimpConnection?: {
+    isConnected: boolean;
+    connectedAt?: string;
+  };
+}
+
+export function IntegrationSettings({ mailchimpConnection }: IntegrationSettingsProps) {
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
   const showComingSoonToast = () => {
     setToastMessage("Integrations are coming soon.");
     setToastActive(true);
+  };
+
+  const handleMailchimpConnect = async () => {
+    try {
+      // Fetch the OAuth URL from our API
+      const response = await fetch("/api/mailchimp/authorize");
+      const { authUrl } = await response.json();
+      
+      // Use App Bridge to redirect to external OAuth page
+      // This is required for embedded Shopify apps
+      const redirect = window.open(authUrl, '_top');
+      if (!redirect) {
+        setToastMessage("Please allow popups to connect Mailchimp");
+        setToastActive(true);
+      }
+    } catch (error) {
+      console.error("Failed to initiate Mailchimp OAuth:", error);
+      setToastMessage("Failed to connect to Mailchimp. Please try again.");
+      setToastActive(true);
+    }
   };
 
   return (
@@ -44,7 +71,11 @@ export function IntegrationSettings() {
         </BlockStack>
       </Card>
 
-      <MailchimpIntegration onConnect={showComingSoonToast} />
+      <MailchimpIntegration 
+        isConnected={mailchimpConnection?.isConnected || false}
+        connectedAt={mailchimpConnection?.connectedAt}
+        onConnect={handleMailchimpConnect} 
+      />
       <KlaviyoIntegration onConnect={showComingSoonToast} />
       <SendGridIntegration onConnect={showComingSoonToast} />
       <ConstantContactIntegration onConnect={showComingSoonToast} />

@@ -49,9 +49,26 @@ export async function filterCustomers(
 ): Promise<FilterCustomersResult> {
   try {
     // Check if any filters are active
-    const hasActiveFilters = Object.values(filters).some(
-      (filterArray) => filterArray && filterArray.length > 0
-    );
+    const hasActiveFilters = (() => {
+      // Check array-based filters
+      const hasArrayFilters = Object.entries(filters).some(([key, value]) => {
+        if (key === "amountSpent" || key === "customerCreatedFrom" || key === "graphqlQuery") {
+          return false; // Skip these, check separately
+        }
+        return value != null && Array.isArray(value) && value.length > 0;
+      });
+      
+      // Check amountSpent filter
+      const hasAmountSpentFilter = filters.amountSpent != null &&
+        filters.amountSpent.amount != null &&
+        filters.amountSpent.operator != null;
+      
+      // Check customerCreatedFrom filter
+      const hasCustomerCreatedFromFilter = filters.customerCreatedFrom != null &&
+        filters.customerCreatedFrom.trim() !== "";
+      
+      return hasArrayFilters || hasAmountSpentFilter || hasCustomerCreatedFromFilter;
+    })();
 
     if (!hasActiveFilters) {
       return {

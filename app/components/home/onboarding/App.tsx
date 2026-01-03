@@ -1,24 +1,147 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useFetcher } from "react-router";
 import ProgressBar from "./ProgressBar";
 import Navigation from "./Navigation";
 import Step1 from "./Step1";
 import Step2 from "./Step2";
 import Step3 from "./Step3";
 import Step4 from "./Step4";
-import { Card } from "@shopify/polaris";
+import Step5 from "./Step5";
+import { Toast } from "@shopify/polaris";
 
-const App: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+interface PlanWithBenefits {
+  id: string;
+  code: string;
+  name: string;
+  price: string;
+  priceNote: string;
+  description: string;
+  badgeTone: string | null;
+  badgeLabel: string | null;
+  primaryCtaLabel: string;
+  primaryCtaVariant: string;
+  isCurrentDefault: boolean;
+  benefits: {
+    id: string;
+    planId: string;
+    sortOrder: number;
+    label: string;
+  }[];
+}
+
+interface OnboardingAppProps {
+  initialStep?: number;
+  nextStep?: number;
+  completedSteps?: number[];
+  isCompleted?: boolean;
+  shop?: string;
+  plans?: PlanWithBenefits[];
+  currentPlan?: string | null;
+  onComplete?: () => void;
+}
+
+const App: React.FC<OnboardingAppProps> = ({
+  initialStep = 1,
+  nextStep: nextStepProp,
+  completedSteps = [],
+  isCompleted = false,
+  shop,
+  plans = [],
+  currentPlan = null,
+  onComplete,
+}) => {
+
+  // Calculate the step to resume from based on completed steps
+  const calculateResumeStep = useCallback((): number => {
+    if (nextStepProp) {
+      return nextStepProp;
+    }
+    if (isCompleted && completedSteps.length >= 4) {
+      return 5;
+    }
+    // Find the first incomplete step
+    for (let step = 1; step <= 4; step++) {
+      if (!completedSteps.includes(step)) {
+        return step;
+      }
+    }
+    // All steps completed
+    return 5;
+  }, [nextStepProp, isCompleted, completedSteps]);
+
+  const [currentStep, setCurrentStep] = useState(() =>
+    calculateResumeStep(),
+  );
   const [isFinishing, setIsFinishing] = useState(false);
+  const [localCompletedSteps, setLocalCompletedSteps] =
+    useState<number[]>(completedSteps);
+  const [hasTriggeredCompletion, setHasTriggeredCompletion] = useState(false);
+  const fetcher = useFetcher();
   const totalSteps = 4;
 
+  // Trigger completion callback when onboarding is completed (only once)
+  useEffect(() => {
+    if (
+      currentStep === 5 &&
+      localCompletedSteps.length >= totalSteps &&
+      onComplete &&
+      !hasTriggeredCompletion
+    ) {
+      setHasTriggeredCompletion(true);
+      onComplete();
+    }
+  }, [currentStep, localCompletedSteps.length, totalSteps, onComplete, hasTriggeredCompletion]);
+
+  // Update current step only on initial load or when onboarding is completed
+  useEffect(() => {
+    // Only update step on initial mount or when all steps are completed
+    if (isCompleted && localCompletedSteps.length >= totalSteps && currentStep !== 5) {
+      setCurrentStep(5);
+    }
+    // Update local completed steps when props change
+    setLocalCompletedSteps(completedSteps);
+  }, [isCompleted, completedSteps.length, totalSteps]);
+
+  const saveProgress = useCallback(async (step: number) => {
+    if (!shop) return;
+
+    const newCompletedSteps = [
+      ...new Set([...localCompletedSteps, step]),
+    ].sort((a, b) => a - b);
+
+    setLocalCompletedSteps(newCompletedSteps);
+
+    fetcher.submit(
+      {
+        intent: "saveOnboardingProgress",
+        step: step.toString(),
+        completedSteps: JSON.stringify(newCompletedSteps),
+      },
+      { method: "POST", encType: "application/json" },
+    );
+  }, [shop, localCompletedSteps, fetcher]);
+
   const nextStep = () => {
+    // Update local state immediately to prevent reset
+    if (currentStep <= totalSteps) {
+      const newCompletedSteps = [
+        ...new Set([...localCompletedSteps, currentStep]),
+      ].sort((a, b) => a - b);
+      setLocalCompletedSteps(newCompletedSteps);
+      
+      // Save to database (async, but we've already updated local state)
+      saveProgress(currentStep);
+    }
+
+    // Move to next step immediately
     if (currentStep < totalSteps) {
       setCurrentStep((prev) => prev + 1);
+    } else if (currentStep === totalSteps) {
+      // All steps completed, show completion step
+      setCurrentStep(5);
     } else {
       setIsFinishing(true);
       setTimeout(() => {
-        alert("🎉 Welcome aboard! Your dashboard is being prepared.");
         setIsFinishing(false);
       }, 1500);
     }
@@ -33,27 +156,58 @@ const App: React.FC = () => {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1 onComplete={nextStep} />;
+        return (
+          <Step1
+            onComplete={nextStep}
+            onTaskComplete={() => saveProgress(1)}
+            isCompleted={localCompletedSteps.includes(1)}
+          />
+        );
       case 2:
-        return <Step2 onComplete={nextStep} />;
+        return (
+          <Step2
+            onComplete={nextStep}
+            onTaskComplete={() => saveProgress(2)}
+            plans={plans}
+            currentPlan={currentPlan}
+          />
+        );
       case 3:
-        return <Step3 onComplete={nextStep} />;
+        return (
+          <Step3
+            onComplete={nextStep}
+            onTaskComplete={() => saveProgress(3)}
+            shop={shop}
+          />
+        );
       case 4:
-        return <Step4 onComplete={nextStep} />;
+        return (
+          <Step4
+            onComplete={nextStep}
+            onTaskComplete={() => saveProgress(4)}
+          />
+        );
+      case 5:
+        return <Step5 onComplete={nextStep} />;
       default:
-        return <Step1 onComplete={nextStep} />;
+        return (
+          <Step1
+            onComplete={nextStep}
+            onTaskComplete={() => saveProgress(1)}
+          />
+        );
     }
   };
 
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#F6F6F7",
-      }}
-    >
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#F6F6F7",
+        }}
+      >
       <main
         style={{
           flexGrow: 1,
@@ -141,43 +295,50 @@ const App: React.FC = () => {
           </div>
 
           {/* Footer Controls */}
-          <div
-            style={{
-              borderTop: "1px solid #E1E3E5",
-              backgroundColor: "#F9FAFB",
-              paddingLeft: "32px",
-              paddingRight: "32px",
-              paddingTop: "20px",
-              paddingBottom: "20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Navigation
-              currentStep={currentStep}
-              totalSteps={totalSteps}
-              onNext={nextStep}
-              onPrev={prevStep}
-            />
-          </div>
+          {currentStep <= totalSteps && (
+            <div
+              style={{
+                borderTop: "1px solid #E1E3E5",
+                backgroundColor: "#F9FAFB",
+                paddingLeft: "32px",
+                paddingRight: "32px",
+                paddingTop: "20px",
+                paddingBottom: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Navigation
+                currentStep={currentStep}
+                totalSteps={totalSteps}
+                onNext={nextStep}
+                onPrev={prevStep}
+              />
+            </div>
+          )}
         </div>
 
         {/* Visual Progress Dots */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "32px" }}>
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              style={{
-                height: "8px",
-                borderRadius: "9999px",
-                transition: "all 0.3s",
-                width: currentStep === s ? "24px" : "8px",
-                backgroundColor: currentStep === s ? "#008060" : "#D1D5DB",
-              }}
-            />
-          ))}
-        </div>
+        {currentStep <= totalSteps && (
+          <div style={{ display: "flex", gap: "8px", marginBottom: "32px" }}>
+            {[1, 2, 3, 4].map((s) => (
+              <div
+                key={s}
+                style={{
+                  height: "8px",
+                  borderRadius: "9999px",
+                  transition: "all 0.3s",
+                  width: currentStep === s ? "24px" : "8px",
+                  backgroundColor:
+                    currentStep === s || localCompletedSteps.includes(s)
+                      ? "#008060"
+                      : "#D1D5DB",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </main>
 
       <footer

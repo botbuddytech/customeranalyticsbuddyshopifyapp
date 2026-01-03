@@ -21,10 +21,19 @@ import { Page, Frame, Toast } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { MySavedLists } from "../components/my-saved-lists";
-import type { LoaderData, ActionData } from "../components/my-saved-lists/types";
-import { getSavedLists, deleteSavedList, updateSavedList } from "../services/saved-lists.server";
+import type {
+  LoaderData,
+  ActionData,
+} from "../components/my-saved-lists/types";
+import {
+  getSavedLists,
+  deleteSavedList,
+  updateSavedList,
+} from "../services/saved-lists.server";
 import { mapToSavedLists } from "../services/saved-lists-mapper.server";
+import { getCurrentPlanName } from "../services/subscription.server";
 import { useState, useEffect } from "react";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // ==========================================
 // Server-side Functions
@@ -36,19 +45,37 @@ import { useState, useEffect } from "react";
  * Retrieves all saved customer segments from the database via Prisma.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
     // Fetch saved lists from database
     const prismaLists = await getSavedLists(shop);
-    
+
     // Map to component format
     const savedLists = mapToSavedLists(prismaLists);
 
     // Calculate recent activity stats
-    const totalCustomers = savedLists.reduce((sum, list) => sum + list.customerCount, 0);
-    const activeLists = savedLists.filter(list => list.status === "active").length;
+    const totalCustomers = savedLists.reduce(
+      (sum, list) => sum + list.customerCount,
+      0,
+    );
+    const activeLists = savedLists.filter(
+      (list) => list.status === "active",
+    ).length;
+
+    const currentPlan = await getCurrentPlanName(admin);
+    
+    // Check if dev mode is enabled
+    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+    let isDevMode = false;
+    if (enableAllFeatures === "true") {
+      isDevMode = true;
+    } else if (enableAllFeatures === "false") {
+      isDevMode = false;
+    } else if (process.env.NODE_ENV === "development") {
+      isDevMode = true;
+    }
 
     return {
       savedLists,
@@ -56,20 +83,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       recentActivity: {
         listsCreated: savedLists.length,
         customersExported: totalCustomers,
-        campaignsSent: 0 // TODO: Calculate from campaigns table when implemented
-      }
+        campaignsSent: 0, // TODO: Calculate from campaigns table when implemented
+      },
+      currentPlan,
+      isDevMode,
     };
   } catch (error) {
     console.error("[My Saved Lists] Error loading lists:", error);
     // Return empty data on error
+    const currentPlan = await getCurrentPlanName(admin);
+    
+    // Check if dev mode is enabled
+    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+    let isDevMode = false;
+    if (enableAllFeatures === "true") {
+      isDevMode = true;
+    } else if (enableAllFeatures === "false") {
+      isDevMode = false;
+    } else if (process.env.NODE_ENV === "development") {
+      isDevMode = true;
+    }
+
     return {
       savedLists: [],
       totalLists: 0,
       recentActivity: {
         listsCreated: 0,
         customersExported: 0,
-        campaignsSent: 0
-      }
+        campaignsSent: 0,
+      },
+      currentPlan,
+      isDevMode,
     };
   }
 };
@@ -93,27 +137,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: "Action type is required"
+        message: "Action type is required",
       }),
       {
         status: 400,
-        headers: { "Content-Type": "application/json" }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 
   // Validate actionType is one of the allowed actions
-  const allowedActions = ["deleteList", "archiveList", "unarchiveList", "exportList", "duplicateList"];
+  const allowedActions = [
+    "deleteList",
+    "archiveList",
+    "unarchiveList",
+    "exportList",
+    "duplicateList",
+  ];
   if (!allowedActions.includes(actionType)) {
     return new Response(
       JSON.stringify({
         success: false,
-        message: `Invalid action type. Must be one of: ${allowedActions.join(", ")}`
+        message: `Invalid action type. Must be one of: ${allowedActions.join(", ")}`,
       }),
       {
         status: 400,
-        headers: { "Content-Type": "application/json" }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 
@@ -122,12 +172,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: "List ID is required"
+        message: "List ID is required",
       }),
       {
         status: 400,
-        headers: { "Content-Type": "application/json" }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 
@@ -142,52 +192,54 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           return {
             success: false,
             message: "List not found or you don't have permission to delete it",
-            type: "delete"
+            type: "delete",
           };
         }
 
         return {
           success: true,
           message: "Customer list deleted successfully",
-          type: "delete"
+          type: "delete",
         };
 
       case "archiveList":
         const archived = await updateSavedList(shop, listId, {
-          status: "archived"
+          status: "archived",
         });
-        
+
         if (!archived) {
           return {
             success: false,
-            message: "List not found or you don't have permission to archive it",
-            type: "archive"
+            message:
+              "List not found or you don't have permission to archive it",
+            type: "archive",
           };
         }
 
         return {
           success: true,
           message: "Customer list archived successfully",
-          type: "archive"
+          type: "archive",
         };
 
       case "unarchiveList":
         const unarchived = await updateSavedList(shop, listId, {
-          status: "active"
+          status: "active",
         });
-        
+
         if (!unarchived) {
           return {
             success: false,
-            message: "List not found or you don't have permission to unarchive it",
-            type: "unarchive"
+            message:
+              "List not found or you don't have permission to unarchive it",
+            type: "unarchive",
           };
         }
 
         return {
           success: true,
           message: "Customer list unarchived successfully",
-          type: "unarchive"
+          type: "unarchive",
         };
 
       case "exportList":
@@ -198,12 +250,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           return new Response(
             JSON.stringify({
               success: false,
-              message: "Export format is required"
+              message: "Export format is required",
             }),
             {
               status: 400,
-              headers: { "Content-Type": "application/json" }
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           );
         }
 
@@ -213,12 +265,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           return new Response(
             JSON.stringify({
               success: false,
-              message: `Invalid export format. Must be one of: ${supportedFormats.join(", ")}`
+              message: `Invalid export format. Must be one of: ${supportedFormats.join(", ")}`,
             }),
             {
               status: 400,
-              headers: { "Content-Type": "application/json" }
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           );
         }
 
@@ -228,7 +280,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return {
           success: true,
           message: `Customer list exported as ${format}`,
-          type: "export"
+          type: "export",
         };
 
       case "duplicateList":
@@ -238,7 +290,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return {
           success: true,
           message: "Customer list duplicated successfully",
-          type: "duplicate"
+          type: "duplicate",
         };
 
       default:
@@ -246,18 +298,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return new Response(
           JSON.stringify({
             success: false,
-            message: "Invalid action type"
+            message: "Invalid action type",
           }),
           {
             status: 400,
-            headers: { "Content-Type": "application/json" }
-          }
+            headers: { "Content-Type": "application/json" },
+          },
         );
     }
   } catch (error) {
     return {
       success: false,
-      message: "An error occurred while processing your request"
+      message: "An error occurred while processing your request",
     };
   }
 };
@@ -287,9 +339,10 @@ export default function MySavedListsPage() {
 
   return (
     <Frame>
+      <UpgradeBanner currentPlan={loaderData.currentPlan} isDevMode={loaderData.isDevMode} />
       <Page fullWidth>
         <TitleBar title="My Saved Lists" />
-        
+
         {/* Toast for success/error messages */}
         {toastActive && (
           <Toast

@@ -1,10 +1,18 @@
-import { Card, BlockStack, InlineStack, Text, Button } from "@shopify/polaris";
+import { Card, BlockStack, InlineStack, Text, Button, Badge } from "@shopify/polaris";
 
 interface MailchimpIntegrationProps {
+  isConnected: boolean;
+  connectedAt?: string;
   onConnect: () => void;
+  onDisconnect?: () => void;
 }
 
-export function MailchimpIntegration({ onConnect }: MailchimpIntegrationProps) {
+export function MailchimpIntegration({ 
+  isConnected, 
+  connectedAt,
+  onConnect,
+  onDisconnect 
+}: MailchimpIntegrationProps) {
   return (
     <Card>
       <BlockStack gap="200">
@@ -27,19 +35,34 @@ export function MailchimpIntegration({ onConnect }: MailchimpIntegrationProps) {
               M
             </div>
             <BlockStack gap="050">
-              <Text as="h3" variant="headingSm">
-                Mailchimp
-              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h3" variant="headingSm">
+                  Mailchimp
+                </Text>
+                {isConnected && <Badge tone="success">Connected</Badge>}
+              </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
-                Sync segments and send campaigns through your Mailchimp account.
+                {isConnected 
+                  ? `Connected ${connectedAt ? `on ${new Date(connectedAt).toLocaleDateString()}` : ''}`
+                  : "Sync segments and send campaigns through your Mailchimp account."}
               </Text>
             </BlockStack>
           </InlineStack>
         </InlineStack>
-        <InlineStack align="end">
-          <Button variant="secondary" onClick={onConnect}>
-            Connect Mailchimp
-          </Button>
+        <InlineStack align="end" gap="200">
+          {isConnected ? (
+            <>
+              {onDisconnect && (
+                <Button onClick={onDisconnect}>
+                  Disconnect
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button variant="primary" onClick={onConnect}>
+              Connect Mailchimp
+            </Button>
+          )}
         </InlineStack>
       </BlockStack>
     </Card>

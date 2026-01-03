@@ -12,8 +12,15 @@ import {
   ShoppingTiming,
   PaymentMethods,
   DeliveryPreferences,
+  AmountSpent,
+  CustomerCreatedFrom,
 } from "./filters";
-import type { FilterData, SegmentResults, FilterOption } from "./types";
+import type {
+  FilterData,
+  SegmentResults,
+  FilterOption,
+  AmountSpentFilter,
+} from "./types";
 
 interface AudienceFilterFormProps {
   onSubmit?: (filters: FilterData) => Promise<SegmentResults | null>;
@@ -58,6 +65,8 @@ export function AudienceFilterForm({
         device: false,
         payment: false,
         delivery: false,
+        amountSpent: false,
+        customerCreatedFrom: false,
       };
     }
 
@@ -68,6 +77,14 @@ export function AudienceFilterForm({
       device: (initialFilters.device?.length ?? 0) > 0 || false,
       payment: (initialFilters.payment?.length ?? 0) > 0 || false,
       delivery: (initialFilters.delivery?.length ?? 0) > 0 || false,
+      amountSpent:
+        (initialFilters.amountSpent?.amount != null &&
+          initialFilters.amountSpent?.operator != null) ||
+        false,
+      customerCreatedFrom:
+        (initialFilters.customerCreatedFrom != null &&
+          initialFilters.customerCreatedFrom.trim() !== "") ||
+        false,
     };
   };
 
@@ -83,6 +100,8 @@ export function AudienceFilterForm({
       device: [],
       payment: [],
       delivery: [],
+      amountSpent: undefined,
+      customerCreatedFrom: null,
     },
   );
 
@@ -105,44 +124,104 @@ export function AudienceFilterForm({
     });
   };
 
-  // Handle filter checkbox changes
+  // Handle filter checkbox changes (only for array-based filters)
   const handleFilterChange = (
     sectionId: string,
     value: string,
     checked: boolean,
   ) => {
     setSelectedFilters((prev) => {
-      const sectionFilters = prev[sectionId as keyof FilterData] || [];
+      const sectionFilters = prev[sectionId as keyof FilterData];
+      // Ensure sectionFilters is an array (for array-based filters only)
+      const filtersArray = Array.isArray(sectionFilters) ? sectionFilters : [];
+
       if (checked) {
         return {
           ...prev,
-          [sectionId]: [...sectionFilters, value],
+          [sectionId]: [...filtersArray, value],
         };
       } else {
         return {
           ...prev,
-          [sectionId]: sectionFilters.filter((item) => item !== value),
+          [sectionId]: filtersArray.filter((item) => item !== value),
         };
       }
     });
   };
 
-  const totalFiltersCount = useMemo(
-    () =>
-      Object.values(selectedFilters).reduce(
-        (total, filters) => total + filters.length,
-        0,
-      ),
-    [selectedFilters],
-  );
+  // Handle amount spent filter changes (special handler for non-array filter)
+  const handleAmountSpentChange = (filter: AmountSpentFilter | undefined) => {
+    setSelectedFilters((prev) => ({
+      ...prev,
+      amountSpent: filter,
+    }));
+  };
+
+  // Handle customer created from filter changes
+  const handleCustomerCreatedFromChange = (date: string | null) => {
+    setSelectedFilters((prev) => ({
+      ...prev,
+      customerCreatedFrom: date,
+    }));
+  };
+
+  const totalFiltersCount = useMemo(() => {
+    let count = 0;
+    Object.entries(selectedFilters).forEach(([key, value]) => {
+      if (key === "amountSpent") {
+        // Count amountSpent as 1 if it's active
+        if (
+          value &&
+          typeof value === "object" &&
+          "amount" in value &&
+          value.amount != null &&
+          value.operator
+        ) {
+          count += 1;
+        }
+      } else if (key === "customerCreatedFrom") {
+        // Count customerCreatedFrom as 1 if it's active
+        if (value != null && typeof value === "string" && value.trim() !== "") {
+          count += 1;
+        }
+      } else if (
+        key !== "graphqlQuery" &&
+        value != null &&
+        Array.isArray(value)
+      ) {
+        count += value.length;
+      }
+    });
+    return count;
+  }, [selectedFilters]);
 
   // Function to fetch preview count
   const fetchPreviewCount = useCallback(async (filters: FilterData) => {
     // If no filters selected, reset count
-    const filterCount = Object.values(filters).reduce(
-      (total, filterArray) => total + filterArray.length,
-      0,
-    );
+    let filterCount = 0;
+    Object.entries(filters).forEach(([key, value]) => {
+      if (key === "amountSpent") {
+        if (
+          value &&
+          typeof value === "object" &&
+          "amount" in value &&
+          value.amount != null &&
+          value.operator
+        ) {
+          filterCount += 1;
+        }
+      } else if (key === "customerCreatedFrom") {
+        if (value != null && typeof value === "string" && value.trim() !== "") {
+          filterCount += 1;
+        }
+      } else if (
+        key !== "graphqlQuery" &&
+        value != null &&
+        Array.isArray(value)
+      ) {
+        filterCount += value.length;
+      }
+    });
     if (filterCount === 0) {
       setPreviewCount(0);
       setIsLoadingPreview(false);
@@ -153,6 +232,11 @@ export function AudienceFilterForm({
     try {
       const formData = new FormData();
       formData.append("filters", JSON.stringify(filters));
+
+      console.log(
+        "[Preview] Sending filters:",
+        JSON.stringify(filters, null, 2),
+      );
 
       const response = await fetch("/api/filter-audience/generate-segment", {
         method: "POST",
@@ -184,10 +268,30 @@ export function AudienceFilterForm({
     }
 
     // Check if there are any filters selected
-    const filterCount = Object.values(selectedFilters).reduce(
-      (total, filterArray) => total + filterArray.length,
-      0,
-    );
+    let filterCount = 0;
+    Object.entries(selectedFilters).forEach(([key, value]) => {
+      if (key === "amountSpent") {
+        if (
+          value &&
+          typeof value === "object" &&
+          "amount" in value &&
+          value.amount != null &&
+          value.operator
+        ) {
+          filterCount += 1;
+        }
+      } else if (key === "customerCreatedFrom") {
+        if (value != null && typeof value === "string" && value.trim() !== "") {
+          filterCount += 1;
+        }
+      } else if (
+        key !== "graphqlQuery" &&
+        value != null &&
+        Array.isArray(value)
+      ) {
+        filterCount += value.length;
+      }
+    });
 
     // If no filters, reset immediately without showing loader
     if (filterCount === 0) {
@@ -736,6 +840,21 @@ export function AudienceFilterForm({
                 isLoading={isLoading}
               />
 
+              {/* Amount Spent Filter */}
+              <AmountSpent
+                selectedFilter={selectedFilters.amountSpent}
+                isExpanded={expandedSections.amountSpent || false}
+                onToggle={() => toggleSection("amountSpent")}
+                onFilterChange={handleAmountSpentChange}
+              />
+
+              {/* Customer Created From Filter */}
+              <CustomerCreatedFrom
+                selectedDate={selectedFilters.customerCreatedFrom}
+                isExpanded={expandedSections.customerCreatedFrom || false}
+                onToggle={() => toggleSection("customerCreatedFrom")}
+                onFilterChange={handleCustomerCreatedFromChange}
+              />
               {/* Payment and Delivery Filters in Grid */}
               <Grid>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>

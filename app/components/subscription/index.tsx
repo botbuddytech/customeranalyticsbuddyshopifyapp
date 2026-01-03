@@ -25,7 +25,7 @@ export function SubscriptionPageContent({
   return (
     <BlockStack gap="600">
       <CurrentPlanSection currentPlan={currentPlan} />
-      <PlanOptionsSection plans={plans} />
+      <PlanOptionsSection plans={plans} currentPlan={currentPlan} />
       <BillingSupportSection />
     </BlockStack>
   );

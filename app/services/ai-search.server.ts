@@ -44,22 +44,43 @@ export async function sendChatMessage(
   }
 
   try {
+    const requestBody = {
+      message: message.trim(),
+      sessionId: sessionId,
+      shopId: shopId,
+    } as ChatRequest;
+
+    console.log("[AI Search Service] Calling webhook:", webhookUrl);
+    console.log("[AI Search Service] Request body:", JSON.stringify(requestBody, null, 2));
+
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        message: message.trim(),
-        sessionId: sessionId,
-        shopId: shopId,
-      } as ChatRequest),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log("[AI Search Service] Response status:", response.status);
+    console.log("[AI Search Service] Response ok:", response.ok);
+
     if (!response.ok) {
+      // Try to get more details from the response
+      let errorDetails = response.statusText;
+      try {
+        const errorText = await response.text();
+        console.log("[AI Search Service] Error response body:", errorText);
+        if (errorText) {
+          errorDetails = errorText.length > 500 ? errorText.substring(0, 500) + "..." : errorText;
+        }
+      } catch (e) {
+        console.error("[AI Search Service] Error reading error response:", e);
+        // If we can't read the error text, use status text
+      }
+      
       return {
         success: false,
-        error: `Webhook request failed with status ${response.status}: ${response.statusText}`,
+        error: `Webhook request failed with status ${response.status}: ${errorDetails}`,
       };
     }
 

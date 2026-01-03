@@ -1,3 +1,8 @@
+export interface AmountSpentFilter {
+  amount: number | null;
+  operator: "min" | "max" | null; // "min" means minimum (>=), "max" means maximum (<=)
+}
+
 export interface FilterData {
   location: string[];
   products: string[];
@@ -5,6 +10,8 @@ export interface FilterData {
   device: string[];
   payment: string[];
   delivery: string[];
+  amountSpent?: AmountSpentFilter;
+  customerCreatedFrom?: string | null; // ISO date string (YYYY-MM-DD)
   graphqlQuery?: string;
 }
 

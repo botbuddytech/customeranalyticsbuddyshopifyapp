@@ -18,6 +18,7 @@ import {
   InlineStack,
   Text,
   Badge,
+  Box,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -31,7 +32,9 @@ import {
   getUniqueShippingMethods,
 } from "../services/products.server";
 import { getSavedListById } from "../services/saved-lists.server";
+import { getCurrentPlanName } from "../services/subscription.server";
 import type { FilterData } from "../components/filter-audience/types";
+import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // Loader function to authenticate and provide initial data
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -124,6 +127,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const deliveryMethodOptions =
       mapShippingMethodsToUserFriendly(shippingMethods);
 
+    const currentPlan = await getCurrentPlanName(admin);
+    
+    // Check if dev mode is enabled
+    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
+    let isDevMode = false;
+    if (enableAllFeatures === "true") {
+      isDevMode = true;
+    } else if (enableAllFeatures === "false") {
+      isDevMode = false;
+    } else if (process.env.NODE_ENV === "development") {
+      isDevMode = true;
+    }
+
     return {
       products: productOptions,
       collections: collectionOptions,
@@ -134,6 +150,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       initialFilters,
       listId: modifyListId || null,
       listName,
+      currentPlan,
+      isDevMode,
     };
   } catch (error) {
     console.error("[Filter Audience Loader] Error fetching data:", error);
@@ -263,39 +281,51 @@ export default function FilterAudiencePage() {
 
   return (
     <Page fullWidth>
+      <UpgradeBanner currentPlan={data.currentPlan} isDevMode={data.isDevMode} />
       <TitleBar title={data.listId ? "Modify List" : "Filter Audience"} />
+
       <Layout>
         <Layout.Section>
-          <BlockStack gap="500">
-            <InlineStack align="space-between" blockAlign="center">
-              <BlockStack gap="100">
-                <Text as="h1" variant="headingLg">
-                  {data.listId ? "✏️ Modify List" : "🎯 Filter Audience"}
-                </Text>
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  {data.listId
-                    ? `Modifying: ${data.listName}`
-                    : "Create targeted customer segments with advanced filters"}
-                </Text>
-              </BlockStack>
-              <Badge tone="info">
-                {data.listId ? "Modify Mode" : "Segment Builder"}
-              </Badge>
-            </InlineStack>
+          <InlineStack align="center">
+            <Box maxWidth="800px" width="100%">
+              <BlockStack gap="500">
+                {/* Header */}
+                <BlockStack gap="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                      <Text as="h1" variant="headingLg">
+                        {data.listId ? "✏️ Modify List" : "🎯 Filter Audience"}
+                      </Text>
 
-            <AudienceFilterForm
-              products={data.products}
-              collections={data.collections}
-              categories={data.categories}
-              countries={data.countries}
-              paymentMethods={data.paymentMethods}
-              deliveryMethods={data.deliveryMethods}
-              isLoading={isLoading}
-              initialFilters={data.initialFilters}
-              listId={data.listId}
-              listName={data.listName}
-            />
-          </BlockStack>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        {data.listId
+                          ? `Modifying: ${data.listName}`
+                          : "Create targeted customer segments with advanced filters"}
+                      </Text>
+                    </BlockStack>
+
+                    <Badge tone="info">
+                      {data.listId ? "Modify Mode" : "Segment Builder"}
+                    </Badge>
+                  </InlineStack>
+                </BlockStack>
+
+                {/* Main form */}
+                <AudienceFilterForm
+                  products={data.products}
+                  collections={data.collections}
+                  categories={data.categories}
+                  countries={data.countries}
+                  paymentMethods={data.paymentMethods}
+                  deliveryMethods={data.deliveryMethods}
+                  isLoading={isLoading}
+                  initialFilters={data.initialFilters}
+                  listId={data.listId}
+                  listName={data.listName}
+                />
+              </BlockStack>
+            </Box>
+          </InlineStack>
         </Layout.Section>
       </Layout>
     </Page>

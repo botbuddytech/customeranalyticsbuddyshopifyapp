@@ -22,6 +22,12 @@ export interface UserPreferences {
 export interface LoaderData {
   settings: Settings;
   userPreferences: UserPreferences;
+  mailchimpConnection?: {
+    isConnected: boolean;
+    connectedAt?: string;
+  };
+  currentPlan?: string | null;
+  isDevMode?: boolean;
 }
 
 export interface ActionData {
