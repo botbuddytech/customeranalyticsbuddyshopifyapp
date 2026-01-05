@@ -89,6 +89,7 @@ export default function App() {
           <s-link href="/app/my-saved-lists">My Saved Lists</s-link>
           <s-link href="/app/subscription">Subscription</s-link>
           <s-link href="/app/settings">Settings</s-link>
+          <s-link href="/app/help-support">Help & Support</s-link>
         </s-app-nav>
         <Outlet />
       </PolarisAppProvider>

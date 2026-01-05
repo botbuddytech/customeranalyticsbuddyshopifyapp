@@ -10,7 +10,6 @@ import {
 import { MailchimpIntegration } from "./mailchimp";
 import { KlaviyoIntegration } from "./klaviyo";
 import { SendGridIntegration } from "./sendgrid";
-import { ConstantContactIntegration } from "./constant-contact";
 
 interface IntegrationSettingsProps {
   mailchimpConnection?: {
@@ -78,7 +77,6 @@ export function IntegrationSettings({ mailchimpConnection }: IntegrationSettings
       />
       <KlaviyoIntegration onConnect={showComingSoonToast} />
       <SendGridIntegration onConnect={showComingSoonToast} />
-      <ConstantContactIntegration onConnect={showComingSoonToast} />
     </BlockStack>
   );
 }
