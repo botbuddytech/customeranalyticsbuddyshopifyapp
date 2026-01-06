@@ -1,32 +1,167 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
+model Config {
+  id                 String   @id @default(uuid())
+  shop               String   @unique
+  completedSteps     String[] @default([])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  autoCompletedSteps String[] @default([])
+
+  @@map("onboardingtaskdata")
+}
+
+model DashboardPreferences {
+  id               String   @id @default(uuid())
+  shop             String   @unique
+  visibilityConfig String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("dashboard_preferences")
+}
+
+model SavedCustomerList {
+  id          String   @id @default(uuid())
+  shop        String
+  listName    String
+  queryData   String
+  customerIds String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  source      String   @default("filter-audience")
+  status      String   @default("active")
+
+  @@index([shop])
+  @@map("saved_customer_lists")
+}
+
+model UserPreferences {
+  id          String   @id @default(uuid())
+  shop        String   @unique
+  preferences String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model SubscriptionPlan {
+  id                String                    @id @default(uuid())
+  code              String                    @unique
+  name              String
+  price             String
+  priceNote         String
+  description       String
+  badgeTone         String?
+  badgeLabel        String?
+  primaryCtaLabel   String
+  primaryCtaVariant String
+  isCurrentDefault  Boolean                   @default(false)
+  benefits          SubscriptionPlanBenefit[]
+
+  @@map("subscription_plans")
+}
+
+model SubscriptionPlanBenefit {
+  id        String           @id @default(uuid())
+  planId    String
+  sortOrder Int
+  label     String
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, sortOrder])
+  @@map("subscription_plan_benefits")
+}
+
+model ChatSession {
+  sessionId String   @id @map("session_id")
+  shopId    String   @map("shop_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  messages N8nChatHistory[]
+
+  @@map("chat_sessions")
+}
+
+model N8nChatHistory {
+  id        Int    @id @default(autoincrement())
+  sessionId String @map("session_id") @db.VarChar(255)
+  message   Json
+
+  session ChatSession @relation(fields: [sessionId], references: [sessionId])
+
+  @@map("n8n_chat_histories")
+}
+
+model MailchimpConnection {
+  shopId       String   @id @map("shop_id")
+  accessToken  String   @map("access_token")
+  serverPrefix String   @map("server_prefix")
+  connectedAt  DateTime @default(now()) @map("connected_at")
+
+  @@map("mailchimp_connections")
+}
+
+model OnboardingProgress {
+  id             String   @id @default(uuid())
+  shop           String   @unique
+  email          String?
+  contact        String?
+  completedSteps Int[]    @default([])
+  isCompleted    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("onboarding_progress")
+}
+
+model UsageTracking {
+  id                  String   @id @default(uuid())
+  shop                String   @unique
+  totalChatsCreated   Int      @default(0)
+  totalListsGenerated Int      @default(0)
+  totalListsSaved     Int      @default(0)
+  totalExports        Int      @default(0)
+  isBlocked           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([shop])
+  @@map("usage_tracking")
+}
+
+model UsageLimits {
+  id                String   @id @default(uuid())
+  maxChats          Int      @default(10)
+  maxListsGenerated Int      @default(20)
+  maxListsSaved     Int      @default(15)
+  maxExports        Int      @default(10)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("usage_limits")
+}
+
+// Shopify Session Storage (required for production on Vercel)
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      String?
+
+  @@map("Session")
 }

@@ -1,0 +1,55 @@
+{
+  "collections": [
+    {
+      "title": "Summer Collection",
+      "descriptionHtml": "<p>Fresh styles for the summer season.</p>",
+      "ruleSet": {
+        "appliedDisjunctively": false,
+        "rules": [
+          { "column": "TAG", "relation": "EQUALS", "condition": "summer" }
+        ]
+      }
+    },
+    {
+      "title": "Best Sellers",
+      "descriptionHtml": "<p>Our most popular products.</p>",
+      "ruleSet": null
+    },
+    {
+      "title": "New Arrivals",
+      "descriptionHtml": "<p>Check out our latest products.</p>",
+      "ruleSet": null
+    },
+    {
+      "title": "Casual Wear",
+      "descriptionHtml": "<p>Comfortable everyday clothing.</p>",
+      "ruleSet": {
+        "appliedDisjunctively": false,
+        "rules": [
+          { "column": "TAG", "relation": "EQUALS", "condition": "casual" }
+        ]
+      }
+    },
+    {
+      "title": "Accessories",
+      "descriptionHtml": "<p>Complete your look with our accessories.</p>",
+      "ruleSet": {
+        "appliedDisjunctively": false,
+        "rules": [
+          { "column": "PRODUCT_TYPE", "relation": "EQUALS", "condition": "Accessories" }
+        ]
+      }
+    },
+    {
+      "title": "Electronics",
+      "descriptionHtml": "<p>Tech gadgets and electronics.</p>",
+      "ruleSet": {
+        "appliedDisjunctively": false,
+        "rules": [
+          { "column": "PRODUCT_TYPE", "relation": "EQUALS", "condition": "Electronics" }
+        ]
+      }
+    }
+  ]
+}
+

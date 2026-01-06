@@ -1,0 +1,413 @@
+import { useEffect, useState, useMemo } from "react";
+import { Modal, DataTable, Text, Spinner, BlockStack } from "@shopify/polaris";
+import { useFetcher } from "react-router";
+import { InsightCard } from "../../InsightCard";
+import { InsightCardSkeleton } from "../../InsightCardSkeleton";
+import { miniChartOptions } from "../../dashboardUtils";
+import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
+
+interface DiscountUsersData {
+  count: number;
+  dataPoints: Array<{ date: string; count: number }>;
+  error?: string;
+}
+
+interface DiscountUsersProps {
+  dateRange?: string;
+  onViewSegment?: (segmentName: string) => void;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  numberOfOrders: number;
+  totalSpent: string;
+}
+
+interface CustomersListData {
+  customers: Customer[];
+  total: number;
+  error?: string;
+}
+
+function getDateRangeLabel(dateRange: string): string {
+  switch (dateRange) {
+    case "today": return "today";
+    case "yesterday": return "yesterday";
+    case "7days": case "last7Days": return "the last 7 days";
+    case "30days": case "last30Days": return "the last 30 days";
+    case "90days": case "last90Days": return "the last 90 days";
+    case "thisMonth": return "this month";
+    case "lastMonth": return "last month";
+    default: return "the selected period";
+  }
+}
+
+function getPeriodLabel(dateRange: string): string {
+  switch (dateRange) {
+    case "today": return "today";
+    case "yesterday": return "yesterday";
+    case "7days": case "last7Days": return "the last 7 days";
+    case "30days": case "last30Days": return "the last 30 days";
+    case "90days": case "last90Days": return "the last 90 days";
+    case "thisMonth": return "this month";
+    case "lastMonth": return "last month";
+    default: return "the selected period";
+  }
+}
+
+function getDescription(dateRange: string): string {
+  switch (dateRange) {
+    case "today": return "Discount users today";
+    case "yesterday": return "Discount users yesterday";
+    case "7days": case "last7Days": return "Discount users in the last 7 days";
+    case "30days": case "last30Days": return "Discount users in the last 30 days";
+    case "90days": case "last90Days": return "Discount users in the last 90 days";
+    case "thisMonth": return "Discount users this month";
+    case "lastMonth": return "Discount users last month";
+    default: return "Discount users in the selected period";
+  }
+}
+
+function getStatusFromGrowth(growth: number): "success" | "warning" | "critical" {
+  if (growth === 0) return "warning";
+  if (growth > 0) {
+    if (growth < 5) return "warning";
+    return "success";
+  } else {
+    const decreasePercentage = Math.abs(growth);
+    if (decreasePercentage < 10) return "warning";
+    return "critical";
+  }
+}
+
+export function DiscountUsers({
+  dateRange = "30days",
+  onViewSegment,
+}: DiscountUsersProps) {
+  const fetcher = useFetcher<DiscountUsersData>();
+  const customersListFetcher = useFetcher<CustomersListData>();
+  const [data, setData] = useState<DiscountUsersData | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showCustomersModal, setShowCustomersModal] = useState(false);
+
+  useEffect(() => {
+    setData(null);
+    setShowAccessModal(false);
+    setShowCustomersModal(false);
+    fetcher.load(
+      `/api/dashboard/engagement-patterns/discount-users?dateRange=${dateRange}`,
+    );
+  }, [dateRange]);
+
+  useEffect(() => {
+    if (fetcher.data) {
+      if (fetcher.data.error === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
+        setShowAccessModal(true);
+        setData(null);
+      } else if (typeof fetcher.data.count === "number") {
+        setData({
+          count: fetcher.data.count,
+          dataPoints: Array.isArray(fetcher.data.dataPoints)
+            ? fetcher.data.dataPoints
+            : [],
+        });
+      }
+    }
+  }, [fetcher.data]);
+
+  const { growthPercentage, growthIndicator, description, growthTone, status } =
+    useMemo(() => {
+      if (!data || !data.dataPoints || data.dataPoints.length < 2) {
+        return {
+          growthPercentage: null,
+          growthIndicator: null,
+          description: getDescription(dateRange),
+          growthTone: "subdued" as const,
+          status: "warning" as const,
+        };
+      }
+
+      const [startPoint, endPoint] = data.dataPoints;
+      const startCount = startPoint.count;
+      const endCount = endPoint.count;
+
+      if (startCount === 0) {
+        if (endCount === 0) {
+          return {
+            growthPercentage: 0,
+            growthIndicator: `→ 0% change in ${getPeriodLabel(dateRange)}`,
+            description: getDescription(dateRange),
+            growthTone: "subdued" as const,
+            status: "warning" as const,
+          };
+        }
+        const periodLabel = getPeriodLabel(dateRange);
+        return {
+          growthPercentage: 100,
+          growthIndicator: `↑ 100% growth in ${periodLabel}`,
+          description: getDescription(dateRange),
+          growthTone: "success" as const,
+          status: "success" as const,
+        };
+      }
+
+      const growth = ((endCount - startCount) / startCount) * 100;
+      const growthPercentage = Math.abs(growth);
+      const isPositive = growth > 0;
+      const isNegative = growth < 0;
+      const periodLabel = getPeriodLabel(dateRange);
+      const statusFromGrowth = getStatusFromGrowth(growth);
+
+      let growthIndicatorText: string;
+      if (growthPercentage === 0) {
+        growthIndicatorText = `→ 0% change in ${periodLabel}`;
+      } else if (isPositive) {
+        growthIndicatorText = `↑ ${growthPercentage.toFixed(0)}% growth in ${periodLabel}`;
+      } else {
+        growthIndicatorText = `↓ ${growthPercentage.toFixed(0)}% decrease in ${periodLabel}`;
+      }
+
+      return {
+        growthPercentage,
+        growthIndicator: growthIndicatorText,
+        description: getDescription(dateRange),
+        growthTone: isPositive
+          ? ("success" as const)
+          : isNegative
+            ? ("critical" as const)
+            : ("subdued" as const),
+        status: statusFromGrowth,
+      };
+    }, [data, dateRange]);
+
+  if (!data && !showAccessModal) {
+    return <InsightCardSkeleton />;
+  }
+
+  if (!data) {
+    return showAccessModal ? (
+      <ProtectedDataAccessModal
+        open={showAccessModal}
+        onClose={() => setShowAccessModal(false)}
+        dataType="order"
+        featureName="Discount Users"
+      />
+    ) : null;
+  }
+
+  const chartData =
+    data.dataPoints && data.dataPoints.length > 1
+      ? (() => {
+          const [startPoint, endPoint] = data.dataPoints;
+          const startCount = startPoint.count;
+          const endCount = endPoint.count;
+          const isUpwardTrend = endCount > startCount;
+          const isDownwardTrend = endCount < startCount;
+
+          const borderColor = isUpwardTrend
+            ? "rgba(75, 192, 192, 1)"
+            : isDownwardTrend
+              ? "rgba(255, 99, 132, 1)"
+              : "rgba(128, 128, 128, 1)";
+
+          const backgroundColor = isUpwardTrend
+            ? "rgba(75, 192, 192, 0.2)"
+            : isDownwardTrend
+              ? "rgba(255, 99, 132, 0.2)"
+              : "rgba(128, 128, 128, 0.2)";
+
+          return {
+            labels: data.dataPoints.map((point) => {
+              const date = new Date(point.date);
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              return `${month}/${day}`;
+            }),
+            datasets: [
+              {
+                data: data.dataPoints.map((point) => point.count),
+                borderColor,
+                backgroundColor,
+                fill: true,
+              },
+            ],
+          };
+        })()
+      : null;
+
+  const customChartOptions = chartData
+    ? {
+        ...miniChartOptions,
+        scales: {
+          ...miniChartOptions.scales,
+          y: {
+            display: false,
+            beginAtZero: false,
+            min: Math.min(...chartData.datasets[0].data) * 0.95,
+            max: Math.max(...chartData.datasets[0].data) * 1.05,
+            ...(new Set(chartData.datasets[0].data).size === 1
+              ? {
+                  min: chartData.datasets[0].data[0] * 0.98,
+                  max: chartData.datasets[0].data[0] * 1.02,
+                }
+              : {}),
+          },
+        },
+      }
+    : miniChartOptions;
+
+  const handleViewSegment = (segmentName: string) => {
+    if (segmentName === "Discount Users") {
+      setShowCustomersModal(true);
+      customersListFetcher.load(
+        `/api/dashboard/engagement-patterns/discount-users/list?dateRange=${dateRange}`,
+      );
+    } else if (onViewSegment) {
+      onViewSegment(segmentName);
+    }
+  };
+
+  const handleExportData = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) {
+      return;
+    }
+
+    const headers = ["Name", "Email", "Created Date", "Orders", "Total Spent"];
+
+    const csvRows = [
+      headers.join(","),
+      ...customers.map((customer) =>
+        [
+          `"${customer.name.replace(/"/g, '""')}"`,
+          `"${customer.email.replace(/"/g, '""')}"`,
+          `"${customer.createdAt}"`,
+          customer.numberOfOrders.toString(),
+          `"${customer.totalSpent}"`,
+        ].join(","),
+      ),
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `discount-users-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const tableRows =
+    customersListFetcher.data?.customers?.map((customer) => [
+      customer.name,
+      customer.email,
+      customer.createdAt,
+      customer.numberOfOrders.toString(),
+      customer.totalSpent,
+    ]) || [];
+
+  const tableHeadings = [
+    "Name",
+    "Email",
+    "Created Date",
+    "Orders",
+    "Total Spent",
+  ];
+
+  return (
+    <>
+      <InsightCard
+        title="Discount Users"
+        value={data.count}
+        status={status}
+        description={description}
+        showViewButton={true}
+        miniChartData={chartData}
+        growthIndicator={growthIndicator || undefined}
+        growthTone={growthTone}
+        onViewSegment={handleViewSegment}
+        miniChartOptions={customChartOptions}
+      />
+
+      <ProtectedDataAccessModal
+        open={showAccessModal}
+        onClose={() => setShowAccessModal(false)}
+        dataType="order"
+        featureName="Discount Users"
+      />
+
+      <Modal
+        open={showCustomersModal}
+        onClose={() => setShowCustomersModal(false)}
+        title={`Discount Users - ${getDateRangeLabel(dateRange)}`}
+        primaryAction={{
+          content: "Close",
+          onAction: () => setShowCustomersModal(false),
+        }}
+        secondaryActions={[
+          {
+            content: "Export Data",
+            onAction: handleExportData,
+            disabled:
+              !customersListFetcher.data?.customers ||
+              customersListFetcher.data.customers.length === 0 ||
+              customersListFetcher.state === "loading",
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {customersListFetcher.state === "loading" ? (
+              <div style={{ textAlign: "center", padding: "2rem" }}>
+                <Spinner size="large" />
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Loading customers...
+                </Text>
+              </div>
+            ) : customersListFetcher.data?.error ===
+              "PROTECTED_ORDER_DATA_ACCESS_DENIED" ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Access to order data is required to view this list. Please
+                request access in your Partner Dashboard.
+              </Text>
+            ) : customersListFetcher.data?.customers &&
+              customersListFetcher.data.customers.length > 0 ? (
+              <>
+                <Text as="p" variant="bodyMd">
+                  Showing {customersListFetcher.data.total} discount user
+                  {customersListFetcher.data.total !== 1 ? "s" : ""} for{" "}
+                  {getDateRangeLabel(dateRange)}.
+                </Text>
+                <DataTable
+                  columnContentTypes={[
+                    "text",
+                    "text",
+                    "text",
+                    "numeric",
+                    "text",
+                  ]}
+                  headings={tableHeadings}
+                  rows={tableRows}
+                />
+              </>
+            ) : (
+              <Text as="p" variant="bodyMd">
+                No discount users found for {getDateRangeLabel(dateRange)}.
+              </Text>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+    </>
+  );
+}
+
