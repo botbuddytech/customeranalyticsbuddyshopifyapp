@@ -56,8 +56,6 @@ import { PurchaseTiming } from "../components/dashboard/PurchaseTiming/index";
 import { VisualAnalytics } from "../components/dashboard/VisualAnalytics/index";
 import { getDashboardPreferences } from "../services/dashboard-preferences.server";
 import { authenticate } from "../shopify.server";
-import { getCurrentPlanName } from "../services/subscription.server";
-import { UpgradeBanner } from "../components/UpgradeBanner";
 
 // Register Chart.js components
 ChartJS.register(
@@ -81,35 +79,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     const preferences = await getDashboardPreferences(shop);
-    const currentPlan = await getCurrentPlanName(admin);
-    // Check if dev mode is enabled (allows all features regardless of plan)
-    // Priority: 1. ENABLE_ALL_FEATURES=true → enable, 2. ENABLE_ALL_FEATURES=false → disable, 3. NODE_ENV=development → enable
-    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
-    let isDevMode = false;
-    if (enableAllFeatures === "true") {
-      isDevMode = true;
-    } else if (enableAllFeatures === "false") {
-      isDevMode = false;
-    } else if (process.env.NODE_ENV === "development") {
-      isDevMode = true;
-    }
-    return { preferences, currentPlan, isDevMode };
+    return { preferences };
   } catch (error) {
     console.error(
       `[Dashboard] Error loading preferences for shop ${shop}:`,
       error,
     );
     // Return default preferences on error
-    const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
-    let isDevMode = false;
-    if (enableAllFeatures === "true") {
-      isDevMode = true;
-    } else if (enableAllFeatures === "false") {
-      isDevMode = false;
-    } else if (process.env.NODE_ENV === "development") {
-      isDevMode = true;
-    }
-    return { preferences: null, currentPlan: null, isDevMode };
+    return { preferences: null };
   }
 };
 
@@ -120,7 +97,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
  * No prop passing - clean and modular!
  */
 export default function Dashboard() {
-  const { preferences: savedPreferences, currentPlan, isDevMode } = useLoaderData<typeof loader>();
+  const { preferences: savedPreferences } = useLoaderData<typeof loader>();
   const [activeSegmentModal, setActiveSegmentModal] = useState<string | null>(
     null,
   );
@@ -179,7 +156,6 @@ export default function Dashboard() {
 
   return (
     <Frame>
-      <UpgradeBanner currentPlan={currentPlan} isDevMode={isDevMode} />
       <Page>
         <TitleBar title="Customer Insights Dashboard" />
 
@@ -233,8 +209,6 @@ export default function Dashboard() {
               onVisibilityChange={handleVisibilityChange}
               initialVisibility={savedPreferences}
               currentVisibility={visibility}
-              currentPlan={currentPlan}
-              isDevMode={isDevMode}
             />
 
             {/* Customers Overview Section - Fetches its own data */}

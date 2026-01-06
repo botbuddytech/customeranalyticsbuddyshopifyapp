@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 // @ts-ignore - TypeScript cache issue
 import GraphQLPreviewPanel from "./components/SqlQueryPanel";
 import { Message } from "./types";
+import { LimitExceededModal } from "../usage-tracking";
 
 interface ChatHistory {
   id: string;
@@ -54,6 +55,9 @@ export function AISearchAnalyzer({
     }));
   });
   const [extractedQuery, setExtractedQuery] = useState<string>("");
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitMessage, setLimitMessage] = useState("");
+  const [limitActionType, setLimitActionType] = useState<"chat" | "listGenerated" | "listSaved" | "export">("chat");
 
   // Get the first user message as title
   const getFirstUserMessage = (msgs: Message[]): string => {
@@ -95,7 +99,31 @@ export function AISearchAnalyzer({
   };
 
   // Handle new chat
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = useCallback(async () => {
+    // Check usage limits before creating new chat
+    try {
+      const checkResponse = await fetch("/api/usage-tracking/check", {
+        method: "POST",
+        body: (() => {
+          const formData = new FormData();
+          formData.append("actionType", "chat");
+          return formData;
+        })(),
+      });
+
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.allowed) {
+        setLimitMessage(checkResult.reason || "You have reached the maximum limit for chats.");
+        setLimitActionType("chat");
+        setShowLimitModal(true);
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking usage limits:", error);
+      // Continue anyway if check fails
+    }
+
     // Save current chat to history only if it has at least one user message
     // (This prevents empty chats from being saved)
     const firstUserMsg = messages.find((m) => m.role === "user");
@@ -121,9 +149,20 @@ export function AISearchAnalyzer({
     // Clear messages and create new session
     setMessages([]);
     setExtractedQuery(""); // Clear extracted query on new chat
-    setCurrentSessionId(
-      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    );
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(newSessionId);
+
+    // Track new chat creation
+    try {
+      const incrementFormData = new FormData();
+      incrementFormData.append("actionType", "chat");
+      await fetch("/api/usage-tracking/increment", {
+        method: "POST",
+        body: incrementFormData,
+      });
+    } catch (error) {
+      console.error("Error tracking chat creation:", error);
+    }
   }, [messages, currentSessionId, history]);
 
   // Handle history item click - restore the conversation
@@ -312,11 +351,34 @@ export function AISearchAnalyzer({
               position: "relative",
             }}
           >
-            <GraphQLPreviewPanel externalQuery={extractedQuery} />
+            <GraphQLPreviewPanel 
+              externalQuery={extractedQuery}
+              shop={shopInfo.shop}
+              onListGenerated={async () => {
+                // Track list generation
+                try {
+                  const incrementFormData = new FormData();
+                  incrementFormData.append("actionType", "listGenerated");
+                  await fetch("/api/usage-tracking/increment", {
+                    method: "POST",
+                    body: incrementFormData,
+                  });
+                } catch (error) {
+                  console.error("Error tracking list generation:", error);
+                }
+              }}
+            />
           </div>
         </div>
       )}
-      {/* </div> */}
+
+      {/* Limit Exceeded Modal */}
+      <LimitExceededModal
+        open={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        message={limitMessage}
+        actionType={limitActionType}
+      />
     </>
   );
 }

@@ -6,18 +6,11 @@ import {
   Text,
   Badge,
   Box,
-  Button,
   Icon,
   Collapsible,
 } from "@shopify/polaris";
-import {
-  CheckIcon,
-  PersonIcon,
-  FilterIcon,
-  ViewIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "@shopify/polaris-icons";
+import { ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
+import { QuickStartSteps } from "./quick-start-steps";
 
 interface QuickStartChecklistProps {
   completedSteps: number[];
@@ -39,32 +32,7 @@ export function QuickStartChecklist({
 }: QuickStartChecklistProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const quickStartSteps = [
-    {
-      id: 1,
-      title: "Use AI to generate your first customer segment",
-      description: "Let AI analyze your customers and create smart segments",
-      icon: PersonIcon,
-    },
-    {
-      id: 2,
-      title: "Filter customers manually using 2+ audience traits",
-      description: "Create precise segments with advanced filtering options",
-      icon: FilterIcon,
-    },
-    {
-      id: 3,
-      title: "Send your first WhatsApp or Email campaign",
-      description: "Engage your segments with targeted messaging",
-      icon: ViewIcon,
-    },
-    {
-      id: 4,
-      title: "First list saved",
-      description: "Save your first customer segment list",
-      icon: ViewIcon,
-    },
-  ];
+  const totalSteps = 3;
 
   return (
     <Card>
@@ -89,7 +57,7 @@ export function QuickStartChecklist({
                     Quick Start Guide
                   </Text>
                   <Badge tone="info">
-                    {`${completedSteps.length}/${quickStartSteps.length} Completed`}
+                    {`${completedSteps.filter((id) => id <= 3).length}/${totalSteps} Completed`}
                   </Badge>
                 </InlineStack>
               </InlineStack>
@@ -104,65 +72,12 @@ export function QuickStartChecklist({
         </BlockStack>
 
         <Collapsible open={isExpanded} id="quick-start-tasks">
-          <BlockStack gap="300">
-            {quickStartSteps.map((step) => {
-              const isCompleted = completedSteps.includes(step.id);
-              const isAutoCompleted = autoCompletedSteps.includes(step.id);
-              const canUndo = isCompleted && !isAutoCompleted;
-
-              return (
-                <Box
-                  key={step.id}
-                  padding="400"
-                  background={isCompleted ? "bg-surface-success" : "bg-surface"}
-                  borderRadius="200"
-                  borderWidth="025"
-                  borderColor={isCompleted ? "border-success" : "border"}
-                >
-                  <InlineStack gap="300" align="space-between">
-                    <InlineStack gap="300" align="start">
-                      <Icon
-                        source={isCompleted ? CheckIcon : step.icon}
-                        tone={isCompleted ? "success" : "base"}
-                      />
-
-                      <BlockStack gap="100">
-                        <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          {step.title}
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          {step.description}
-                          {isAutoCompleted && (
-                            <Text as="span" tone="success" fontWeight="medium">
-                              {" "}
-                              (Auto-completed)
-                            </Text>
-                          )}
-                        </Text>
-                      </BlockStack>
-                    </InlineStack>
-
-                    <Button
-                      variant="plain"
-                      onClick={() => onToggleStep(step.id)}
-                      loading={loadingStepId === step.id}
-                      disabled={
-                        loadingStepId === step.id ||
-                        (isCompleted && isAutoCompleted)
-                      }
-                      accessibilityLabel={`Mark step ${step.id} as ${isCompleted ? "incomplete" : "complete"}`}
-                    >
-                      {isCompleted && isAutoCompleted
-                        ? "Auto-completed"
-                        : isCompleted
-                          ? "Undo"
-                          : "Mark Complete"}
-                    </Button>
-                  </InlineStack>
-                </Box>
-              );
-            })}
-          </BlockStack>
+          <QuickStartSteps
+            completedSteps={completedSteps}
+            autoCompletedSteps={autoCompletedSteps}
+            onToggleStep={onToggleStep}
+            loadingStepId={loadingStepId}
+          />
         </Collapsible>
       </BlockStack>
     </Card>

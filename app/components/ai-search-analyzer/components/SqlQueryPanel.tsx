@@ -16,10 +16,14 @@ import type { FilterData } from "../../filter-audience/types";
 
 interface GraphQLPreviewPanelProps {
   externalQuery?: string;
+  shop?: string;
+  onListGenerated?: () => void;
 }
 
 const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   externalQuery,
+  shop,
+  onListGenerated,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -29,6 +33,7 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [isSavingList, setIsSavingList] = useState(false);
   const [saveListError, setSaveListError] = useState<string | null>(null);
+  const [listGeneratedTracked, setListGeneratedTracked] = useState(false);
 
   const queryFetcher = useFetcher<{
     success: boolean;
@@ -149,6 +154,40 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
     }
   }, [result, resultData]);
 
+  // Track list generation when query executes successfully
+  useEffect(() => {
+    if (result?.success && resultData && resultData.length > 0 && !listGeneratedTracked) {
+      setListGeneratedTracked(true);
+      if (onListGenerated) {
+        onListGenerated();
+      }
+
+      // Auto-complete Step 1 (first AI-generated list) in onboarding
+      // Only mark as completed if this is the first time
+      const markStep1Completed = async () => {
+        try {
+          // Call the API to mark step 1 as completed
+          // The API will check if step 1 is already completed before marking it
+          const formData = new FormData();
+          formData.append("stepId", "1");
+          const response = await fetch("/api/onboarding/auto-complete-step", {
+            method: "POST",
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            console.error("Failed to auto-complete step 1");
+          }
+        } catch (error) {
+          console.error("Error auto-completing step 1:", error);
+          // Silently fail - this is not critical
+        }
+      };
+
+      markStep1Completed();
+    }
+  }, [result, resultData, listGeneratedTracked, onListGenerated]);
+
   // Sync external query (from chat bot) and auto-execute
   useEffect(() => {
     if (externalQuery && externalQuery.trim()) {
@@ -181,6 +220,25 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   // Export handlers
   const handleExportPDF = useCallback(async () => {
     if (!resultData || resultData.length === 0) return;
+
+    // Check usage limits before exporting
+    try {
+      const checkFormData = new FormData();
+      checkFormData.append("actionType", "export");
+      const checkResponse = await fetch("/api/usage-tracking/check", {
+        method: "POST",
+        body: checkFormData,
+      });
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.allowed) {
+        alert(checkResult.reason || "You have reached the maximum limit for exports.");
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking export limits:", error);
+      // Continue anyway if check fails
+    }
 
     setIsExporting(true);
     try {
@@ -259,6 +317,25 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   const handleExportCSV = useCallback(async () => {
     if (!resultData || resultData.length === 0) return;
 
+    // Check usage limits before exporting
+    try {
+      const checkFormData = new FormData();
+      checkFormData.append("actionType", "export");
+      const checkResponse = await fetch("/api/usage-tracking/check", {
+        method: "POST",
+        body: checkFormData,
+      });
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.allowed) {
+        alert(checkResult.reason || "You have reached the maximum limit for exports.");
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking export limits:", error);
+      // Continue anyway if check fails
+    }
+
     setIsExporting(true);
     try {
       const headers = Object.keys(resultData[0]);
@@ -293,6 +370,18 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 100);
+
+      // Track export
+      try {
+        const incrementFormData = new FormData();
+        incrementFormData.append("actionType", "export");
+        await fetch("/api/usage-tracking/increment", {
+          method: "POST",
+          body: incrementFormData,
+        });
+      } catch (error) {
+        console.error("Error tracking export:", error);
+      }
     } finally {
       setIsExporting(false);
     }
@@ -300,6 +389,25 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
 
   const handleExportExcel = useCallback(async () => {
     if (!resultData || resultData.length === 0) return;
+
+    // Check usage limits before exporting
+    try {
+      const checkFormData = new FormData();
+      checkFormData.append("actionType", "export");
+      const checkResponse = await fetch("/api/usage-tracking/check", {
+        method: "POST",
+        body: checkFormData,
+      });
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.allowed) {
+        alert(checkResult.reason || "You have reached the maximum limit for exports.");
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking export limits:", error);
+      // Continue anyway if check fails
+    }
 
     setIsExporting(true);
     try {
@@ -335,6 +443,18 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 100);
+
+      // Track export
+      try {
+        const incrementFormData = new FormData();
+        incrementFormData.append("actionType", "export");
+        await fetch("/api/usage-tracking/increment", {
+          method: "POST",
+          body: incrementFormData,
+        });
+      } catch (error) {
+        console.error("Error tracking export:", error);
+      }
     } finally {
       setIsExporting(false);
     }

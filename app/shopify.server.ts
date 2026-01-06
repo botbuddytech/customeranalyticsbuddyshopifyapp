@@ -5,9 +5,14 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
 import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlite";
+import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
+import prisma from "./db.server";
 
-// SQLite for Shopify sessions (no Prisma)
-const sqliteSessionStorage = new SQLiteSessionStorage("./sessions.sqlite");
+// Use PostgreSQL in production (Vercel), SQLite in development
+const appSessionStorage =
+  process.env.NODE_ENV === "production"
+    ? new PrismaSessionStorage(prisma)
+    : new SQLiteSessionStorage("./sessions.sqlite");
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -16,7 +21,7 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  sessionStorage: sqliteSessionStorage,
+  sessionStorage: appSessionStorage,
   distribution: AppDistribution.AppStore,
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }

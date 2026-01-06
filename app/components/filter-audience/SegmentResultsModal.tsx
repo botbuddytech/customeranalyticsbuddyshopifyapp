@@ -15,7 +15,7 @@ import {
 } from "@shopify/polaris";
 import { ExportIcon, EmailIcon, SaveIcon } from "@shopify/polaris-icons";
 import { ProtectedDataAccessModal } from "../dashboard/ProtectedDataAccessModal";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { SegmentResults } from "./types";
 
 interface SegmentResultsModalProps {
@@ -53,6 +53,46 @@ export function SegmentResultsModal({
   // All hooks must be called before any conditional returns
   const [showAccessModal, setShowAccessModal] = useState(false);
   const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
+
+  const tableHeadings = [
+    "Name",
+    "Email",
+    "Country",
+    "Created Date",
+    "Orders",
+    "Total Spent",
+  ];
+
+  // Prepare table data if customers are available
+  // Only compute if results and customers exist
+  // MUST be called before any early returns
+  const tableRows = useMemo(() => {
+    try {
+      if (!results || !results.customers || !Array.isArray(results.customers) || results.customers.length === 0) {
+        return [];
+      }
+      
+      const rows = results.customers.map((customer) => {
+        if (!customer || typeof customer !== 'object') {
+          return ["", "", "", "", "0", ""];
+        }
+        return [
+          customer.name || "",
+          customer.email || "",
+          customer.country || "",
+          customer.createdAt || "",
+          customer.numberOfOrders != null ? String(customer.numberOfOrders) : "0",
+          customer.totalSpent || "",
+        ];
+      });
+      
+      // Ensure all rows are valid arrays
+      return rows.filter(row => Array.isArray(row) && row.length === 6);
+    } catch (error) {
+      console.error("Error preparing table rows:", error);
+      return [];
+    }
+  }, [results?.customers]);
 
   // Show protected data access modal if needed
   useEffect(() => {
@@ -122,26 +162,6 @@ export function SegmentResultsModal({
       </Modal>
     );
   }
-
-  // Prepare table data if customers are available
-  const tableRows =
-    results.customers?.map((customer) => [
-      customer.name,
-      customer.email,
-      customer.country,
-      customer.createdAt,
-      customer.numberOfOrders.toString(),
-      customer.totalSpent,
-    ]) || [];
-
-  const tableHeadings = [
-    "Name",
-    "Email",
-    "Country",
-    "Created Date",
-    "Orders",
-    "Total Spent",
-  ];
 
   // Handle protected data access error
   if (results.error === "PROTECTED_CUSTOMER_DATA_ACCESS_DENIED") {
@@ -301,18 +321,29 @@ export function SegmentResultsModal({
                 Applied Filters:
               </Text>
               <InlineStack gap="200" wrap>
-                {Object.entries(results.filters).flatMap(([section, values]) =>
-                  (values as string[]).length > 0
-                    ? (values as string[]).map((value, index) => (
-                        <Tag key={`${section}-${index}`}>{value}</Tag>
-                      ))
-                    : [],
-                )}
+                {results.filters && typeof results.filters === 'object'
+                  ? Object.entries(results.filters).flatMap(([section, values]) => {
+                      if (!values || (Array.isArray(values) && values.length === 0)) {
+                        return [];
+                      }
+                      if (Array.isArray(values)) {
+                        return values.map((value, index) => (
+                          <Tag key={`${section}-${index}`}>{String(value)}</Tag>
+                        ));
+                      }
+                      return [];
+                    })
+                  : null}
               </InlineStack>
             </BlockStack>
 
             {/* Customer Table */}
-            {results.customers && results.customers.length > 0 && (
+            {results.customers && 
+             Array.isArray(results.customers) && 
+             results.customers.length > 0 && 
+             tableRows && 
+             Array.isArray(tableRows) && 
+             tableRows.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   Customers ({results.customers.length}):

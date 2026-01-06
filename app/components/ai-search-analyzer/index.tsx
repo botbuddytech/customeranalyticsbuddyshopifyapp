@@ -81,23 +81,87 @@ export function AISearchAnalyzerPage({
       <Modal
         open={showHowItWorksModal}
         onClose={() => setShowHowItWorksModal(false)}
-        title="How it works"
+        title="How AI Search & Analyzer Works"
         primaryAction={{
           content: "Got it",
           onAction: () => setShowHowItWorksModal(false),
         }}
       >
         <Modal.Section>
-          <BlockStack gap="400">
-            <Text variant="bodyMd" as="p">
-              This is a placeholder for the "How it works" content. The actual
-              content will be decided later.
-            </Text>
-            <Text variant="bodyMd" as="p" tone="subdued">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-              enim ad minim veniam, quis nostrud exercitation ullamco laboris.
-            </Text>
+          <BlockStack gap="500">
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p" fontWeight="semibold">
+                Ask questions in plain English
+              </Text>
+              <Text variant="bodyMd" as="p" tone="subdued">
+                Simply type your question in the chat, like "Show me customers
+                who spent over $1000" or "Find inactive customers from the last
+                90 days". No need to learn complex filters or query syntax.
+              </Text>
+            </BlockStack>
+
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p" fontWeight="semibold">
+                AI generates and executes queries
+              </Text>
+              <Text variant="bodyMd" as="p" tone="subdued">
+                Our AI understands your question, converts it into a GraphQL
+                query, and automatically executes it against your Shopify data.
+                Results appear in a table below the chat.
+              </Text>
+            </BlockStack>
+
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p" fontWeight="semibold">
+                View and export results
+              </Text>
+              <Text variant="bodyMd" as="p" tone="subdued">
+                Review the customer data in the results table. Export your lists
+                as PDF, CSV, or Excel files for use in marketing campaigns or
+                further analysis.
+              </Text>
+            </BlockStack>
+
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p" fontWeight="semibold">
+                Key Features
+              </Text>
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • <strong>Chat History:</strong> Access previous conversations
+                  from the sidebar
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • <strong>Pre-built Queries:</strong> Use suggested queries
+                  for common use cases
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • <strong>Multiple Sessions:</strong> Start new chats to
+                  explore different questions
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • <strong>Smart Analysis:</strong> Get insights about customer
+                  segments, behavior, and revenue
+                </Text>
+              </BlockStack>
+            </BlockStack>
+
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p" fontWeight="semibold">
+                Example Questions
+              </Text>
+              <BlockStack gap="200">
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • "Who are my high-value customers that spent over $1000?"
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • "Show me customers who haven't ordered in 90 days"
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  • "Find all customers from New York with more than 3 orders"
+                </Text>
+              </BlockStack>
+            </BlockStack>
           </BlockStack>
         </Modal.Section>
       </Modal>

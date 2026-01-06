@@ -17,8 +17,6 @@ interface DashboardControlsProps {
   onVisibilityChange?: (visibility: DashboardVisibility) => void;
   initialVisibility?: DashboardVisibility | null;
   currentVisibility?: DashboardVisibility | null; // Current applied visibility state
-  currentPlan?: string | null; // Current Shopify subscription plan
-  isDevMode?: boolean; // Development mode - enables all features
 }
 
 import {
@@ -40,8 +38,6 @@ export function DashboardControls({
   onVisibilityChange,
   initialVisibility,
   currentVisibility,
-  currentPlan,
-  isDevMode = false,
 }: DashboardControlsProps) {
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [visibility, setVisibility] = useState<DashboardVisibility>(
@@ -71,12 +67,7 @@ export function DashboardControls({
     setLastUpdated(new Date().toLocaleString());
   }, []);
 
-  // Check if user is on free plan (no plan or plan name contains "Free")
-  // In dev mode, all features are enabled regardless of plan
-  const isFreePlan =
-    !isDevMode && (!currentPlan || currentPlan.toLowerCase().includes("free"));
-
-  // Date range options - "Custom range" is always visible but disabled for free plan users
+  // Date range options - all features enabled for all users
   const dateRangeOptions = [
     { label: "Today", value: "today" },
     { label: "Yesterday", value: "yesterday" },
@@ -85,19 +76,8 @@ export function DashboardControls({
     { label: "Last 90 days", value: "last90Days" },
     { label: "This month", value: "thisMonth" },
     { label: "Last month", value: "lastMonth" },
-    {
-      label: "Custom range" + (isFreePlan ? " (Upgrade required)" : ""),
-      value: "custom",
-      disabled: isFreePlan,
-    },
+    { label: "Custom range", value: "custom" },
   ];
-
-  // Reset to default if free plan user has "custom" selected (unless dev mode)
-  useEffect(() => {
-    if (isFreePlan && dateRangeValue === "custom") {
-      onDateRangeChange("last30Days");
-    }
-  }, [isFreePlan, dateRangeValue, onDateRangeChange]);
 
   const handleCustomizeClick = () => {
     // Reset to current applied state when opening modal (discard any unsaved changes)
@@ -218,13 +198,7 @@ export function DashboardControls({
                 labelHidden
                 options={dateRangeOptions}
                 value={dateRangeValue}
-                onChange={(value) => {
-                  // Prevent selecting "custom" if user is on free plan (unless dev mode)
-                  if (value === "custom" && isFreePlan) {
-                    return; // Don't allow selection
-                  }
-                  onDateRangeChange(value);
-                }}
+                onChange={onDateRangeChange}
               />
             </InlineStack>
 
@@ -232,9 +206,8 @@ export function DashboardControls({
               <Button
                 onClick={handleCustomizeClick}
                 variant="secondary"
-                disabled={isFreePlan}
               >
-                Customize Dashboard{isFreePlan ? " (Upgrade required)" : ""}
+                Customize Dashboard
               </Button>
             </InlineStack>
           </InlineStack>

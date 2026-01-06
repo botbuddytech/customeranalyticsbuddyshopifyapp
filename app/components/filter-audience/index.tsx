@@ -685,6 +685,39 @@ export function AudienceFilterForm({
     setShowSaveListModal(true);
   };
 
+  // Count active filter criteria (categories, not individual values)
+  const countActiveFilters = useCallback((filters: FilterData): number => {
+    let count = 0;
+
+    // Count array-based filter categories (each category counts as 1, regardless of how many values)
+    if (filters.location && Array.isArray(filters.location) && filters.location.length > 0) count++;
+    if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) count++;
+    if (filters.timing && Array.isArray(filters.timing) && filters.timing.length > 0) count++;
+    if (filters.device && Array.isArray(filters.device) && filters.device.length > 0) count++;
+    if (filters.payment && Array.isArray(filters.payment) && filters.payment.length > 0) count++;
+    if (filters.delivery && Array.isArray(filters.delivery) && filters.delivery.length > 0) count++;
+
+    // Count amountSpent filter (one category)
+    if (
+      filters.amountSpent &&
+      filters.amountSpent.amount != null &&
+      filters.amountSpent.operator != null
+    ) {
+      count++;
+    }
+
+    // Count customerCreatedFrom filter (one category)
+    if (
+      filters.customerCreatedFrom != null &&
+      typeof filters.customerCreatedFrom === "string" &&
+      filters.customerCreatedFrom.trim() !== ""
+    ) {
+      count++;
+    }
+
+    return count;
+  }, []);
+
   // Handle save list submission
   const handleSaveListSubmit = async (listName: string) => {
     setIsSavingList(true);
@@ -745,6 +778,38 @@ export function AudienceFilterForm({
       }
 
       if (data.success) {
+        // Check if 2+ filter criteria are active and auto-complete Step 2
+        // Use selectedFilters to count active filters (what user actually selected)
+        // This is more reliable than segmentResults.filters which might be from a previous generation
+        const activeFilterCount = countActiveFilters(selectedFilters);
+        
+        console.log("[Step 2 Auto-complete] Active filter count:", activeFilterCount);
+        console.log("[Step 2 Auto-complete] Selected filters:", selectedFilters);
+        
+        if (activeFilterCount >= 2) {
+          try {
+            const stepFormData = new FormData();
+            stepFormData.append("stepId", "2");
+            const stepResponse = await fetch("/api/onboarding/auto-complete-step", {
+              method: "POST",
+              body: stepFormData,
+            });
+            const stepData = await stepResponse.json();
+            console.log("[Step 2 Auto-complete] API Response:", stepData);
+            
+            if (stepData.success) {
+              console.log("[Step 2 Auto-complete] Step 2 marked as completed successfully");
+            } else {
+              console.error("[Step 2 Auto-complete] Failed to mark step 2:", stepData.error);
+            }
+          } catch (error) {
+            console.error("Error auto-completing step 2:", error);
+            // Silently fail - this is not critical
+          }
+        } else {
+          console.log("[Step 2 Auto-complete] Not enough filters. Count:", activeFilterCount, "Required: 2");
+        }
+
         // Close the save modal on success
         setShowSaveListModal(false);
         setSaveListError(null);

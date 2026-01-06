@@ -123,3 +123,45 @@ model OnboardingProgress {
 
   @@map("onboarding_progress")
 }
+
+model UsageTracking {
+  id                  String   @id @default(uuid())
+  shop                String   @unique
+  totalChatsCreated   Int      @default(0)
+  totalListsGenerated Int      @default(0)
+  totalListsSaved     Int      @default(0)
+  totalExports        Int      @default(0)
+  isBlocked           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([shop])
+  @@map("usage_tracking")
+}
+
+model UsageLimits {
+  id                String   @id @default(uuid())
+  maxChats          Int      @default(10)
+  maxListsGenerated Int      @default(20)
+  maxListsSaved     Int      @default(15)
+  maxExports        Int      @default(10)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("usage_limits")
+}
+
+// Shopify Session Storage (required for production on Vercel)
+model Session {
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      String?
+
+  @@map("Session")
+}
