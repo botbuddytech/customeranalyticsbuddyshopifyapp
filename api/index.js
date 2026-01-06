@@ -1,11 +1,22 @@
 import pkg from "@react-router/node";
 const { installGlobals } = pkg;
-import * as serverBuild from "../build/server/index.js";
 
 installGlobals();
 
 export default async function handler(req, res) {
   try {
+    // Verify critical environment variables are available
+    if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
+      console.error("Missing Shopify environment variables:");
+      console.error("SHOPIFY_API_KEY:", process.env.SHOPIFY_API_KEY ? "✓" : "✗");
+      console.error("SHOPIFY_API_SECRET:", process.env.SHOPIFY_API_SECRET ? "✓" : "✗");
+      throw new Error("Missing required Shopify API credentials. Please check Vercel environment variables.");
+    }
+
+    // Dynamically import server build AFTER environment variables are verified
+    // This ensures env vars are available when shopify.server.ts initializes
+    const serverBuild = await import("../build/server/index.js");
+    
     // Create a Request object from Vercel's request
     const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.headers.host || req.headers["x-forwarded-host"];
