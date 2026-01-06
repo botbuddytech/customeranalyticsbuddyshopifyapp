@@ -1,4 +1,5 @@
-import { installGlobals } from "@react-router/node";
+import pkg from "@react-router/node";
+const { installGlobals } = pkg;
 import * as serverBuild from "../build/server/index.js";
 
 installGlobals();
