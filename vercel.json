@@ -11,7 +11,8 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "build/server/**"
+      "includeFiles": "build/server/**",
+      "maxDuration": 30
     }
   }
 }
