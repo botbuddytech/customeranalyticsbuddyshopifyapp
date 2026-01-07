@@ -1,5 +1,5 @@
 // Dynamically import to ensure environment variables are loaded first
-let serverBuild;
+let requestHandler;
 
 export default async function handler(req, res) {
   try {
@@ -11,10 +11,15 @@ export default async function handler(req, res) {
       throw new Error("Missing required Shopify API credentials. Please check Vercel environment variables.");
     }
 
-    // Lazy load the server build AFTER environment variables are verified
+    // Lazy load the request handler AFTER environment variables are verified
     // This ensures env vars are available when shopify.server.ts initializes
-    if (!serverBuild) {
-      serverBuild = await import("../build/server/index.js");
+    if (!requestHandler) {
+      // Use @react-router/serve to create the request handler
+      // This is the same approach used by react-router-serve CLI
+      const { createRequestHandler } = await import("@react-router/serve");
+      const serverBuild = await import("../build/server/index.js");
+      
+      requestHandler = createRequestHandler(serverBuild, "production");
     }
     
     // Create a Request object from Vercel's request
@@ -30,70 +35,8 @@ export default async function handler(req, res) {
         : undefined,
     });
 
-    // React Router v7's server build exports:
-    // - entry: The entry.server.tsx module path or module itself
-    // - routes: Route definitions
-    // We need to use React Router's request handling
-    
-    // Import the entry module to get handleRequest
-    // entry might be a module path string or already a module
-    let entryModule;
-    if (typeof serverBuild.entry === "string") {
-      // If entry is a path, import it
-      entryModule = await import(serverBuild.entry);
-    } else if (serverBuild.entry && typeof serverBuild.entry === "object") {
-      // If entry is already a module object, check if it has default
-      entryModule = serverBuild.entry;
-    } else {
-      // Try importing the entry module directly
-      entryModule = await serverBuild.entry;
-    }
-    
-    const handleRequest = entryModule?.default;
-    
-    if (typeof handleRequest !== "function") {
-      console.error("Entry module type:", typeof entryModule);
-      console.error("Entry module keys:", entryModule ? Object.keys(entryModule) : "null");
-      console.error("Entry module default type:", typeof entryModule?.default);
-      throw new Error(`Entry module does not export a default function. Entry module type: ${typeof entryModule}, keys: ${entryModule ? Object.keys(entryModule).join(", ") : "null"}`);
-    }
-    
-    // Use React Router's handleDocumentRequest if available, otherwise create EntryContext manually
-    // First, try to use @react-router/node's utilities to create a proper handler
-    let response;
-    
-    try {
-      // Try to use React Router's built-in request handling
-      // We'll create a minimal EntryContext and call handleRequest
-      const { createStaticHandler } = await import("react-router");
-      const staticHandler = createStaticHandler(serverBuild.routes);
-      
-      // Handle the request using the static handler
-      const context = await staticHandler.query(request);
-      
-      // Create EntryContext from the static handler context
-      const entryContext = {
-        staticHandlerContext: context,
-        serverHandoffString: "",
-        future: serverBuild.future || {},
-        isSpaMode: serverBuild.isSpaMode || false,
-        serializeError: (error) => {
-          return JSON.stringify({ message: error.message, stack: error.stack });
-        },
-      };
-      
-      // Call handleRequest with the EntryContext
-      const responseHeaders = new Headers();
-      response = await handleRequest(
-        request,
-        context.statusCode || 200,
-        responseHeaders,
-        entryContext
-      );
-    } catch (handlerError) {
-      console.error("Error creating handler context:", handlerError);
-      throw handlerError;
-    }
+    // Call the React Router request handler
+    const response = await requestHandler(request);
 
     // Convert Response to Vercel response
     const body = await response.text();
@@ -114,4 +57,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
