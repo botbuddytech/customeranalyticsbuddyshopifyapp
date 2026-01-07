@@ -1,5 +1,5 @@
 // Dynamically import to ensure environment variables are loaded first
-let requestHandler;
+let serverBuild;
 
 export default async function handler(req, res) {
   try {
@@ -11,14 +11,14 @@ export default async function handler(req, res) {
       throw new Error("Missing required Shopify API credentials. Please check Vercel environment variables.");
     }
 
-    // Lazy load the request handler and server build
+    // Lazy load the server build AFTER environment variables are verified
     // This ensures env vars are available when shopify.server.ts initializes
-    if (!requestHandler) {
-      const { createRequestHandler } = await import("@react-router/node");
-      const serverBuild = await import("../build/server/index.js");
+    if (!serverBuild) {
+      serverBuild = await import("../build/server/index.js");
       
-      // Create the request handler with the server build
-      requestHandler = createRequestHandler(serverBuild, "production");
+      // Log what the server build exports for debugging
+      console.log("Server build exports:", Object.keys(serverBuild));
+      console.log("Default export type:", typeof serverBuild.default);
     }
     
     // Create a Request object from Vercel's request
@@ -34,8 +34,19 @@ export default async function handler(req, res) {
         : undefined,
     });
 
-    // Call the React Router request handler
-    const response = await requestHandler(request);
+    // React Router v7's server build exports handleDocumentRequest
+    // which is the main entry point for handling requests
+    let response;
+    if (typeof serverBuild.handleDocumentRequest === "function") {
+      response = await serverBuild.handleDocumentRequest(request);
+    } else if (typeof serverBuild.default === "function") {
+      // If handleDocumentRequest doesn't exist, try the default export
+      // This should be handleRequest from entry.server.tsx
+      // But it needs EntryContext which we need to create
+      throw new Error("Default export found but EntryContext creation not implemented. Server build exports: " + Object.keys(serverBuild).join(", "));
+    } else {
+      throw new Error(`No request handler found. Server build exports: ${Object.keys(serverBuild).join(", ")}`);
+    }
 
     // Convert Response to Vercel response
     const body = await response.text();
