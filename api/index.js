@@ -1,5 +1,6 @@
 // Dynamically import to ensure environment variables are loaded first
-let requestHandler;
+let handleRequest;
+let serverBuild;
 
 export default async function handler(req, res) {
   try {
@@ -11,15 +12,17 @@ export default async function handler(req, res) {
       throw new Error("Missing required Shopify API credentials. Please check Vercel environment variables.");
     }
 
-    // Lazy load the request handler AFTER environment variables are verified
-    // This ensures env vars are available when shopify.server.ts initializes
-    if (!requestHandler) {
-      // Use @react-router/serve to create the request handler
-      // This is the same approach used by react-router-serve CLI
-      const { createRequestHandler } = await import("@react-router/serve");
-      const serverBuild = await import("../build/server/index.js");
+    // Lazy load the server build and entry module AFTER environment variables are verified
+    if (!serverBuild) {
+      serverBuild = await import("../build/server/index.js");
       
-      requestHandler = createRequestHandler(serverBuild, "production");
+      // entry.module contains the actual entry.server.tsx module
+      const entryModule = serverBuild.entry.module;
+      handleRequest = entryModule.default;
+      
+      if (typeof handleRequest !== "function") {
+        throw new Error(`Entry module does not export default function. Available: ${Object.keys(entryModule).join(", ")}`);
+      }
     }
     
     // Create a Request object from Vercel's request
@@ -35,8 +38,32 @@ export default async function handler(req, res) {
         : undefined,
     });
 
-    // Call the React Router request handler
-    const response = await requestHandler(request);
+    // Use React Router's createStaticHandler to create EntryContext
+    const { createStaticHandler } = await import("react-router");
+    const staticHandler = createStaticHandler(serverBuild.routes);
+    
+    // Handle the request using the static handler
+    const context = await staticHandler.query(request);
+    
+    // Create EntryContext from the static handler context
+    const entryContext = {
+      staticHandlerContext: context,
+      serverHandoffString: "",
+      future: serverBuild.future || {},
+      isSpaMode: serverBuild.isSpaMode || false,
+      serializeError: (error) => {
+        return JSON.stringify({ message: error.message, stack: error.stack });
+      },
+    };
+    
+    // Call handleRequest with the EntryContext
+    const responseHeaders = new Headers();
+    const response = await handleRequest(
+      request,
+      context.statusCode || 200,
+      responseHeaders,
+      entryContext
+    );
 
     // Convert Response to Vercel response
     const body = await response.text();
