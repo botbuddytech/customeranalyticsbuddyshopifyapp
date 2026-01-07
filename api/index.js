@@ -1,3 +1,6 @@
+// Dynamically import to ensure environment variables are loaded first
+let requestHandler;
+
 export default async function handler(req, res) {
   try {
     // Verify critical environment variables are available
@@ -8,9 +11,15 @@ export default async function handler(req, res) {
       throw new Error("Missing required Shopify API credentials. Please check Vercel environment variables.");
     }
 
-    // Dynamically import server build AFTER environment variables are verified
+    // Lazy load the request handler and server build
     // This ensures env vars are available when shopify.server.ts initializes
-    const serverBuild = await import("../build/server/index.js");
+    if (!requestHandler) {
+      const { createRequestHandler } = await import("@react-router/node");
+      const serverBuild = await import("../build/server/index.js");
+      
+      // Create the request handler with the server build
+      requestHandler = createRequestHandler(serverBuild, "production");
+    }
     
     // Create a Request object from Vercel's request
     const protocol = req.headers["x-forwarded-proto"] || "https";
@@ -25,21 +34,8 @@ export default async function handler(req, res) {
         : undefined,
     });
 
-    // Use the server build's default export (handleRequest from entry.server.tsx)
-    const handleRequest = serverBuild.default;
-    
-    if (!handleRequest) {
-      throw new Error("Server build does not export a default function");
-    }
-
-    // Call the React Router server handler
-    // handleRequest expects: (request, responseStatusCode, responseHeaders, reactRouterContext)
-    const response = await handleRequest(
-      request,
-      200,
-      new Headers(),
-      serverBuild
-    );
+    // Call the React Router request handler
+    const response = await requestHandler(request);
 
     // Convert Response to Vercel response
     const body = await response.text();
