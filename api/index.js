@@ -15,10 +15,6 @@ export default async function handler(req, res) {
     // This ensures env vars are available when shopify.server.ts initializes
     if (!serverBuild) {
       serverBuild = await import("../build/server/index.js");
-      
-      // Log what the server build exports for debugging
-      console.log("Server build exports:", Object.keys(serverBuild));
-      console.log("Default export type:", typeof serverBuild.default);
     }
     
     // Create a Request object from Vercel's request
@@ -34,18 +30,54 @@ export default async function handler(req, res) {
         : undefined,
     });
 
-    // React Router v7's server build exports handleDocumentRequest
-    // which is the main entry point for handling requests
+    // React Router v7's server build exports:
+    // - entry: The entry.server.tsx module (exports handleRequest as default)
+    // - routes: Route definitions
+    // We need to use React Router's request handling
+    
+    // Import the entry module to get handleRequest
+    const entryModule = serverBuild.entry;
+    const handleRequest = entryModule?.default;
+    
+    if (typeof handleRequest !== "function") {
+      throw new Error(`Entry module does not export a default function. Entry module: ${entryModule ? Object.keys(entryModule).join(", ") : "null"}`);
+    }
+    
+    // Use React Router's handleDocumentRequest if available, otherwise create EntryContext manually
+    // First, try to use @react-router/node's utilities to create a proper handler
     let response;
-    if (typeof serverBuild.handleDocumentRequest === "function") {
-      response = await serverBuild.handleDocumentRequest(request);
-    } else if (typeof serverBuild.default === "function") {
-      // If handleDocumentRequest doesn't exist, try the default export
-      // This should be handleRequest from entry.server.tsx
-      // But it needs EntryContext which we need to create
-      throw new Error("Default export found but EntryContext creation not implemented. Server build exports: " + Object.keys(serverBuild).join(", "));
-    } else {
-      throw new Error(`No request handler found. Server build exports: ${Object.keys(serverBuild).join(", ")}`);
+    
+    try {
+      // Try to use React Router's built-in request handling
+      // We'll create a minimal EntryContext and call handleRequest
+      const { createStaticHandler } = await import("react-router");
+      const staticHandler = createStaticHandler(serverBuild.routes);
+      
+      // Handle the request using the static handler
+      const context = await staticHandler.query(request);
+      
+      // Create EntryContext from the static handler context
+      const entryContext = {
+        staticHandlerContext: context,
+        serverHandoffString: "",
+        future: serverBuild.future || {},
+        isSpaMode: serverBuild.isSpaMode || false,
+        serializeError: (error) => {
+          return JSON.stringify({ message: error.message, stack: error.stack });
+        },
+      };
+      
+      // Call handleRequest with the EntryContext
+      const responseHeaders = new Headers();
+      response = await handleRequest(
+        request,
+        context.statusCode || 200,
+        responseHeaders,
+        entryContext
+      );
+    } catch (handlerError) {
+      console.error("Error creating handler context:", handlerError);
+      throw handlerError;
     }
 
     // Convert Response to Vercel response
