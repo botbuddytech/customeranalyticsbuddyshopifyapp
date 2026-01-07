@@ -31,16 +31,31 @@ export default async function handler(req, res) {
     });
 
     // React Router v7's server build exports:
-    // - entry: The entry.server.tsx module (exports handleRequest as default)
+    // - entry: The entry.server.tsx module path or module itself
     // - routes: Route definitions
     // We need to use React Router's request handling
     
     // Import the entry module to get handleRequest
-    const entryModule = serverBuild.entry;
+    // entry might be a module path string or already a module
+    let entryModule;
+    if (typeof serverBuild.entry === "string") {
+      // If entry is a path, import it
+      entryModule = await import(serverBuild.entry);
+    } else if (serverBuild.entry && typeof serverBuild.entry === "object") {
+      // If entry is already a module object, check if it has default
+      entryModule = serverBuild.entry;
+    } else {
+      // Try importing the entry module directly
+      entryModule = await serverBuild.entry;
+    }
+    
     const handleRequest = entryModule?.default;
     
     if (typeof handleRequest !== "function") {
-      throw new Error(`Entry module does not export a default function. Entry module: ${entryModule ? Object.keys(entryModule).join(", ") : "null"}`);
+      console.error("Entry module type:", typeof entryModule);
+      console.error("Entry module keys:", entryModule ? Object.keys(entryModule) : "null");
+      console.error("Entry module default type:", typeof entryModule?.default);
+      throw new Error(`Entry module does not export a default function. Entry module type: ${typeof entryModule}, keys: ${entryModule ? Object.keys(entryModule).join(", ") : "null"}`);
     }
     
     // Use React Router's handleDocumentRequest if available, otherwise create EntryContext manually
