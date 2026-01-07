@@ -1,8 +1,3 @@
-import pkg from "@react-router/node";
-const { installGlobals } = pkg;
-
-installGlobals();
-
 export default async function handler(req, res) {
   try {
     // Verify critical environment variables are available
