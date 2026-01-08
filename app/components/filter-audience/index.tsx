@@ -690,12 +690,42 @@ export function AudienceFilterForm({
     let count = 0;
 
     // Count array-based filter categories (each category counts as 1, regardless of how many values)
-    if (filters.location && Array.isArray(filters.location) && filters.location.length > 0) count++;
-    if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) count++;
-    if (filters.timing && Array.isArray(filters.timing) && filters.timing.length > 0) count++;
-    if (filters.device && Array.isArray(filters.device) && filters.device.length > 0) count++;
-    if (filters.payment && Array.isArray(filters.payment) && filters.payment.length > 0) count++;
-    if (filters.delivery && Array.isArray(filters.delivery) && filters.delivery.length > 0) count++;
+    if (
+      filters.location &&
+      Array.isArray(filters.location) &&
+      filters.location.length > 0
+    )
+      count++;
+    if (
+      filters.products &&
+      Array.isArray(filters.products) &&
+      filters.products.length > 0
+    )
+      count++;
+    if (
+      filters.timing &&
+      Array.isArray(filters.timing) &&
+      filters.timing.length > 0
+    )
+      count++;
+    if (
+      filters.device &&
+      Array.isArray(filters.device) &&
+      filters.device.length > 0
+    )
+      count++;
+    if (
+      filters.payment &&
+      Array.isArray(filters.payment) &&
+      filters.payment.length > 0
+    )
+      count++;
+    if (
+      filters.delivery &&
+      Array.isArray(filters.delivery) &&
+      filters.delivery.length > 0
+    )
+      count++;
 
     // Count amountSpent filter (one category)
     if (
@@ -782,32 +812,50 @@ export function AudienceFilterForm({
         // Use selectedFilters to count active filters (what user actually selected)
         // This is more reliable than segmentResults.filters which might be from a previous generation
         const activeFilterCount = countActiveFilters(selectedFilters);
-        
-        console.log("[Step 2 Auto-complete] Active filter count:", activeFilterCount);
-        console.log("[Step 2 Auto-complete] Selected filters:", selectedFilters);
-        
+
+        console.log(
+          "[Step 2 Auto-complete] Active filter count:",
+          activeFilterCount,
+        );
+        console.log(
+          "[Step 2 Auto-complete] Selected filters:",
+          selectedFilters,
+        );
+
         if (activeFilterCount >= 2) {
           try {
             const stepFormData = new FormData();
             stepFormData.append("stepId", "2");
-            const stepResponse = await fetch("/api/onboarding/auto-complete-step", {
-              method: "POST",
-              body: stepFormData,
-            });
+            const stepResponse = await fetch(
+              "/api/onboarding/auto-complete-step",
+              {
+                method: "POST",
+                body: stepFormData,
+              },
+            );
             const stepData = await stepResponse.json();
             console.log("[Step 2 Auto-complete] API Response:", stepData);
-            
+
             if (stepData.success) {
-              console.log("[Step 2 Auto-complete] Step 2 marked as completed successfully");
+              console.log(
+                "[Step 2 Auto-complete] Step 2 marked as completed successfully",
+              );
             } else {
-              console.error("[Step 2 Auto-complete] Failed to mark step 2:", stepData.error);
+              console.error(
+                "[Step 2 Auto-complete] Failed to mark step 2:",
+                stepData.error,
+              );
             }
           } catch (error) {
             console.error("Error auto-completing step 2:", error);
             // Silently fail - this is not critical
           }
         } else {
-          console.log("[Step 2 Auto-complete] Not enough filters. Count:", activeFilterCount, "Required: 2");
+          console.log(
+            "[Step 2 Auto-complete] Not enough filters. Count:",
+            activeFilterCount,
+            "Required: 2",
+          );
         }
 
         // Close the save modal on success
@@ -834,38 +882,56 @@ export function AudienceFilterForm({
     <>
       <div
         style={{
-          maxWidth: "960px",
+          maxWidth: "1300px",
           margin: "0 auto",
           width: "100%",
+          padding: "0 32px",
         }}
       >
-        <Layout>
-          {/* Left Column: Filter Sections */}
-          <Layout.Section>
+        <div
+          className="filter-layout"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: "24px",
+            alignItems: "start",
+          }}
+        >
+          <style>{`
+            .filter-layout .sticky-preview {
+              position: relative;
+              grid-column: 1;
+            }
+            @media (min-width: 768px) {
+              .filter-layout {
+                grid-template-columns: 1fr 300px !important;
+                gap: 32px !important;
+                align-items: start !important;
+              }
+              .filter-layout > div:first-child {
+                grid-column: 1;
+              }
+              .filter-layout .sticky-preview {
+                grid-column: 2 !important;
+                position: sticky !important;
+                top: 20px !important;
+              }
+            }
+            @media (min-width: 1024px) {
+              .filter-layout {
+                grid-template-columns: 1fr 350px !important;
+              }
+            }
+          `}</style>
+
+          {/* Left Column: Filter Sections (Scrollable) */}
+          <div style={{ minWidth: 0 }}>
             <BlockStack gap="400">
               <FilterSummaryCard
                 totalFiltersCount={totalFiltersCount}
                 onClearAll={handleClearAll}
                 onSubmit={() => handleSubmit()}
                 isSubmitting={isSubmitting}
-              />
-
-              {/* Segment preview directly under active filters */}
-              <SegmentPreview
-                previewCount={previewCount}
-                isLoading={isLoadingPreview}
-              />
-
-              {/* Quick actions in a single row under preview */}
-              <QuickActions
-                hasResults={totalFiltersCount > 0}
-                isExporting={isExporting}
-                onExportPDF={handleExportPDF}
-                onExportCSV={handleExportCSV}
-                onExportExcel={handleExportExcel}
-                onCreateCampaign={handleCreateCampaign}
-                onSaveToList={handleSaveToList}
-                onExportStart={() => setIsExporting(true)}
               />
 
               {/* Geographic Location Filter */}
@@ -949,8 +1015,37 @@ export function AudienceFilterForm({
                 </Grid.Cell>
               </Grid>
             </BlockStack>
-          </Layout.Section>
-        </Layout>
+          </div>
+
+          {/* Right Column: Sticky Segment Preview and Quick Actions */}
+          <div
+            className="sticky-preview"
+            style={{
+              alignSelf: "start",
+              zIndex: 10,
+              height: "fit-content",
+              width: "100%",
+            }}
+          >
+            <BlockStack gap="400">
+              <SegmentPreview
+                previewCount={previewCount}
+                isLoading={isLoadingPreview}
+              />
+
+              <QuickActions
+                hasResults={totalFiltersCount > 0}
+                isExporting={isExporting}
+                onExportPDF={handleExportPDF}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onCreateCampaign={handleCreateCampaign}
+                onSaveToList={handleSaveToList}
+                onExportStart={() => setIsExporting(true)}
+              />
+            </BlockStack>
+          </div>
+        </div>
       </div>
 
       {/* Results Modal */}

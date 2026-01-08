@@ -286,46 +286,51 @@ export default function FilterAudiencePage() {
 
       <Layout>
         <Layout.Section>
-          <InlineStack align="center">
-            <Box maxWidth="800px" width="100%">
-              <BlockStack gap="500">
-                {/* Header */}
-                <BlockStack gap="200">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <BlockStack gap="100">
-                      <Text as="h1" variant="headingLg">
-                        {data.listId ? "✏️ Modify List" : "🎯 Filter Audience"}
-                      </Text>
+          <div
+            style={{
+              maxWidth: "1300px",
+              margin: "0 auto",
+              width: "100%",
+              padding: "0 32px",
+            }}
+          >
+            <BlockStack gap="500">
+              {/* Header */}
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text as="h1" variant="headingLg">
+                      {data.listId ? "✏️ Modify List" : "🎯 Filter Audience"}
+                    </Text>
 
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        {data.listId
-                          ? `Modifying: ${data.listName}`
-                          : "Create targeted customer segments with advanced filters"}
-                      </Text>
-                    </BlockStack>
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      {data.listId
+                        ? `Modifying: ${data.listName}`
+                        : "Create targeted customer segments with advanced filters"}
+                    </Text>
+                  </BlockStack>
 
-                    <Badge tone="info">
-                      {data.listId ? "Modify Mode" : "Segment Builder"}
-                    </Badge>
-                  </InlineStack>
-                </BlockStack>
-
-                {/* Main form */}
-                <AudienceFilterForm
-                  products={data.products}
-                  collections={data.collections}
-                  categories={data.categories}
-                  countries={data.countries}
-                  paymentMethods={data.paymentMethods}
-                  deliveryMethods={data.deliveryMethods}
-                  isLoading={isLoading}
-                  initialFilters={data.initialFilters}
-                  listId={data.listId}
-                  listName={data.listName}
-                />
+                  <Badge tone="info">
+                    {data.listId ? "Modify Mode" : "Segment Builder"}
+                  </Badge>
+                </InlineStack>
               </BlockStack>
-            </Box>
-          </InlineStack>
+
+              {/* Main form */}
+              <AudienceFilterForm
+                products={data.products}
+                collections={data.collections}
+                categories={data.categories}
+                countries={data.countries}
+                paymentMethods={data.paymentMethods}
+                deliveryMethods={data.deliveryMethods}
+                isLoading={isLoading}
+                initialFilters={data.initialFilters}
+                listId={data.listId}
+                listName={data.listName}
+              />
+            </BlockStack>
+          </div>
         </Layout.Section>
       </Layout>
     </Page>
