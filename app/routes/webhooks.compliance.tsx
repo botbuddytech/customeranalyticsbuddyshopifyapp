@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import crypto from "crypto";
 
 /**
  * Compliance Webhooks Handler
@@ -15,10 +16,61 @@ import db from "../db.server";
  * - Complete actions within 30 days
  * - Verify HMAC (handled by authenticate.webhook)
  */
+/**
+ * Manually verify HMAC for webhook requests
+ * This is a fallback to ensure we return 401 for invalid HMAC
+ */
+async function verifyHmac(request: Request): Promise<boolean> {
+  const hmacHeader = request.headers.get("X-Shopify-Hmac-Sha256");
+  const apiSecret = process.env.SHOPIFY_API_SECRET;
+
+  if (!hmacHeader || !apiSecret) {
+    return false;
+  }
+
+  try {
+    // Get the raw body for HMAC calculation
+    const rawBody = await request.clone().text();
+    
+    // Calculate HMAC
+    const calculatedHmac = crypto
+      .createHmac("sha256", apiSecret)
+      .update(rawBody, "utf8")
+      .digest("base64");
+
+    // Use timing-safe comparison to prevent timing attacks
+    const hmacBuffer = Buffer.from(hmacHeader, "base64");
+    const calculatedBuffer = Buffer.from(calculatedHmac, "base64");
+
+    if (hmacBuffer.length !== calculatedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(hmacBuffer, calculatedBuffer);
+  } catch (error) {
+    console.error("[Compliance] Error verifying HMAC:", error);
+    return false;
+  }
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
-  // authenticate.webhook automatically verifies HMAC
-  // If HMAC is invalid, it throws an error that React Router converts to a response
-  // We need to catch it and return 401 explicitly for compliance webhooks
+  // First, manually verify HMAC to ensure we return 401 for invalid HMAC
+  // This is required by Shopify for compliance webhooks
+  const hmacValid = await verifyHmac(request);
+  
+  if (!hmacValid) {
+    console.error("[Compliance] HMAC validation failed - returning 401");
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: {
+        "Content-Type": "text/plain"
+      }
+    });
+  }
+
+  // HMAC is valid, now use authenticate.webhook to parse and process
+  // Since we already verified HMAC manually, authenticate.webhook should succeed
+  // But we'll still catch any unexpected errors
   try {
     const { payload, shop, topic } = await authenticate.webhook(request);
 
@@ -40,25 +92,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return new Response(null, { status: 200 });
     }
   } catch (error) {
-    // Check if this is an HMAC validation error
-    // authenticate.webhook throws errors for invalid HMAC
+    // If authenticate.webhook throws an error after we verified HMAC,
+    // it's likely a processing error, not an HMAC error
+    // But to be safe, check if it's an HMAC error
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorName = error instanceof Error ? error.name : "";
     
-    // Check for various HMAC validation error indicators
-    const isHmacError = 
+    // Double-check for HMAC errors (shouldn't happen since we verified above)
+    if (
       errorMessage.includes("HMAC") ||
       errorMessage.includes("Unauthorized") ||
       errorMessage.includes("Invalid webhook") ||
       errorMessage.includes("verification") ||
-      errorMessage.includes("signature") ||
-      errorName.includes("Unauthorized") ||
-      errorName.includes("Invalid");
-    
-    if (isHmacError) {
-      console.error("[Compliance] HMAC validation failed - returning 401:", errorMessage);
-      // Return 401 for invalid HMAC as required by Shopify
-      return new Response("Unauthorized", { 
+      errorMessage.includes("signature")
+    ) {
+      console.error("[Compliance] Unexpected HMAC error from authenticate.webhook:", errorMessage);
+      return new Response("Unauthorized", {
         status: 401,
         headers: {
           "Content-Type": "text/plain"
@@ -66,9 +114,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
     
-    // For other errors (processing errors), log but still return 200
-    // to acknowledge receipt (webhook was valid, but processing failed)
-    console.error("[Compliance] Error processing webhook (non-HMAC):", error);
+    // For other processing errors, log but return 200
+    // (Webhook was valid, but processing failed)
+    console.error("[Compliance] Error processing webhook:", error);
     return new Response(null, { status: 200 });
   }
 };
