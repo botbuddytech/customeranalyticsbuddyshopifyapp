@@ -16,4 +16,4 @@ api_version = "2026-01"
 scopes = "read_checkouts,read_customers,write_customers,read_orders,write_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://customeranalyticsbuddyshopifyapp.vercel.app/api/auth/shopify/callback" ]
+redirect_urls = [ "https://customeranalyticsbuddyshopifyapp.vercel.app/auth/shopify/callback" ]
