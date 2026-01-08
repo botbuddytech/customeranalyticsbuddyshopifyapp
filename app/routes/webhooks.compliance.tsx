@@ -16,8 +16,10 @@ import db from "../db.server";
  * - Verify HMAC (handled by authenticate.webhook)
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
+  // authenticate.webhook automatically verifies HMAC
+  // If HMAC is invalid, it throws an error that React Router converts to a response
+  // We need to catch it and return 401 explicitly for compliance webhooks
   try {
-    // authenticate.webhook automatically verifies HMAC and returns 401 if invalid
     const { payload, shop, topic } = await authenticate.webhook(request);
 
     console.log(`[Compliance] Received ${topic} webhook for ${shop}`);
@@ -38,8 +40,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return new Response(null, { status: 200 });
     }
   } catch (error) {
-    console.error("[Compliance] Error processing webhook:", error);
-    // Still return 200 to acknowledge receipt
+    // Check if this is an HMAC validation error
+    // authenticate.webhook throws errors for invalid HMAC
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : "";
+    
+    // Check for various HMAC validation error indicators
+    const isHmacError = 
+      errorMessage.includes("HMAC") ||
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Invalid webhook") ||
+      errorMessage.includes("verification") ||
+      errorMessage.includes("signature") ||
+      errorName.includes("Unauthorized") ||
+      errorName.includes("Invalid");
+    
+    if (isHmacError) {
+      console.error("[Compliance] HMAC validation failed - returning 401:", errorMessage);
+      // Return 401 for invalid HMAC as required by Shopify
+      return new Response("Unauthorized", { 
+        status: 401,
+        headers: {
+          "Content-Type": "text/plain"
+        }
+      });
+    }
+    
+    // For other errors (processing errors), log but still return 200
+    // to acknowledge receipt (webhook was valid, but processing failed)
+    console.error("[Compliance] Error processing webhook (non-HMAC):", error);
     return new Response(null, { status: 200 });
   }
 };
