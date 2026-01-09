@@ -18,7 +18,9 @@ interface IntegrationSettingsProps {
   };
 }
 
-export function IntegrationSettings({ mailchimpConnection }: IntegrationSettingsProps) {
+export function IntegrationSettings({
+  mailchimpConnection,
+}: IntegrationSettingsProps) {
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -38,7 +40,10 @@ export function IntegrationSettings({ mailchimpConnection }: IntegrationSettings
           window.location.reload();
         }, 1500);
       } else if (event.data.type === "MAILCHIMP_OAUTH_ERROR") {
-        setToastMessage(event.data.message || "❌ Failed to connect Mailchimp. Please try again.");
+        setToastMessage(
+          event.data.message ||
+            "❌ Failed to connect Mailchimp. Please try again.",
+        );
         setToastActive(true);
       }
     };
@@ -57,17 +62,17 @@ export function IntegrationSettings({ mailchimpConnection }: IntegrationSettings
       // Fetch the OAuth URL from our API
       const response = await fetch("/api/mailchimp/authorize");
       const { authUrl } = await response.json();
-      
+
       // Open OAuth flow in a popup window
       const width = 600;
       const height = 700;
       const left = (window.screen.width - width) / 2;
       const top = (window.screen.height - height) / 2;
-      
+
       const popup = window.open(
         authUrl,
         "mailchimp-oauth",
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,directories=no,status=no`
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,directories=no,status=no`,
       );
 
       if (!popup) {
@@ -121,24 +126,7 @@ export function IntegrationSettings({ mailchimpConnection }: IntegrationSettings
         <Toast content={toastMessage} onDismiss={() => setToastActive(false)} />
       )}
 
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack align="space-between" blockAlign="center">
-            <BlockStack gap="050">
-              <Text as="h3" variant="headingSm">
-                Built-in email
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                Use the app&apos;s native email sending (Gmail / SMTP) for
-                feedback, waitlists, and automations.
-              </Text>
-            </BlockStack>
-            <Badge tone="success">Active</Badge>
-          </InlineStack>
-        </BlockStack>
-      </Card>
-
-      <MailchimpIntegration 
+      <MailchimpIntegration
         isConnected={mailchimpConnection?.isConnected || false}
         connectedAt={mailchimpConnection?.connectedAt}
         onConnect={handleMailchimpConnect}

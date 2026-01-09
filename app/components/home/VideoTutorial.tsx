@@ -31,7 +31,7 @@ export function VideoTutorial() {
             Learn how to set up your first AI-powered customer segment and send
             targeted campaigns in under 10 minutes. This step-by-step guide
             covers everything from connecting your store to launching your first
-            WhatsApp or email campaign.
+            email campaign.
           </Text>
         </BlockStack>
 

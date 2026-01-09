@@ -20,8 +20,9 @@ export function WelcomeHeader() {
           </Text>
 
           <Text variant="bodyMd" as="p">
-            Use AI or manual filters to create high-converting segments or email
-            messages — all in one place.
+            Create precise customer segments with AI and manual filters. Build
+            high-converting email lists and detailed reports—all directly in
+            Shopify. Start for free.
           </Text>
         </BlockStack>
       </BlockStack>

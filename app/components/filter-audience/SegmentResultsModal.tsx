@@ -246,7 +246,7 @@ export function SegmentResultsModal({
             content: "Create Campaign",
             icon: EmailIcon,
             onAction: onCreateCampaign || (() => {}),
-            disabled: !results.customers || results.customers.length === 0,
+            disabled: true, // Disabled for now
           },
         ]}
       >

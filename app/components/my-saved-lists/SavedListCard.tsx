@@ -282,6 +282,7 @@ export function SavedListCard({
             variant="primary"
             icon={EmailIcon}
             url={`/app/campaigns/new?listId=${id}`}
+            disabled={true}
           >
             Campaign
           </Button>
