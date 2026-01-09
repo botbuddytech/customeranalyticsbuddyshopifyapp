@@ -65,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ).length;
 
     const currentPlan = await getCurrentPlanName(admin);
-    
+
     // Check if dev mode is enabled
     const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
     let isDevMode = false;
@@ -92,7 +92,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("[My Saved Lists] Error loading lists:", error);
     // Return empty data on error
     const currentPlan = await getCurrentPlanName(admin);
-    
+
     // Check if dev mode is enabled
     const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
     let isDevMode = false;
@@ -339,7 +339,7 @@ export default function MySavedListsPage() {
 
   return (
     <Frame>
-      <UpgradeBanner currentPlan={loaderData.currentPlan} isDevMode={loaderData.isDevMode} />
+      {/* <UpgradeBanner currentPlan={loaderData.currentPlan} isDevMode={loaderData.isDevMode} /> */}
       <Page fullWidth>
         <TitleBar title="My Saved Lists" />
 

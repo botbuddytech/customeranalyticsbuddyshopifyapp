@@ -26,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shopInfo = await getShopInfo(admin, session.shop);
   const currentPlan = await getCurrentPlanName(admin);
-  
+
   // Check if dev mode is enabled
   const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
   let isDevMode = false;
@@ -113,7 +113,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           content = reply;
           // Extract query if it exists in the message data
           const queryFromData = findKey(msgData, "query");
-          if (queryFromData && queryFromData.trim() && queryFromData !== "null") {
+          if (
+            queryFromData &&
+            queryFromData.trim() &&
+            queryFromData !== "null"
+          ) {
             // Store query in the message object
             msgData.query = queryFromData;
           }
@@ -155,7 +159,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               role = "assistant";
               content = parsed.reply;
               // Extract query from parsed JSON if it exists
-              if (parsed.query && parsed.query.trim() && parsed.query !== "null") {
+              if (
+                parsed.query &&
+                parsed.query.trim() &&
+                parsed.query !== "null"
+              ) {
                 msgData.query = parsed.query;
               }
             }
@@ -222,11 +230,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function AISearchAnalyzerRoute() {
-  const { apiKey, shopInfo, history, currentPlan, isDevMode } = useLoaderData<LoaderData>();
+  const { apiKey, shopInfo, history, currentPlan, isDevMode } =
+    useLoaderData<LoaderData>();
 
   return (
     <Frame>
-      <UpgradeBanner currentPlan={currentPlan} isDevMode={isDevMode} />
+      {/* <UpgradeBanner currentPlan={currentPlan} isDevMode={isDevMode} /> */}
       <Page fullWidth>
         <TitleBar title="AI Search & Analyzer" />
         <AISearchAnalyzerPage

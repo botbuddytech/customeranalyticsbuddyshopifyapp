@@ -2,10 +2,13 @@
 
 client_id = "d5a42a94b23c58caef6dc110e896012a"
 name = "Customer Analytics Buddy"
+# Production URL - DO NOT manually change this during development
+# Shopify CLI will automatically override this with tunnel URL when running npm run dev
 application_url = "https://customeranalyticsbuddyapp.vercel.app"
 embedded = true
 
 [build]
+# When true, Shopify CLI automatically updates URLs with tunnel URL during development
 automatically_update_urls_on_dev = false
 
 [webhooks]
