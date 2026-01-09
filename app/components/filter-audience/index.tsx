@@ -666,13 +666,11 @@ export function AudienceFilterForm({
 
     // If creating new, ensure results exist first
     const segmentResults = await ensureResults();
-    if (
-      segmentResults &&
-      segmentResults.customers &&
-      segmentResults.customers.length > 0
-    ) {
+    if (segmentResults) {
       setSaveListError(null);
       setShowSaveListModal(true);
+    } else {
+      setSaveListError("Please generate a segment first");
     }
   };
 
@@ -808,6 +806,18 @@ export function AudienceFilterForm({
       }
 
       if (data.success) {
+        // Check if list has zero customers and show warning
+        const customerCount = segmentResults?.matchCount || 0;
+        if (customerCount === 0) {
+          // Dispatch custom event to show toast notification
+          const event = new CustomEvent("zeroCustomersSaved", {
+            detail: {
+              message: "⚠️ This list contains zero customers. The list has been saved, but you may want to adjust your filters.",
+            },
+          });
+          window.dispatchEvent(event);
+        }
+
         // Check if 2+ filter criteria are active and auto-complete Step 2
         // Use selectedFilters to count active filters (what user actually selected)
         // This is more reliable than segmentResults.filters which might be from a previous generation

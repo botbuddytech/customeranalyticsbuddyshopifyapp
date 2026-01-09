@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { KlaviyoIntegrationCard } from "./integration/KlaviyoIntegrationCard";
 import { MailchimpIntegrationCard } from "./integration/MailchimpIntegrationCard";
 import { SendGridIntegrationCard } from "./integration/SendGridIntegrationCard";
@@ -9,17 +9,27 @@ interface Step4Props {
 }
 
 const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
-  const [selected, setSelected] = useState("");
+  const handleFinish = () => {
+    // Mark step as completed
+    if (onTaskComplete) {
+      onTaskComplete();
+    }
+    onComplete();
+  };
 
   return (
     <div style={{ paddingTop: "8px", paddingBottom: "8px" }}>
       <div style={{ textAlign: "center", marginBottom: "32px" }}>
-        <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>
-          Connect Email Service
+        <h2
+          style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}
+        >
+          Email Service Integrations
         </h2>
-        <p style={{ color: "#4B5563" }}>
-          Sync your high-performing customer segments directly to your email
-          platform.
+        <p style={{ color: "#4B5563", marginBottom: "8px" }}>
+          Connect your email platform to sync high-performing customer segments.
+        </p>
+        <p style={{ color: "#6B7280", fontSize: "14px" }}>
+          You can connect these services later in Settings.
         </p>
       </div>
 
@@ -32,16 +42,19 @@ const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
         }}
       >
         <KlaviyoIntegrationCard
-          selected={selected}
-          onSelect={setSelected}
+          selected=""
+          onSelect={() => {}} // Disabled - no action
+          disabled={true}
         />
         <MailchimpIntegrationCard
-          selected={selected}
-          onSelect={setSelected}
+          selected=""
+          onSelect={() => {}} // Disabled - no action
+          disabled={true}
         />
         <SendGridIntegrationCard
-          selected={selected}
-          onSelect={setSelected}
+          selected=""
+          onSelect={() => {}} // Disabled - no action
+          disabled={true}
         />
       </div>
 
@@ -54,47 +67,8 @@ const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
           gap: "16px",
         }}
       >
-        <div>
-          <label
-            style={{
-              display: "block",
-              fontSize: "14px",
-              fontWeight: "700",
-              color: "#374151",
-              marginBottom: "4px",
-            }}
-          >
-            Select Provider
-          </label>
-          <select 
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #D1D5DB",
-              borderRadius: "6px",
-              backgroundColor: "white",
-              fontSize: "14px",
-              cursor: "pointer",
-            }}
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            <option value="">Choose your email platform...</option>
-            <option value="klaviyo">Klaviyo</option>
-            <option value="mailchimp">Mailchimp</option>
-            <option value="sendgrid">SendGrid</option>
-          </select>
-        </div>
-
-        <button 
-          disabled={!selected}
-          onClick={() => {
-            // Save progress when email service is connected
-            if (onTaskComplete && selected) {
-              onTaskComplete();
-            }
-            onComplete();
-          }}
+        <button
+          onClick={handleFinish}
           style={{
             width: "100%",
             fontWeight: "700",
@@ -102,25 +76,20 @@ const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
             borderRadius: "6px",
             transition: "all 0.2s",
             border: "none",
-            cursor: selected ? "pointer" : "not-allowed",
-            backgroundColor: selected ? "#008060" : "#F3F4F6",
-            color: selected ? "white" : "#9CA3AF",
-            boxShadow: selected
-              ? "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-              : "none",
+            cursor: "pointer",
+            backgroundColor: "#008060",
+            color: "white",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
           }}
           onMouseEnter={(e) => {
-            if (selected) {
-              e.currentTarget.style.backgroundColor = "#006e52";
-            }
+            e.currentTarget.style.backgroundColor = "#006e52";
           }}
           onMouseLeave={(e) => {
-            if (selected) {
-              e.currentTarget.style.backgroundColor = "#008060";
-            }
+            e.currentTarget.style.backgroundColor = "#008060";
           }}
         >
-          Connect Service
+          Finish
         </button>
       </div>
     </div>

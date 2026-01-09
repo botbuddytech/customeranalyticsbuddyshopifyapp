@@ -301,12 +301,17 @@ export function SavedListCard({
           >
             <ActionList
               items={[
-                {
-                  content: isModifying ? "Loading..." : "Modify",
-                  icon: isModifying ? SpinnerIcon : EditIcon,
-                  onAction: handleModify,
-                  disabled: isModifying,
-                },
+                // Only show Modify button for filter-audience lists, not AI-generated lists
+                ...(source !== "ai-search"
+                  ? [
+                      {
+                        content: isModifying ? "Loading..." : "Modify",
+                        icon: isModifying ? SpinnerIcon : EditIcon,
+                        onAction: handleModify,
+                        disabled: isModifying,
+                      },
+                    ]
+                  : []),
                 {
                   content: status === "active" ? "Archive" : "Unarchive",
                   icon: CalendarIcon,

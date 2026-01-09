@@ -11,6 +11,7 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -19,6 +20,8 @@ import {
   Text,
   Badge,
   Box,
+  Frame,
+  Toast,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -128,7 +131,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       mapShippingMethodsToUserFriendly(shippingMethods);
 
     const currentPlan = await getCurrentPlanName(admin);
-    
+
     // Check if dev mode is enabled
     const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
     let isDevMode = false;
@@ -279,10 +282,38 @@ export default function FilterAudiencePage() {
     data.paymentMethods.length === 0 &&
     data.deliveryMethods.length === 0;
 
+  // Toast state for zero customers warning
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // Listen for zero customers save event
+  useEffect(() => {
+    const handleZeroCustomersSave = (event: CustomEvent) => {
+      setToastMessage(event.detail.message);
+      setToastActive(true);
+    };
+
+    window.addEventListener("zeroCustomersSaved" as any, handleZeroCustomersSave as EventListener);
+    
+    return () => {
+      window.removeEventListener("zeroCustomersSaved" as any, handleZeroCustomersSave as EventListener);
+    };
+  }, []);
+
   return (
-    <Page fullWidth>
-      <UpgradeBanner currentPlan={data.currentPlan} isDevMode={data.isDevMode} />
-      <TitleBar title={data.listId ? "Modify List" : "Filter Audience"} />
+    <Frame>
+      <Page fullWidth>
+        {/* <UpgradeBanner currentPlan={data.currentPlan} isDevMode={data.isDevMode} /> */}
+        <TitleBar title={data.listId ? "Modify List" : "Filter Audience"} />
+
+        {/* Toast for zero customers warning */}
+        {toastActive && (
+          <Toast
+            content={toastMessage}
+            onDismiss={() => setToastActive(false)}
+            duration={5000}
+          />
+        )}
 
       <Layout>
         <Layout.Section>
@@ -333,6 +364,7 @@ export default function FilterAudiencePage() {
           </div>
         </Layout.Section>
       </Layout>
-    </Page>
+      </Page>
+    </Frame>
   );
 }

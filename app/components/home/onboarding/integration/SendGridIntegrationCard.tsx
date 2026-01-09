@@ -4,11 +4,13 @@ import { PaperPlaneIcon } from "../icons";
 interface ProviderCardProps {
   selected: string;
   onSelect: (id: string) => void;
+  disabled?: boolean;
 }
 
 export const SendGridIntegrationCard: React.FC<ProviderCardProps> = ({
   selected,
   onSelect,
+  disabled = false,
 }) => {
   const id = "sendgrid";
   const isSelected = selected === id;
@@ -16,7 +18,8 @@ export const SendGridIntegrationCard: React.FC<ProviderCardProps> = ({
   return (
     <button
       type="button"
-      onClick={() => onSelect(id)}
+      onClick={() => !disabled && onSelect(id)}
+      disabled={disabled}
       style={{
         padding: "24px",
         borderRadius: "12px",
@@ -26,17 +29,18 @@ export const SendGridIntegrationCard: React.FC<ProviderCardProps> = ({
         flexDirection: "column",
         alignItems: "center",
         gap: "12px",
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
         borderColor: isSelected ? "#008060" : "#F3F4F6",
         backgroundColor: isSelected ? "rgba(240, 253, 244, 0.3)" : "white",
+        opacity: disabled ? 0.7 : 1,
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) {
+        if (!disabled && !isSelected) {
           e.currentTarget.style.borderColor = "#D1D5DB";
         }
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) {
+        if (!disabled && !isSelected) {
           e.currentTarget.style.borderColor = "#F3F4F6";
         }
       }}

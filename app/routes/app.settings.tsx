@@ -61,7 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Fetch the merchant's current app subscription from Shopify
   const currentPlanName = await getCurrentPlanName(admin);
   const selectedPlan = currentPlanName || "Managed via Shopify billing";
-  
+
   // Check if dev mode is enabled
   const enableAllFeatures = process.env.ENABLE_ALL_FEATURES;
   let isDevMode = false;
@@ -196,6 +196,26 @@ export default function SettingsPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
 
+  // Handle Mailchimp callback query parameters
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const mailchimpStatus = url.searchParams.get("mailchimp");
+    
+    if (mailchimpStatus === "connected") {
+      setToastMessage("✅ Mailchimp connected successfully!");
+      setToastError(false);
+      setToastActive(true);
+      // Clean up URL
+      window.history.replaceState({}, "", "/app/settings");
+    } else if (mailchimpStatus === "error") {
+      setToastMessage("❌ Failed to connect Mailchimp. Please try again.");
+      setToastError(true);
+      setToastActive(true);
+      // Clean up URL
+      window.history.replaceState({}, "", "/app/settings");
+    }
+  }, []);
+
   // Show toast messages based on action results
   useEffect(() => {
     if (actionData) {
@@ -222,7 +242,7 @@ export default function SettingsPage() {
 
   return (
     <Frame>
-      <UpgradeBanner />
+      {/* <UpgradeBanner /> */}
       <Page>
         <TitleBar title="Settings" />
 
