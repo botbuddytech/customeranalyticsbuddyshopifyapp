@@ -43,19 +43,24 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let hasLoaded = false; // Prevent multiple loads
 
-    // Load initial user preference (or default to Shopify locale)
-    loadUserPreferencesClient(locale)
-      .then((prefs) => {
-        if (!isMounted) return;
-        const lang = prefs.language || locale;
-        setLanguage(lang);
-        setPolarisI18n(getPolarisI18n(lang));
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setPolarisI18n(getPolarisI18n(locale));
-      });
+    // Load initial user preference (or default to Shopify locale) - only once
+    if (!hasLoaded) {
+      hasLoaded = true;
+      loadUserPreferencesClient(locale)
+        .then((prefs) => {
+          if (!isMounted) return;
+          const lang = prefs.language || locale;
+          setLanguage(lang);
+          setPolarisI18n(getPolarisI18n(lang));
+        })
+        .catch((error) => {
+          // Silently fail - already handled in loadUserPreferencesClient
+          if (!isMounted) return;
+          setPolarisI18n(getPolarisI18n(locale));
+        });
+    }
 
     // React to language changes from Settings (cookie + DB update)
     const handler = (event: Event) => {
@@ -76,7 +81,7 @@ export default function App() {
         window.removeEventListener(LANGUAGE_EVENT, handler as EventListener);
       }
     };
-  }, [locale]);
+  }, [locale]); // Only run when locale changes, not on every render
 
   return (
     <ShopifyAppProvider embedded apiKey={apiKey}>

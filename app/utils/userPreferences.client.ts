@@ -51,20 +51,45 @@ export async function loadUserPreferencesClient(
     return fromCookie;
   }
 
-  const res = await fetch("/app/api.user-preferences");
-  if (!res.ok) {
+  try {
+    // Use absolute URL to avoid React Router navigation issues
+    const url = new URL("/app/api.user-preferences", window.location.origin);
+    
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      credentials: "include",
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const data = (await res.json()) as UserPreferences;
+    const prefs: UserPreferences = {
+      language: data.language || defaultLanguage,
+    };
+    writeCookie(prefs);
+    notifyLanguageChanged(prefs.language);
+    return prefs;
+  } catch (error) {
+    // Silently fail if route doesn't exist or network error
+    // Don't log to console to avoid spam - only log in development
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[UserPreferences] Failed to load preferences:", error);
+    }
     const fallback = { language: defaultLanguage };
+    writeCookie(fallback); // Cache the fallback
     notifyLanguageChanged(fallback.language);
     return fallback;
   }
 
-  const data = (await res.json()) as UserPreferences;
-  const prefs: UserPreferences = {
-    language: data.language || defaultLanguage,
-  };
-  writeCookie(prefs);
-  notifyLanguageChanged(prefs.language);
-  return prefs;
 }
 
 /**

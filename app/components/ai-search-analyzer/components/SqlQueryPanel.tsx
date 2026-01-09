@@ -45,9 +45,42 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
   const result = queryFetcher.data;
 
   // Flatten nested objects for table display
-  const flattenObject = (obj: any, prefix = ""): Record<string, any> => {
+  const flattenObject = (obj: any, prefix = "", depth = 0): Record<string, any> => {
+    // Prevent infinite recursion
+    if (depth > 10) {
+      return { [prefix || "value"]: "[Max depth reached]" };
+    }
+
     const flattened: Record<string, any> = {};
 
+    // Handle null/undefined
+    if (obj === null || obj === undefined) {
+      return { [prefix || "value"]: "" };
+    }
+
+    // Handle primitives
+    if (typeof obj !== "object") {
+      return { [prefix || "value"]: obj };
+    }
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) {
+        return { [prefix || "value"]: "[]" };
+      }
+      // If array contains objects, show count, otherwise join values
+      if (typeof obj[0] === "object" && obj[0] !== null) {
+        return { [prefix || "value"]: `[${obj.length} items]` };
+      }
+      return { [prefix || "value"]: obj.map(String).join(", ") };
+    }
+
+    // Handle Date objects
+    if (obj instanceof Date) {
+      return { [prefix || "value"]: obj.toISOString() };
+    }
+
+    // Handle objects
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         const newKey = prefix ? `${prefix}.${key}` : key;
@@ -55,21 +88,35 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
 
         if (value === null || value === undefined) {
           flattened[newKey] = "";
+        } else if (value instanceof Date) {
+          flattened[newKey] = value.toISOString();
         } else if (Array.isArray(value)) {
-          // For arrays, join them or show count
-          flattened[newKey] =
-            value.length > 0
-              ? typeof value[0] === "object"
-                ? `[${value.length} items]`
-                : value.join(", ")
-              : "[]";
+          if (value.length === 0) {
+            flattened[newKey] = "[]";
+          } else if (typeof value[0] === "object" && value[0] !== null) {
+            // For arrays of objects, show count
+            flattened[newKey] = `[${value.length} items]`;
+          } else {
+            // For arrays of primitives, join them
+            flattened[newKey] = value.map(String).join(", ");
+          }
         } else if (typeof value === "object") {
           // Recursively flatten nested objects
-          const nested = flattenObject(value, newKey);
+          const nested = flattenObject(value, newKey, depth + 1);
           Object.assign(flattened, nested);
         } else {
+          // Primitives: string, number, boolean
           flattened[newKey] = value;
         }
+      }
+    }
+
+    // If object had no enumerable properties, stringify it
+    if (Object.keys(flattened).length === 0) {
+      try {
+        return { [prefix || "value"]: JSON.stringify(obj, null, 2) };
+      } catch (e) {
+        return { [prefix || "value"]: String(obj) };
       }
     }
 
@@ -137,15 +184,78 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
     }
 
     // Flatten each object in the array for table display
-    return arrayData.map((item) => {
-      if (typeof item === "object" && item !== null) {
-        return flattenObject(item);
+    return arrayData.map((item, index) => {
+      // Handle null/undefined
+      if (item === null || item === undefined) {
+        return { value: "" };
       }
-      return { value: item };
+      
+      // Handle primitives
+      if (typeof item !== "object") {
+        return { value: String(item) };
+      }
+      
+      // Handle Date objects
+      if (item instanceof Date) {
+        return { value: item.toISOString() };
+      }
+      
+      // Handle arrays
+      if (Array.isArray(item)) {
+        if (item.length === 0) {
+          return { value: "[]" };
+        }
+        // If array contains objects, flatten the first one as example
+        if (typeof item[0] === "object" && item[0] !== null) {
+          return {
+            value: `[${item.length} items]`,
+            ...flattenObject(item[0], "item[0]"),
+          };
+        }
+        return { value: item.map(String).join(", ") };
+      }
+      
+      // Handle objects - flatten them
+      try {
+        const flattened = flattenObject(item);
+        // Ensure we always have at least one key
+        if (Object.keys(flattened).length === 0) {
+          return { value: JSON.stringify(item, null, 2) };
+        }
+        return flattened;
+      } catch (error) {
+        // Fallback: if flattening fails, stringify
+        console.warn(`[SqlQueryPanel] Failed to flatten item ${index}:`, error);
+        try {
+          return { value: JSON.stringify(item, null, 2) };
+        } catch (e) {
+          return { value: String(item) };
+        }
+      }
     });
   };
 
-  const resultData = result?.data ? formatResult(result.data) : [];
+  // Safely parse and format result data
+  const getResultData = (): any[] => {
+    if (!result?.data) return [];
+    
+    let dataToFormat = result.data;
+    
+    // If data is a JSON string, parse it first
+    if (typeof dataToFormat === "string") {
+      try {
+        dataToFormat = JSON.parse(dataToFormat);
+      } catch (e) {
+        // If parsing fails, treat as plain string
+        console.warn("[SqlQueryPanel] Failed to parse JSON string:", e);
+        return [{ value: dataToFormat }];
+      }
+    }
+    
+    return formatResult(dataToFormat);
+  };
+  
+  const resultData = getResultData();
 
   // Auto-scroll to bottom when results change
   useEffect(() => {
@@ -949,7 +1059,27 @@ const GraphQLPreviewPanel: React.FC<GraphQLPreviewPanelProps> = ({
                                           overflowWrap: "break-word",
                                         }}
                                       >
-                                        {String(row[key] || "")}
+                                        {(() => {
+                                          const value = row[key];
+                                          // Handle null/undefined
+                                          if (value === null || value === undefined) {
+                                            return "";
+                                          }
+                                          // If it's still an object (shouldn't happen after flattening, but safety check)
+                                          if (typeof value === "object" && !Array.isArray(value)) {
+                                            try {
+                                              return JSON.stringify(value, null, 2);
+                                            } catch (e) {
+                                              return String(value);
+                                            }
+                                          }
+                                          // For arrays, stringify them
+                                          if (Array.isArray(value)) {
+                                            return JSON.stringify(value);
+                                          }
+                                          // For everything else, convert to string
+                                          return String(value);
+                                        })()}
                                       </div>
                                     </td>
                                   ),

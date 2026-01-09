@@ -7,6 +7,8 @@ import {
   DashboardSegmentModal,
   type DashboardSegmentData,
 } from "../../DashboardSegmentModal";
+import { ProtectedDataAccessModal } from "../../ProtectedDataAccessModal";
+import { exportToCSV, exportToPDF, exportToExcel } from "../../exportUtils";
 
 interface ReturningCustomersData {
   count: number;
@@ -153,10 +155,12 @@ export function ReturningCustomers({
   const fetcher = useFetcher<ReturningCustomersData>();
   const customersListFetcher = useFetcher<DashboardSegmentData>();
   const [data, setData] = useState<ReturningCustomersData | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
   const [showCustomersModal, setShowCustomersModal] = useState(false);
 
   useEffect(() => {
     setData(null);
+    setShowAccessModal(false);
     setShowCustomersModal(false); // Close customers modal when date range changes
     fetcher.load(
       `/api/dashboard/customers-overview/returning-customers?dateRange=${dateRange}`,
@@ -166,6 +170,7 @@ export function ReturningCustomers({
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.error === "PROTECTED_ORDER_DATA_ACCESS_DENIED") {
+        setShowAccessModal(true);
         setData(null);
       } else if (typeof fetcher.data.count === "number") {
         const newData = {
@@ -248,8 +253,8 @@ export function ReturningCustomers({
       };
     }, [data, dateRange]);
 
-  // Show skeleton while loading or if we don't have data yet
-  if (!data) {
+  // Show skeleton while loading or if we don't have data yet (but not if showing access modal)
+  if (!data && !showAccessModal) {
     return <InsightCardSkeleton />;
   }
 
@@ -345,46 +350,39 @@ export function ReturningCustomers({
     }
   };
 
-  // Handle export data to CSV
+  // Export handlers
+  const getExportFilename = () => {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const rangeLabel = getDateRangeLabel(dateRange).replace(/\s+/g, "-");
+    return `returning-customers-${rangeLabel}-${dateStr}`;
+  };
+
   const handleExportCSV = () => {
     const customers = customersListFetcher.data?.customers;
-    if (!customers || customers.length === 0) {
-      return;
-    }
+    if (!customers || customers.length === 0) return;
+    exportToCSV({
+      customers,
+      filename: getExportFilename(),
+    });
+  };
 
-    // Create CSV headers
-    const headers = ["Name", "Email", "Created Date", "Orders", "Total Spent"];
+  const handleExportPDF = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) return;
+    exportToPDF({
+      customers,
+      filename: getExportFilename(),
+      title: "Returning Customers Export",
+    });
+  };
 
-    // Create CSV rows
-    const csvRows = [
-      headers.join(","),
-      ...customers.map((customer) =>
-        [
-          `"${customer.name.replace(/"/g, '""')}"`,
-          `"${customer.email.replace(/"/g, '""')}"`,
-          `"${customer.createdAt}"`,
-          customer.numberOfOrders.toString(),
-          `"${customer.totalSpent}"`,
-        ].join(","),
-      ),
-    ];
-
-    // Create CSV content
-    const csvContent = csvRows.join("\n");
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `returning-customers-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportExcel = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) return;
+    exportToExcel({
+      customers,
+      filename: getExportFilename(),
+    });
   };
 
   return (
@@ -410,8 +408,9 @@ export function ReturningCustomers({
         isLoading={customersListFetcher.state === "loading"}
         dateRangeLabel={getDateRangeLabel(dateRange)}
         onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
         featureName="Returning Customers"
-        onShowToast={onShowToast}
       />
     </>
   );

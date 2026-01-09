@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "react-router";
 import { MagicWandIcon, InfoIcon, RobotIcon, CommentDotsIcon } from "./icons";
 import { parseApiResponse } from "../../ai-search-analyzer/utils/ChatUtils";
@@ -23,7 +23,20 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
     data?: any;
     error?: string;
   }>();
-  const sessionId = `step3_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Memoize sessionId so it doesn't change on every render
+  const sessionIdRef = useRef<string>(
+    `step3_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  );
+  const sessionId = sessionIdRef.current;
+  const hasCompletedTaskRef = useRef(false); // Track if we've already called onTaskComplete
+  const onTaskCompleteRef = useRef(onTaskComplete); // Store callback in ref to avoid dependency issues
+  const processedChatResponseRef = useRef<string | null>(null); // Track processed chat responses
+  const processedQueryResponseRef = useRef<any>(null); // Track processed query responses
+
+  // Update ref when callback changes
+  useEffect(() => {
+    onTaskCompleteRef.current = onTaskComplete;
+  }, [onTaskComplete]);
 
   const questions = [AI_PROMPT];
 
@@ -117,6 +130,13 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
   // Handle query execution results
   useEffect(() => {
     if (queryFetcher.state === "idle" && queryFetcher.data) {
+      // Prevent processing the same response multiple times
+      const responseKey = JSON.stringify(queryFetcher.data);
+      if (processedQueryResponseRef.current === responseKey) {
+        return; // Already processed this response
+      }
+      processedQueryResponseRef.current = responseKey;
+
       const queryResult = queryFetcher.data;
       if (queryResult.success && queryResult.data) {
         const formatted = formatResult(queryResult.data);
@@ -128,20 +148,28 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
             "items",
           );
 
-          // Save progress when query results are received
-          if (onTaskComplete) {
-            onTaskComplete();
+          // Save progress when query results are received (only once)
+          if (onTaskCompleteRef.current && !hasCompletedTaskRef.current) {
+            hasCompletedTaskRef.current = true;
+            onTaskCompleteRef.current();
           }
         }
       } else if (queryResult.error) {
         console.error("[Step3] Query execution error:", queryResult.error);
       }
     }
-  }, [queryFetcher.state, queryFetcher.data, onTaskComplete]);
+  }, [queryFetcher.state, queryFetcher.data]); // Removed onTaskComplete from deps
 
   // Handle chat response from API
   useEffect(() => {
     if (chatFetcher.state === "idle" && chatFetcher.data) {
+      // Prevent processing the same response multiple times
+      const responseKey = JSON.stringify(chatFetcher.data);
+      if (processedChatResponseRef.current === responseKey) {
+        return; // Already processed this response
+      }
+      processedChatResponseRef.current = responseKey;
+
       const data = chatFetcher.data as {
         success: boolean;
         response?: string;
@@ -284,9 +312,10 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
                 foundList,
               );
 
-              // Save progress when list is found
-              if (onTaskComplete) {
-                onTaskComplete();
+              // Save progress when list is found (only once)
+              if (onTaskCompleteRef.current && !hasCompletedTaskRef.current) {
+                hasCompletedTaskRef.current = true;
+                onTaskCompleteRef.current();
               }
             }
           } catch (e) {
@@ -296,13 +325,16 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
         }
 
         // Save progress when AI insight is generated (if no query to execute)
+        // Only save if we haven't already saved from query execution
         if (
-          !queryFromResponse ||
-          !queryFromResponse.trim() ||
-          queryFromResponse === "null"
+          (!queryFromResponse ||
+            !queryFromResponse.trim() ||
+            queryFromResponse === "null") &&
+          !hasCompletedTaskRef.current
         ) {
-          if (onTaskComplete) {
-            onTaskComplete();
+          if (onTaskCompleteRef.current) {
+            hasCompletedTaskRef.current = true;
+            onTaskCompleteRef.current();
           }
         }
       } else if (data.error) {
@@ -310,16 +342,30 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onTaskComplete, shop }) => {
         console.error("[Step3] AI Chat Error:", data.error);
       }
     }
-  }, [chatFetcher.state, chatFetcher.data, onTaskComplete]);
+  }, [chatFetcher.state, chatFetcher.data]); // Removed onTaskComplete from deps
 
   const generateAIInsight = useCallback(
     (prompt: string) => {
+      // Reset state for new query
       setSelectedQuestion(prompt);
       setInsight(null);
       setResultList([]);
+      setExtractedQuery("");
+      hasCompletedTaskRef.current = false; // Reset when starting new query
+      processedChatResponseRef.current = null; // Reset processed response tracking
+      processedQueryResponseRef.current = null; // Reset processed query tracking
 
       if (!shop) {
         setInsight("Error: Shop information is required");
+        return;
+      }
+
+      // Prevent multiple simultaneous requests
+      if (
+        chatFetcher.state === "submitting" ||
+        chatFetcher.state === "loading"
+      ) {
+        console.log("[Step3] Already processing a request, ignoring new one");
         return;
       }
 
