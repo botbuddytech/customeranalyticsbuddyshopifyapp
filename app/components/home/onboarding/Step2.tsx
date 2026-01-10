@@ -37,41 +37,12 @@ const Step2: React.FC<Step2Props> = ({
 }) => {
   const navigate = useNavigate();
 
-  // Filter and sort plans - typically Free, Pro, Premium
+  // Sort plans by price (lowest first) - fully dynamic
   const sortedPlans = [...plans].sort((a, b) => {
-    // Sort by isCurrentDefault first, then by price
-    if (a.isCurrentDefault !== b.isCurrentDefault) {
-      return a.isCurrentDefault ? -1 : 1;
-    }
     // Extract numeric price for sorting
     const priceA = parseFloat(a.price.replace(/[^0-9.]/g, "")) || 0;
     const priceB = parseFloat(b.price.replace(/[^0-9.]/g, "")) || 0;
     return priceA - priceB;
-  });
-
-  // Get the three main plans (Free, Pro, Premium) - adjust based on your data
-  // Try multiple ways to find plans: by name, by code, or by price
-  const freePlan = sortedPlans.find((p) => {
-    const nameLower = p.name.toLowerCase();
-    const codeLower = p.code?.toLowerCase() || "";
-    return (
-      nameLower.includes("free") ||
-      codeLower.includes("free") ||
-      parseFloat(p.price.replace(/[^0-9.]/g, "")) === 0
-    );
-  });
-  const proPlan = sortedPlans.find((p) => {
-    const nameLower = p.name.toLowerCase();
-    const codeLower = p.code?.toLowerCase() || "";
-    return (
-      (nameLower.includes("pro") || codeLower.includes("pro")) &&
-      !nameLower.includes("premium")
-    );
-  });
-  const premiumPlan = sortedPlans.find((p) => {
-    const nameLower = p.name.toLowerCase();
-    const codeLower = p.code?.toLowerCase() || "";
-    return nameLower.includes("premium") || codeLower.includes("premium");
   });
 
   // Helper to get all benefits for a plan as bullet list
@@ -117,155 +88,135 @@ const Step2: React.FC<Step2Props> = ({
         </p>
       </div>
 
-      <div
-        style={{
-          overflow: "hidden",
-          border: "1px solid #E5E7EB",
-          borderRadius: "8px",
-          backgroundColor: "white",
-          marginBottom: "32px",
-          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <table
+      {/* Dynamic Plans Comparison Table */}
+      {sortedPlans.length > 0 && (
+        <div
           style={{
-            width: "100%",
-            textAlign: "left",
-            borderCollapse: "collapse",
+            overflow: "hidden",
+            border: "1px solid #E5E7EB",
+            borderRadius: "8px",
+            backgroundColor: "white",
+            marginBottom: "32px",
+            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
           }}
         >
-          <thead style={{ backgroundColor: "#F9FAFB" }}>
-            <tr>
-              <th
-                style={{
-                  padding: "16px 24px",
-                  fontWeight: "700",
-                  color: "#374151",
-                }}
-              >
-                Features
-              </th>
-              <th
-                style={{
-                  padding: "16px 24px",
-                  fontWeight: "700",
-                  color: "#6B7280",
-                }}
-              >
-                Free
-              </th>
-              <th
-                style={{
-                  padding: "16px 24px",
-                  fontWeight: "700",
-                  color: "#008060",
-                  backgroundColor: "#F0FDF4",
-                }}
-              >
-                Pro ✨
-              </th>
-              <th
-                style={{
-                  padding: "16px 24px",
-                  fontWeight: "700",
-                  color: "#008060",
-                  backgroundColor: "#F0FDF4",
-                }}
-              >
-                Premium
-              </th>
-            </tr>
-          </thead>
-          <tbody style={{ fontSize: "14px" }}>
-            <tr style={{ borderTop: "1px solid #F3F4F6" }}>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  fontWeight: "500",
-                }}
-              >
-                Price
-              </td>
-              <td style={{ padding: "16px 24px", color: "#6B7280" }}>
-                {freePlan?.price || "$0"}
-              </td>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  backgroundColor: "rgba(240, 253, 244, 0.3)",
-                  fontWeight: "600",
-                }}
-              >
-                {proPlan?.price || "$5"}
-              </td>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  backgroundColor: "rgba(240, 253, 244, 0.3)",
-                  fontWeight: "600",
-                }}
-              >
-                {premiumPlan?.price || "$15"}
-              </td>
-            </tr>
-            <tr style={{ borderTop: "1px solid #F3F4F6" }}>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  fontWeight: "500",
-                }}
-              >
-                Features
-              </td>
-              <td style={{ padding: "16px 24px", color: "#6B7280" }}>
-                {freePlan ? (
-                  getAllBenefits(freePlan)
-                ) : sortedPlans[0] ? (
-                  getAllBenefits(sortedPlans[0])
-                ) : (
-                  <span style={{ color: "#9CA3AF" }}>No features</span>
-                )}
-              </td>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  backgroundColor: "rgba(240, 253, 244, 0.3)",
-                  fontWeight: "600",
-                }}
-              >
-                {proPlan ? (
-                  getAllBenefits(proPlan)
-                ) : sortedPlans[1] ? (
-                  getAllBenefits(sortedPlans[1])
-                ) : (
-                  <span style={{ color: "#9CA3AF" }}>No features</span>
-                )}
-              </td>
-              <td
-                style={{
-                  padding: "16px 24px",
-                  color: "#374151",
-                  backgroundColor: "rgba(240, 253, 244, 0.3)",
-                  fontWeight: "600",
-                }}
-              >
-                {premiumPlan ? (
-                  getAllBenefits(premiumPlan)
-                ) : sortedPlans[2] ? (
-                  getAllBenefits(sortedPlans[2])
-                ) : (
-                  <span style={{ color: "#9CA3AF" }}>No features</span>
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+          <table
+            style={{
+              width: "100%",
+              textAlign: "left",
+              borderCollapse: "collapse",
+            }}
+          >
+            <thead style={{ backgroundColor: "#F9FAFB" }}>
+              <tr>
+                <th
+                  style={{
+                    padding: "16px 24px",
+                    fontWeight: "700",
+                    color: "#374151",
+                  }}
+                >
+                  Features
+                </th>
+                {/* Dynamically generate plan columns */}
+                {sortedPlans.map((plan) => {
+                  const isFree =
+                    parseFloat(plan.price.replace(/[^0-9.]/g, "")) === 0;
+                  return (
+                    <th
+                      key={plan.id}
+                      style={{
+                        padding: "16px 24px",
+                        fontWeight: "700",
+                        color: isFree ? "#6B7280" : "#008060",
+                        backgroundColor: isFree ? "transparent" : "#F0FDF4",
+                      }}
+                    >
+                      {plan.name}
+                      {plan.badgeLabel && ` ${plan.badgeLabel}`}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody style={{ fontSize: "14px" }}>
+              {/* Price Row */}
+              <tr style={{ borderTop: "1px solid #F3F4F6" }}>
+                <td
+                  style={{
+                    padding: "16px 24px",
+                    color: "#374151",
+                    fontWeight: "500",
+                  }}
+                >
+                  Price
+                </td>
+                {sortedPlans.map((plan) => {
+                  const isFree =
+                    parseFloat(plan.price.replace(/[^0-9.]/g, "")) === 0;
+                  return (
+                    <td
+                      key={plan.id}
+                      style={{
+                        padding: "16px 24px",
+                        color: isFree ? "#6B7280" : "#374151",
+                        backgroundColor: isFree
+                          ? "transparent"
+                          : "rgba(240, 253, 244, 0.3)",
+                        fontWeight: isFree ? "400" : "600",
+                      }}
+                    >
+                      {plan.price}
+                      {plan.priceNote && (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "#6B7280",
+                            marginLeft: "4px",
+                          }}
+                        >
+                          {plan.priceNote}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+              {/* Features Row */}
+              <tr style={{ borderTop: "1px solid #F3F4F6" }}>
+                <td
+                  style={{
+                    padding: "16px 24px",
+                    color: "#374151",
+                    fontWeight: "500",
+                  }}
+                >
+                  Features
+                </td>
+                {sortedPlans.map((plan) => {
+                  const isFree =
+                    parseFloat(plan.price.replace(/[^0-9.]/g, "")) === 0;
+                  return (
+                    <td
+                      key={plan.id}
+                      style={{
+                        padding: "16px 24px",
+                        color: isFree ? "#6B7280" : "#374151",
+                        backgroundColor: isFree
+                          ? "transparent"
+                          : "rgba(240, 253, 244, 0.3)",
+                        fontWeight: isFree ? "400" : "600",
+                      }}
+                    >
+                      {getAllBenefits(plan)}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div
         style={{

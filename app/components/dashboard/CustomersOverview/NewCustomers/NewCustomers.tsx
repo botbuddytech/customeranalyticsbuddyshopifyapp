@@ -7,6 +7,7 @@ import {
   DashboardSegmentModal,
   type DashboardSegmentData,
 } from "../../DashboardSegmentModal";
+import { exportToCSV, exportToPDF, exportToExcel } from "../../exportUtils";
 
 interface NewCustomersData {
   count: number;
@@ -355,46 +356,39 @@ export function NewCustomers({
     }
   };
 
-  // Handle export data to CSV
+  // Export handlers
+  const getExportFilename = () => {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const rangeLabel = getDateRangeLabel(dateRange).replace(/\s+/g, "-");
+    return `new-customers-${rangeLabel}-${dateStr}`;
+  };
+
   const handleExportCSV = () => {
     const customers = customersListFetcher.data?.customers;
-    if (!customers || customers.length === 0) {
-      return;
-    }
+    if (!customers || customers.length === 0) return;
+    exportToCSV({
+      customers,
+      filename: getExportFilename(),
+    });
+  };
 
-    // Create CSV headers
-    const headers = ["Name", "Email", "Created Date", "Orders", "Total Spent"];
+  const handleExportPDF = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) return;
+    exportToPDF({
+      customers,
+      filename: getExportFilename(),
+      title: "New Customers Export",
+    });
+  };
 
-    // Create CSV rows
-    const csvRows = [
-      headers.join(","),
-      ...customers.map((customer) =>
-        [
-          `"${customer.name.replace(/"/g, '""')}"`,
-          `"${customer.email.replace(/"/g, '""')}"`,
-          `"${customer.createdAt}"`,
-          customer.numberOfOrders.toString(),
-          `"${customer.totalSpent}"`,
-        ].join(","),
-      ),
-    ];
-
-    // Create CSV content
-    const csvContent = csvRows.join("\n");
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `new-customers-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportExcel = () => {
+    const customers = customersListFetcher.data?.customers;
+    if (!customers || customers.length === 0) return;
+    exportToExcel({
+      customers,
+      filename: getExportFilename(),
+    });
   };
 
   return (
@@ -420,8 +414,9 @@ export function NewCustomers({
         isLoading={customersListFetcher.state === "loading"}
         dateRangeLabel={getDateRangeLabel(dateRange)}
         onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
         featureName="New Customers"
-        onShowToast={onShowToast}
       />
     </>
   );

@@ -98,9 +98,11 @@ const App: React.FC<OnboardingAppProps> = ({
     if (isCompleted && localCompletedSteps.length >= totalSteps && currentStep !== 5) {
       setCurrentStep(5);
     }
-    // Update local completed steps when props change
-    setLocalCompletedSteps(completedSteps);
-  }, [isCompleted, completedSteps.length, totalSteps]);
+    // Update local completed steps when props change (only if different to prevent loops)
+    if (JSON.stringify(completedSteps) !== JSON.stringify(localCompletedSteps)) {
+      setLocalCompletedSteps(completedSteps);
+    }
+  }, [isCompleted, completedSteps, totalSteps, currentStep, localCompletedSteps]);
 
   const saveProgress = useCallback(async (step: number) => {
     if (!shop) return;

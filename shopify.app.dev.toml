@@ -1,0 +1,37 @@
+# Development App Configuration
+# This config is used ONLY for local development
+# 
+# IMPORTANT: You must create a separate "Dev App" in Shopify Partners Dashboard
+# and use that app's client_id here (NOT the production app's client_id)
+#
+# Usage: shopify app dev --config shopify.app.dev.toml
+
+client_id = "36a877dccd571b92316f87e260440e96"
+name = "Customer Analytics Buddy (Dev)"
+# Placeholder URL - Shopify CLI will automatically replace this with tunnel URL
+# Using a placeholder that Shopify CLI accepts - it will be replaced with tunnel URL
+application_url = "https://placeholder.trycloudflare.com"
+embedded = true
+
+[build]
+# When true, Shopify CLI automatically updates URLs with tunnel URL during development
+# This is SAFE for dev app because it only affects the dev app, not production
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-01"
+
+# Mandatory compliance webhooks (required for App Store)
+# Note: Using relative path - Shopify CLI will automatically prepend the tunnel URL
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks/compliance"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_checkouts,read_customers,write_customers,read_orders,write_orders,write_products"
+
+[auth]
+# Placeholder - Shopify CLI will automatically update this with tunnel URL
+# Using a valid HTTPS placeholder - Shopify CLI will replace with tunnel URL
+redirect_urls = [ "https://placeholder.trycloudflare.com/auth/shopify/callback" ]
