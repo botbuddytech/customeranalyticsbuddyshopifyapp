@@ -41,21 +41,21 @@ const Step4: React.FC<Step4Props> = ({ onComplete, onTaskComplete }) => {
           marginBottom: "32px",
         }}
       >
-        <KlaviyoIntegrationCard
+        {/* <KlaviyoIntegrationCard
           selected=""
           onSelect={() => {}} // Disabled - no action
           disabled={true}
-        />
+        /> */}
         <MailchimpIntegrationCard
           selected=""
           onSelect={() => {}} // Disabled - no action
           disabled={true}
         />
-        <SendGridIntegrationCard
+        {/* <SendGridIntegrationCard
           selected=""
           onSelect={() => {}} // Disabled - no action
           disabled={true}
-        />
+        /> */}
       </div>
 
       <div

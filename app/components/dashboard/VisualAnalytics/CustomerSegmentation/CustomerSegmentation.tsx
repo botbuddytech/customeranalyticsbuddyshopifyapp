@@ -95,20 +95,14 @@ export function CustomerSegmentation({
     );
   }
 
-  if (!chartData) {
-    return (
-      <Card padding="400">
-        <BlockStack gap="300">
-          <Text as="h3" variant="headingMd">
-            Customer Segmentation
-          </Text>
-          <Text as="p" tone="subdued">
-            No data available for the selected period.
-          </Text>
-        </BlockStack>
-      </Card>
-    );
-  }
+  // Check if chartData exists and has actual data
+  const hasData = chartData && 
+    chartData.labels && 
+    chartData.labels.length > 0 && 
+    chartData.datasets && 
+    chartData.datasets.length > 0 &&
+    chartData.datasets[0].data &&
+    chartData.datasets[0].data.some((value: number) => value > 0);
 
   return (
     <div style={{ height: "100%" }}>
@@ -117,12 +111,44 @@ export function CustomerSegmentation({
           <Text as="h3" variant="headingMd">
             Customer Segmentation
           </Text>
-          <div style={{ height: "350px", padding: "16px" }}>
-            <Doughnut data={chartData} options={chartOptions} />
+          <div style={{ height: "350px", padding: "16px", position: "relative" }}>
+            {hasData ? (
+              <Doughnut data={chartData} options={chartOptions} />
+            ) : (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  padding: "2rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "48px",
+                    marginBottom: "1rem",
+                    opacity: 0.3,
+                  }}
+                >
+                  📊
+                </div>
+                <Text as="p" variant="bodyLg" tone="subdued" fontWeight="medium">
+                  No data available to show
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "0.5rem" }}>
+                  There is no data for the selected period.
+                </Text>
+              </div>
+            )}
           </div>
-          <Text as="p" variant="bodySm" tone="subdued">
-            Distribution of orders by payment type and status
-          </Text>
+          {hasData && (
+            <Text as="p" variant="bodySm" tone="subdued">
+              Distribution of orders by payment type and status
+            </Text>
+          )}
         </BlockStack>
       </Card>
     </div>

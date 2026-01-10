@@ -1,9 +1,10 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, useLoaderData, useRouteError, isRouteErrorResponse } from "react-router";
 import { useEffect, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as ShopifyAppProvider } from "@shopify/shopify-app-react-router/react";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
+import { NotFoundPage } from "../components/NotFoundPage";
 
 import enTranslations from "@shopify/polaris/locales/en.json";
 import frTranslations from "@shopify/polaris/locales/fr.json";
@@ -104,7 +105,15 @@ export default function App() {
 
 // Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  const error = useRouteError();
+  
+  // Handle 404 errors gracefully - show NotFoundPage instead of error
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <NotFoundPage />;
+  }
+  
+  // For other errors, use Shopify's boundary handler
+  return boundary.error(error);
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

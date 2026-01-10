@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-router";
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter } from "react-router";
@@ -6,9 +7,26 @@ import { type EntryContext } from "react-router";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 
+// Only use Sentry error handling in production
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
+export const handleError = isProduction
+  ? Sentry.createSentryHandleError({
+      logErrors: false
+    })
+  : (error: Error) => {
+      // Ignore abort errors - these are expected when navigation happens
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        return; // Silently ignore abort errors
+      }
+      // In development, just log the error
+      console.error('Server error:', error);
+      throw error;
+    };
+
 export const streamTimeout = 5000;
 
-export default async function handleRequest(
+async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
@@ -38,12 +56,22 @@ export default async function handleRequest(
               status: responseStatusCode,
             })
           );
-          pipe(body);
+          pipe(Sentry.getMetaTagTransformer(body));
         },
         onShellError(error) {
           reject(error);
         },
         onError(error) {
+          // Ignore abort errors - these are expected when navigation happens
+          // or when requests are cancelled
+          if (error instanceof Error && error.name === 'AbortError') {
+            return; // Silently ignore abort errors
+          }
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            return; // Silently ignore DOM abort errors
+          }
+          
+          // Only log non-abort errors
           responseStatusCode = 500;
           console.error(error);
         },
@@ -55,3 +83,8 @@ export default async function handleRequest(
     setTimeout(abort, streamTimeout + 1000);
   });
 }
+
+// Only wrap with Sentry in production
+export default isProduction
+  ? Sentry.wrapSentryHandleRequest(handleRequest)
+  : handleRequest;

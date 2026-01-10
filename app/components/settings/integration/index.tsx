@@ -132,8 +132,8 @@ export function IntegrationSettings({
         onConnect={handleMailchimpConnect}
         onDisconnect={handleMailchimpDisconnect}
       />
-      <KlaviyoIntegration onConnect={showComingSoonToast} />
-      <SendGridIntegration onConnect={showComingSoonToast} />
+      {/* <KlaviyoIntegration onConnect={showComingSoonToast} />
+      <SendGridIntegration onConnect={showComingSoonToast} /> */}
     </BlockStack>
   );
 }

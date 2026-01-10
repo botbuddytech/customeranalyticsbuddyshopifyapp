@@ -53,7 +53,8 @@ export async function loadUserPreferencesClient(
 
   try {
     // Use absolute URL to avoid React Router navigation issues
-    const url = new URL("/app/api.user-preferences", window.location.origin);
+    // In React Router v7, app.api.user-preferences.tsx maps to /app/api/user-preferences
+    const url = new URL("/app/api/user-preferences", window.location.origin);
     
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -79,6 +80,20 @@ export async function loadUserPreferencesClient(
     notifyLanguageChanged(prefs.language);
     return prefs;
   } catch (error) {
+    // Ignore abort errors - these are expected when navigation happens
+    if (error instanceof Error && error.name === 'AbortError') {
+      const fallback = { language: defaultLanguage };
+      writeCookie(fallback);
+      notifyLanguageChanged(fallback.language);
+      return fallback;
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      const fallback = { language: defaultLanguage };
+      writeCookie(fallback);
+      notifyLanguageChanged(fallback.language);
+      return fallback;
+    }
+    
     // Silently fail if route doesn't exist or network error
     // Don't log to console to avoid spam - only log in development
     if (process.env.NODE_ENV === "development") {
