@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run setup && npm run build",
   "outputDirectory": "build/client",
-  "installCommand": "npm install",
+  "installCommand": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index.js" }
   ]
