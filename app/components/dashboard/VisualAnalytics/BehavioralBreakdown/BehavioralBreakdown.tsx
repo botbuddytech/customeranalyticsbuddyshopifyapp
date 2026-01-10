@@ -126,20 +126,14 @@ export function BehavioralBreakdown({
     );
   }
 
-  if (!chartData) {
-    return (
-      <Card padding="400">
-        <BlockStack gap="300">
-          <Text as="h3" variant="headingMd">
-            Behavioral Breakdown
-          </Text>
-          <Text as="p" tone="subdued">
-            No data available for the selected period.
-          </Text>
-        </BlockStack>
-      </Card>
-    );
-  }
+  // Check if chartData exists and has actual data
+  const hasData = chartData && 
+    chartData.labels && 
+    chartData.labels.length > 0 && 
+    chartData.datasets && 
+    chartData.datasets.length > 0 &&
+    chartData.datasets[0].data &&
+    chartData.datasets[0].data.some((value: number) => value > 0);
 
   return (
     <div style={{ height: "100%" }}>
@@ -148,17 +142,49 @@ export function BehavioralBreakdown({
           <Text as="h3" variant="headingMd">
             Behavioral Breakdown
           </Text>
-          <div style={{ height: "350px", padding: "16px" }}>
-            <Bar data={chartData} options={behavioralChartOptions} />
+          <div style={{ height: "350px", padding: "16px", position: "relative" }}>
+            {hasData ? (
+              <Bar data={chartData} options={behavioralChartOptions} />
+            ) : (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  padding: "2rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "48px",
+                    marginBottom: "1rem",
+                    opacity: 0.3,
+                  }}
+                >
+                  📊
+                </div>
+                <Text as="p" variant="bodyLg" tone="subdued" fontWeight="medium">
+                  No data available to show
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "0.5rem" }}>
+                  There is no data for the selected period.
+                </Text>
+              </div>
+            )}
           </div>
-          <InlineStack align="space-between">
-            <Text as="p" variant="bodySm" tone="subdued">
-              Comparison of different customer engagement types
-            </Text>
-            <Text as="p" variant="bodySm" tone="success">
-              ↑ 32% overall engagement growth
-            </Text>
-          </InlineStack>
+          {hasData && (
+            <InlineStack align="space-between">
+              <Text as="p" variant="bodySm" tone="subdued">
+                Comparison of different customer engagement types
+              </Text>
+              <Text as="p" variant="bodySm" tone="success">
+                ↑ 32% overall engagement growth
+              </Text>
+            </InlineStack>
+          )}
         </BlockStack>
       </Card>
     </div>
