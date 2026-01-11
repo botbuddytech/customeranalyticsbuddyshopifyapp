@@ -159,6 +159,21 @@ The Shopify Dev MCP server provides these tools:
   - Vercel Pro: 60 seconds max
   - Vercel Enterprise: 300 seconds max
 
+## Vercel Serverless Environment
+
+The endpoint is optimized for Vercel's serverless functions:
+
+- **Writable Directory**: Automatically uses `/tmp` (the only writable directory in Vercel)
+- **npm Configuration**: All npm/npx cache and temp directories are set to `/tmp`
+- **Working Directory**: Process runs from `/tmp` to avoid permission issues
+- **Cross-Platform**: Works in both Vercel (Linux) and local development (Windows/Unix)
+
+The code automatically:
+- Creates necessary temp directories (`.npm`, `.npm-tmp`, `.npx`)
+- Configures npm environment variables to use writable locations
+- Sets the working directory to `/tmp` for the subprocess
+- Handles both Vercel serverless and local development environments
+
 ## Limitations
 
 1. **Cold Starts**: Each request spawns a new MCP server process, which may add latency

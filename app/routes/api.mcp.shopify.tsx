@@ -3,10 +3,19 @@
  * 
  * Exposes the Shopify Dev MCP server as an HTTP REST endpoint.
  * Accepts MCP requests over HTTP and forwards them to @shopify/dev-mcp via npx.
+ * 
+ * Vercel Serverless Optimizations:
+ * - Uses /tmp as the working directory (only writable location in Vercel)
+ * - Configures npm/npx to use /tmp for cache and temp files
+ * - Sets all npm environment variables to writable temp locations
+ * - Handles both Vercel (Linux) and local development (Windows/Unix) environments
  */
 
 import type { ActionFunctionArgs } from "react-router";
 import { spawn } from "child_process";
+import { mkdirSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 interface MCPRequest {
   jsonrpc: "2.0";
@@ -27,10 +36,63 @@ interface MCPResponse {
 }
 
 /**
+ * Gets a writable temporary directory for the MCP server
+ * In Vercel serverless, we use /tmp (the only writable directory)
+ * In local dev, we use OS temp directory
+ */
+function getWritableTempDir(): string {
+  // Vercel serverless functions run on Linux and only /tmp is writable
+  // For local development, use OS temp directory
+  const isVercel = process.env.VERCEL === "1" || process.env.VERCEL_ENV;
+  
+  if (isVercel || process.platform !== "win32") {
+    // Use /tmp for Vercel and Unix-like systems
+    return "/tmp";
+  } else {
+    // Windows: use OS temp directory
+    return tmpdir();
+  }
+}
+
+/**
+ * Creates necessary temp directories for npm and npx
+ */
+function setupTempDirectories(baseTempDir: string): {
+  npmCache: string;
+  npmTmp: string;
+  npxCache: string;
+} {
+  const npmCache = join(baseTempDir, ".npm");
+  const npmTmp = join(baseTempDir, ".npm-tmp");
+  const npxCache = join(baseTempDir, ".npx");
+
+  // Create directories if they don't exist
+  // This is important for Vercel where /tmp might not have subdirectories
+  try {
+    mkdirSync(npmCache, { recursive: true });
+    mkdirSync(npmTmp, { recursive: true });
+    mkdirSync(npxCache, { recursive: true });
+  } catch (error: any) {
+    // If mkdir fails, log but continue - spawn might still work
+    // In Vercel, /tmp should always be writable, so this is unexpected
+    console.warn(
+      `[MCP] Failed to create temp directories in ${baseTempDir}: ${error.message}. ` +
+      `This may cause npm/npx to fail. Check write permissions.`
+    );
+  }
+
+  return { npmCache, npmTmp, npxCache };
+}
+
+/**
  * Spawns the Shopify Dev MCP server and sends a request
  */
 async function callMCPServer(request: MCPRequest): Promise<MCPResponse> {
   return new Promise((resolve, reject) => {
+    // Get writable temp directory
+    const tempDir = getWritableTempDir();
+    const { npmCache, npmTmp, npxCache } = setupTempDirectories(tempDir);
+
     // Spawn the MCP server via npx
     // Use cmd /c on Windows, otherwise use sh -c
     const isWindows = process.platform === "win32";
@@ -39,13 +101,40 @@ async function callMCPServer(request: MCPRequest): Promise<MCPResponse> {
       ? ["/c", "npx", "-y", "@shopify/dev-mcp@latest"]
       : ["-c", "npx -y @shopify/dev-mcp@latest"];
 
+    // Configure environment for Vercel serverless
+    const env = {
+      ...process.env,
+      // Disable instrumentation for cleaner output
+      OPT_OUT_INSTRUMENTATION: "true",
+      // Set npm cache directory to writable temp location
+      npm_config_cache: npmCache,
+      NPM_CONFIG_CACHE: npmCache,
+      // Set npm tmp directory
+      npm_config_tmp: npmTmp,
+      NPM_CONFIG_TMP: npmTmp,
+      // Set npx cache directory
+      NPX_CACHE_DIR: npxCache,
+      // Ensure npm doesn't try to write to read-only locations
+      npm_config_prefix: tempDir,
+      NPM_CONFIG_PREFIX: tempDir,
+      // Disable npm update checks and other write operations outside temp
+      npm_config_update_notifier: "false",
+      npm_config_audit: "false",
+      // Set HOME to temp directory to avoid permission issues
+      // (some tools check HOME for config files)
+      HOME: tempDir,
+      // For Vercel specifically, ensure we're using temp
+      ...(process.env.VERCEL && {
+        TMPDIR: tempDir,
+        TMP: tempDir,
+        TEMP: tempDir,
+      }),
+    };
+
     const mcpProcess = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        // Disable instrumentation for cleaner output
-        OPT_OUT_INSTRUMENTATION: "true",
-      },
+      cwd: tempDir, // Set working directory to writable temp location
+      env,
     });
 
     let stdout = "";
@@ -97,9 +186,18 @@ async function callMCPServer(request: MCPRequest): Promise<MCPResponse> {
     // Collect stderr for debugging
     mcpProcess.stderr.on("data", (data: Buffer) => {
       stderr += data.toString();
-      // Log stderr but don't fail on it (MCP server may output warnings)
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[MCP stderr]:", data.toString());
+      // Log stderr for debugging (especially important in serverless)
+      // Check for common errors like ENOENT, permission errors, etc.
+      const stderrText = data.toString();
+      if (
+        stderrText.includes("ENOENT") ||
+        stderrText.includes("EACCES") ||
+        stderrText.includes("permission denied") ||
+        stderrText.includes("cannot find")
+      ) {
+        console.error("[MCP stderr - potential error]:", stderrText);
+      } else if (process.env.NODE_ENV === "development") {
+        console.warn("[MCP stderr]:", stderrText);
       }
     });
 
